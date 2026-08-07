@@ -1239,24 +1239,70 @@ function heatmapRowsForHabit(habit){
       if(end&&date>end)break;
       keys.push(dateKey(date));
     }
-    if(keys.length)rows.push({label:"1~12개월",keys});
+    if(!keys.length)return rows;
+
+    let group=[];
+    let groupYear=null;
+    const pushGroup=()=>{
+      if(!group.length)return;
+      const first=parseDateKey(group[0]);
+      const last=parseDateKey(group[group.length-1]);
+      rows.push({
+        label:first.getMonth()===last.getMonth()
+          ?`${first.getMonth()+1}월`
+          :`${first.getMonth()+1}~${last.getMonth()+1}월`,
+        keys:[...group]
+      });
+      group=[];
+    };
+
+    keys.forEach(key=>{
+      const date=parseDateKey(key);
+      if(groupYear!==null&&date.getFullYear()!==groupYear)pushGroup();
+      groupYear=date.getFullYear();
+      group.push(key);
+    });
+    pushGroup();
     return rows;
   }
 
   const y=anchor.getFullYear();
   const m=anchor.getMonth();
-  const last=new Date(y,m+1,0).getDate();
-  [[1,10],[11,20],[21,last]].forEach(([from,to])=>{
+  const monthFirst=new Date(y,m,1);
+  const monthLast=new Date(y,m+1,0);
+  const habitStart=parseDateKey(habit.startDate);
+  const visibleStart=habitStart>monthFirst?habitStart:monthFirst;
+  const visibleEnd=end&&end<monthLast?end:monthLast;
+
+  if(visibleStart>visibleEnd)return rows;
+
+  const startDay=visibleStart.getDate();
+  const endDay=visibleEnd.getDate();
+  const totalDays=endDay-startDay+1;
+
+  const rowCount=Math.min(3,Math.max(1,Math.ceil(totalDays/11)));
+  const baseSize=Math.floor(totalDays/rowCount);
+  const remainder=totalDays%rowCount;
+
+  let from=startDay;
+  for(let rowIndex=0;rowIndex<rowCount;rowIndex++){
+    const size=baseSize+(rowIndex<remainder?1:0);
+    const to=from+size-1;
     const keys=[];
+
     for(let day=from;day<=to;day++){
       const key=dateKey(new Date(y,m,day));
       if(habitIsActive(habit,key))keys.push(key);
     }
-    rows.push({
-      label:`${from}~${to===last?"말":to}일`,
-      keys
-    });
-  });
+
+    if(keys.length){
+      rows.push({
+        label:`${from}~${to}일`,
+        keys
+      });
+    }
+    from=to+1;
+  }
   return rows;
 }
 function createHeatmapHabitBlock(habit,className){
@@ -4250,27 +4296,20 @@ function setupWheelTimePicker(){
   const applyBoundary=(previous,next)=>{
     if(previous===next)return;
 
-    // 아래 방향으로 23시를 지나 마지막 00시에 도달
+    /*
+     * 날짜는 양 끝 00시에 들어갈 때만 변경합니다.
+     * 01 -> 위쪽 00 : -1일
+     * 위쪽 00 -> 01 : 변화 없음
+     * 23 -> 아래쪽 00 : +1일
+     * 아래쪽 00 -> 23 : 변화 없음
+     */
     if(previous===23&&next===24){
       changeDate(1);
       return;
     }
 
-    // 마지막 00시에서 다시 23시로 되돌림
-    if(previous===24&&next===23){
-      changeDate(-1);
-      return;
-    }
-
-    // 위 방향으로 01시를 지나 첫 번째 00시에 도달
     if(previous===1&&next===0){
       changeDate(-1);
-      return;
-    }
-
-    // 첫 번째 00시에서 다시 01시로 되돌림
-    if(previous===0&&next===1){
-      changeDate(1);
     }
   };
 
