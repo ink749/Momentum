@@ -1337,19 +1337,75 @@ function createHeatmapHabitBlock(habit,className){
   block.appendChild(cells);
   return block;
 }
+function habitHeatmapDisplayWindow(habit){
+  const anchor=startOfMonth(state.habitMonth);
+  const repeat=habit.repeat||"daily";
+
+  if(repeat==="weekly"||repeat==="monthly"){
+    const end=new Date(anchor.getFullYear()+1,anchor.getMonth(),0);
+    return {start:anchor,end};
+  }
+
+  return {
+    start:anchor,
+    end:new Date(anchor.getFullYear(),anchor.getMonth()+1,0)
+  };
+}
+function habitExistsInHeatmapPeriod(habit){
+  if(!habit?.startDate)return false;
+
+  const habitStart=parseDateKey(habit.startDate);
+  const habitEnd=habit.endDate
+    ?parseDateKey(habit.endDate)
+    :new Date(9999,11,31);
+
+  const window=habitHeatmapDisplayWindow(habit);
+
+  // 습관이 표시 기간보다 뒤에 시작했거나, 표시 기간 전에 이미 끝났다면 숨김.
+  if(habitStart>window.end)return false;
+  if(habitEnd<window.start)return false;
+
+  // 겹치는 기간 안에 실제 반복 대상 날짜가 최소 1개 있어야 표시.
+  const from=habitStart>window.start?habitStart:window.start;
+  const to=habitEnd<window.end?habitEnd:window.end;
+
+  for(let cursor=new Date(from);cursor<=to;cursor=addDays(cursor,1)){
+    if(habitIsActive(habit,dateKey(cursor)))return true;
+  }
+
+  return false;
+}
 function renderHabitHeatmap(){
   const y=state.habitMonth.getFullYear();
   const m=state.habitMonth.getMonth();
+
   el.habitHeatmapLabel.textContent=`${y}년 ${m+1}월 기준`;
 
   el.habitHeatmap.innerHTML="";
   el.habitHeatmap.className="habit-heatmap compact-heatmap";
 
-  state.habits.forEach(habit=>{
-    el.habitHeatmap.appendChild(
-      createHeatmapHabitBlock(habit,"heatmap-desktop-habit")
+  const visibleHabits=state.habits.filter(habit=>{
+    if(!habitExistsInHeatmapPeriod(habit))return false;
+
+    const rows=heatmapRowsForHabit(habit);
+    return rows.some(
+      row=>Array.isArray(row.keys)
+        &&row.keys.some(key=>habitIsActive(habit,key))
     );
   });
+
+  if(!visibleHabits.length){
+    const empty=document.createElement("div");
+    empty.className="heatmap-global-empty";
+    empty.textContent="이 기간에는 습관이 없습니다.";
+    el.habitHeatmap.appendChild(empty);
+  }else{
+    visibleHabits.forEach(habit=>{
+      el.habitHeatmap.appendChild(
+        createHeatmapHabitBlock(habit,"heatmap-desktop-habit")
+      );
+    });
+  }
 
   let mobile=document.getElementById("mobileHabitHeatmap");
   if(!mobile){
@@ -1360,11 +1416,19 @@ function renderHabitHeatmap(){
   }
 
   mobile.innerHTML="";
-  state.habits.forEach(habit=>{
-    mobile.appendChild(
-      createHeatmapHabitBlock(habit,"mobile-heatmap-habit")
-    );
-  });
+
+  if(!visibleHabits.length){
+    const empty=document.createElement("div");
+    empty.className="heatmap-global-empty";
+    empty.textContent="이 기간에는 습관이 없습니다.";
+    mobile.appendChild(empty);
+  }else{
+    visibleHabits.forEach(habit=>{
+      mobile.appendChild(
+        createHeatmapHabitBlock(habit,"mobile-heatmap-habit")
+      );
+    });
+  }
 }
 function resetHabitForm(){
   el.habitForm.reset();

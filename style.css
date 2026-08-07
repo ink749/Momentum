@@ -5084,3 +5084,24 @@ body.week-four-weeks .week-event-checklist{
   line-height:1.05!important;
   transform:translateY(2px);
 }
+
+
+/* Momentum v6.10 — HEATMAP 기간에 활성 습관이 없으면 전체 안내만 표시 */
+.heatmap-global-empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:150px;
+  padding:28px 18px;
+  color:var(--soft);
+  font-size:.95rem;
+  font-weight:700;
+  text-align:center;
+  line-height:1.5;
+}
+@media(max-width:720px){
+  .heatmap-global-empty{
+    min-height:180px;
+    font-size:1rem;
+  }
+}
