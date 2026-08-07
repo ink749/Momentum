@@ -600,8 +600,13 @@ function renderStats(){
   const dayEventAvg=average(dayEvents);
   const dayHabitAvg=habitAverageForDate(selectedKey);
 
-  el.statsDayEventLabel.textContent=isToday?"오늘 일정 완료율":`${dayName} 일정 완료율`;
-  el.statsDayHabitLabel.textContent=isToday?"오늘 습관 완료율":`${dayName} 습관 완료율`;
+  const mobileStats=window.matchMedia("(max-width:720px)").matches;
+  el.statsDayEventLabel.textContent=mobileStats
+    ?(isToday?"오늘 일정":`${selectedDate.getMonth()+1}/${selectedDate.getDate()} 일정`)
+    :(isToday?"오늘 일정 완료율":`${dayName} 일정 완료율`);
+  el.statsDayHabitLabel.textContent=mobileStats
+    ?(isToday?"오늘 습관":`${selectedDate.getMonth()+1}/${selectedDate.getDate()} 습관`)
+    :(isToday?"오늘 습관 완료율":`${dayName} 습관 완료율`);
   el.statsTodayEventProgress.textContent=`${dayEventAvg}%`;
   el.statsTodayEventCount.textContent=`일정 ${dayEvents.length}개`;
   el.statsTodayHabitProgress.textContent=`${dayHabitAvg}%`;
@@ -613,10 +618,17 @@ function renderStats(){
   const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
   const monthEventAvg=average(monthEventOccurrences);
 
-  const checklistItems=monthEventOccurrences.flatMap(event=>checklistForOccurrence(event));
-  const checklistTotal=checklistItems.length;
-  const checklistDone=checklistItems.filter(item=>item.status==="done").length;
-  const checklistFailed=checklistItems.filter(item=>item.status==="failed").length;
+  const checklistRows=monthEventOccurrences.flatMap(event=>
+    checklistForOccurrence(event).map(item=>({
+      ...item,
+      autoFailed:item.status==="pending"&&isOccurrencePast(event)
+    }))
+  );
+  const checklistTotal=checklistRows.length;
+  const checklistDone=checklistRows.filter(item=>item.status==="done").length;
+  const checklistFailed=checklistRows.filter(
+    item=>item.status==="failed"||item.autoFailed
+  ).length;
   const checklistProgress=checklistTotal
     ?Math.round(checklistDone/checklistTotal*100)
     :0;
@@ -647,8 +659,12 @@ function renderStats(){
     ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
     :0;
 
-  el.statsMonthCombinedLabel.textContent=`${monthText} 종합 완료율`;
-  el.statsChecklistLabel.textContent=`${monthText} 체크리스트 완료율`;
+  el.statsMonthCombinedLabel.textContent=mobileStats
+    ?`${selectedDate.getMonth()+1}월 종합`
+    :`${monthText} 종합 완료율`;
+  el.statsChecklistLabel.textContent=mobileStats
+    ?`${selectedDate.getMonth()+1}월 체크리스트`
+    :`${monthText} 체크리스트 완료율`;
   el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 완료율`;
   el.statsMonthSummaryTitle.textContent=`${monthText} 요약`;
   el.statsCategoryTitle.textContent=`카테고리별 ${selectedDate.getMonth()+1}월 성취도`;
@@ -2069,43 +2085,57 @@ function createEventChip(event){
   return chip;
 }
 function renderMonth(){
-  const y=state.currentMonth.getFullYear(),m=state.currentMonth.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),today=dateKey(new Date());
+  const y=state.currentMonth.getFullYear();
+  const m=state.currentMonth.getMonth();
+  const first=new Date(y,m,1);
+  const start=new Date(y,m,1-first.getDay());
+  const today=dateKey(new Date());
+
   el.monthGrid.innerHTML="";
+
   for(let i=0;i<42;i++){
-    const d=addDays(start,i),key=dateKey(d),items=eventsForDate(key),avg=average(items),cell=document.createElement("article");
-    cell.className="day-cell";if(d.getMonth()!==m)cell.classList.add("outside");if(key===today)cell.classList.add("today");if(key===state.selectedDateKey)cell.classList.add("selected");
-    const top=document.createElement("div");top.className="day-topline";top.innerHTML=`<span class="day-number ${d.getDay()===0?"sunday":d.getDay()===6?"saturday":""}">${d.getDate()}</span>`;
-    if(items.length){const b=document.createElement("span");b.className="day-progress";b.textContent=`${avg}%`;b.style.background=COLORS[step(avg)];if(step(avg)<=25)b.style.color="#557066";top.appendChild(b)}
-    const list=document.createElement("div");
-    list.className="event-list";
-    items.slice(0,3).forEach(e=>list.appendChild(createEventChip(e)));
+    const d=addDays(start,i);
+    const key=dateKey(d);
+    const cell=document.createElement("article");
+    const combined=combinedProgressForDate(key);
 
-    if(items.length>3){
-      const more=document.createElement("div");
-      more.className="more-events";
-      more.textContent=`+${items.length-3}개 더`;
-      list.appendChild(more);
-    }
+    cell.className="day-cell";
+    if(d.getMonth()!==m)cell.classList.add("outside");
+    if(key===today)cell.classList.add("today");
+    if(key===state.selectedDateKey)cell.classList.add("selected");
 
-    cell.append(top,list);
+    const top=document.createElement("div");
+    top.className="day-topline";
+    top.innerHTML=`
+      <span class="day-number ${
+        d.getDay()===0?"sunday":d.getDay()===6?"saturday":""
+      }">${d.getDate()}</span>
+    `;
 
-    top.addEventListener("click",clickEvent=>{
+    const insight=document.createElement("div");
+    insight.className="month-day-insight";
+    insight.innerHTML=`
+      <div class="month-day-progress-track"
+        aria-label="${d.getMonth()+1}월 ${d.getDate()}일 종합 달성률 ${combined}%">
+        <span style="width:${combined}%"></span>
+      </div>
+      <strong>${combined}%</strong>
+    `;
+
+    cell.append(top,insight);
+
+    cell.addEventListener("click",clickEvent=>{
       clickEvent.preventDefault();
       clickEvent.stopPropagation();
+
       state.selectedDateKey=key;
-      openDayView(key);
+      if(d.getMonth()!==m){
+        state.currentMonth=startOfMonth(d);
+      }
+      renderAll();
     });
 
-    if(items.length){
-      cell.classList.add("has-events");
-      cell.onclick=()=>{
-        state.selectedDateKey=key;
-        if(d.getMonth()!==m)state.currentMonth=startOfMonth(d);
-        renderAll();
-      };
-      bindContextActions(cell,{date:key,time:"09:00"});
-    }
-
+    bindContextActions(cell,{date:key,time:"09:00"});
     el.monthGrid.appendChild(cell);
   }
 }

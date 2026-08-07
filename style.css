@@ -5001,3 +5001,86 @@ body.week-four-weeks .week-event-checklist{
     font-size:.78rem;
   }
 }
+
+
+/* Momentum v6.9 — 월간 캘린더는 일정 목록 대신 하루 종합 달성률 표시 */
+.month-view .day-cell .event-list,
+.month-view .day-cell .more-events{
+  display:none!important;
+}
+.month-day-insight{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  width:100%;
+  margin-top:auto;
+  padding-top:8px;
+}
+.month-day-progress-track{
+  flex:1;
+  min-width:0;
+  height:5px;
+  overflow:hidden;
+  border-radius:999px;
+  background:rgba(28,64,46,.07);
+}
+.month-day-progress-track span{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:var(--green);
+}
+.month-day-insight strong{
+  flex:0 0 auto;
+  font-size:.66rem;
+  line-height:1;
+  color:var(--soft);
+  font-weight:800;
+}
+
+/* 모바일 통계: 4개를 한 줄에 억지로 넣지 않고 2 x 2 */
+@media(max-width:720px){
+  .stats-metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px;
+  }
+  .stats-metric-card{
+    min-width:0;
+    padding:16px 14px;
+  }
+  .stats-metric-card>span{
+    display:block;
+    min-height:2.4em;
+    font-size:.82rem;
+    line-height:1.2;
+    word-break:keep-all;
+  }
+  .stats-metric-card>strong{
+    font-size:2.15rem;
+    line-height:1;
+    margin-top:8px;
+  }
+  .stats-metric-card>small{
+    margin-top:8px;
+    font-size:.72rem;
+    line-height:1.3;
+  }
+
+  .month-day-insight{
+    gap:4px;
+    padding-top:5px;
+  }
+  .month-day-insight strong{
+    font-size:.58rem;
+  }
+  .month-day-progress-track{
+    height:4px;
+  }
+}
+
+/* 30분 일정: 글씨를 조금 키우고 시각적으로 아래로 2px 이동 */
+.day-view-event.compact .event-title-trigger{
+  font-size:.93rem!important;
+  line-height:1.05!important;
+  transform:translateY(2px);
+}
