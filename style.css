@@ -3637,13 +3637,14 @@ button,input,select,textarea{
   min-height:0;
 }
 .day-view-grid{
+  --day-row-height:52px;
   display:grid;
   grid-template-columns:64px minmax(0,1fr);
-  min-height:calc(var(--week-row-height) * 24 + 180px);
+  min-height:calc(var(--day-row-height) * 24 + 180px);
 }
 .day-view-time-column{
   position:relative;
-  height:calc(var(--week-row-height) * 24);
+  height:calc(var(--day-row-height) * 24);
   border-right:1px solid var(--line);
   background:#fff;
 }
@@ -3651,7 +3652,7 @@ button,input,select,textarea{
   position:absolute;
   left:0;
   right:0;
-  height:var(--week-row-height);
+  height:var(--day-row-height);
   padding:8px 8px 0 0;
   box-sizing:border-box;
   border-bottom:1px solid var(--line);
@@ -3661,18 +3662,18 @@ button,input,select,textarea{
 }
 .day-view-column{
   position:relative;
-  height:calc(var(--week-row-height) * 24);
+  height:calc(var(--day-row-height) * 24);
   background:
     repeating-linear-gradient(
       to bottom,
       transparent 0,
-      transparent calc(var(--week-row-height) / 2 - 1px),
-      rgba(28,64,46,.045) calc(var(--week-row-height) / 2 - 1px),
-      rgba(28,64,46,.045) calc(var(--week-row-height) / 2),
-      transparent calc(var(--week-row-height) / 2),
-      transparent calc(var(--week-row-height) - 1px),
-      var(--line) calc(var(--week-row-height) - 1px),
-      var(--line) var(--week-row-height)
+      transparent calc(var(--day-row-height) / 2 - 1px),
+      rgba(28,64,46,.045) calc(var(--day-row-height) / 2 - 1px),
+      rgba(28,64,46,.045) calc(var(--day-row-height) / 2),
+      transparent calc(var(--day-row-height) / 2),
+      transparent calc(var(--day-row-height) - 1px),
+      var(--line) calc(var(--day-row-height) - 1px),
+      var(--line) var(--day-row-height)
     );
 }
 .day-view-event{
@@ -4861,5 +4862,142 @@ body.week-four-weeks .week-event-checklist{
 @media(min-width:721px){
   .mobile-heatmap{
     display:none!important;
+  }
+}
+
+
+/* Momentum v6.7 — HEATMAP를 구간 문구 없이 반응형 사각 격자로 표시 */
+.heatmap-square-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(42px,1fr));
+  gap:7px;
+  width:100%;
+  max-width:760px;
+  align-items:stretch;
+}
+.heatmap-square-cell{
+  position:relative;
+  aspect-ratio:1/1;
+  min-width:0;
+  padding:0;
+  border:1px solid rgba(28,64,46,.08);
+  border-radius:9px;
+  cursor:pointer;
+  touch-action:manipulation;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.heatmap-square-cell:hover,
+.heatmap-square-cell:focus-visible{
+  transform:translateY(-1px);
+  box-shadow:0 4px 10px rgba(28,64,46,.12);
+  outline:2px solid rgba(31,138,91,.24);
+  outline-offset:2px;
+}
+.heatmap-square-date{
+  position:relative;
+  z-index:1;
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+  color:rgba(18,54,39,.76);
+  pointer-events:none;
+  user-select:none;
+}
+.heatmap-square-cell[data-progress="75"] .heatmap-square-date,
+.heatmap-square-cell[data-progress="100"] .heatmap-square-date{
+  color:rgba(255,255,255,.94);
+}
+.heatmap-compact-row,
+.heatmap-compact-range,
+.heatmap-compact-cells{
+  display:none!important;
+}
+@media(max-width:720px){
+  .heatmap-square-grid{
+    grid-template-columns:repeat(auto-fit,minmax(36px,1fr));
+    gap:6px;
+    max-width:none;
+  }
+  .heatmap-square-cell{
+    border-radius:8px;
+  }
+  .heatmap-square-date{
+    font-size:9px;
+  }
+}
+
+
+/* Momentum v6.8 — 하루 보기와 주간 줌을 분리 */
+.day-view-grid{
+  --day-row-height:52px;
+}
+.day-view-time-column,
+.day-view-column{
+  height:calc(var(--day-row-height) * 24)!important;
+}
+.day-view-time-label{
+  height:var(--day-row-height)!important;
+}
+.day-view-column{
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--day-row-height) / 2 - 1px),
+      rgba(28,64,46,.045) calc(var(--day-row-height) / 2 - 1px),
+      rgba(28,64,46,.045) calc(var(--day-row-height) / 2),
+      transparent calc(var(--day-row-height) / 2),
+      transparent calc(var(--day-row-height) - 1px),
+      var(--line) calc(var(--day-row-height) - 1px),
+      var(--line) var(--day-row-height)
+    )!important;
+}
+
+/* 30분 일정: 반 칸 높이에 맞게 글자와 여백을 압축 */
+.day-view-event.compact{
+  padding:2px 10px!important;
+  display:flex;
+  align-items:center;
+  min-height:0;
+}
+.day-view-event.compact .event-title-trigger{
+  display:block;
+  width:100%;
+  font-size:.88rem!important;
+  line-height:1.08!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.day-view-event.compact .day-view-checklist{
+  display:none!important;
+}
+
+/* 최고 연속 달성 제거 후 통계 카드 균형 */
+.stats-metrics{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.stats-date-navigation{
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+@media(max-width:720px){
+  .day-view-grid{
+    --day-row-height:52px;
+  }
+  .stats-date-navigation{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    gap:6px;
+  }
+  .stats-date-navigation .secondary-button{
+    min-height:38px;
+    padding:0 9px;
+    font-size:.78rem;
   }
 }

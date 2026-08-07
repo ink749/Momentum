@@ -32,6 +32,7 @@ const state = {
   selectedDateKey:dateKey(new Date()), selectedProgress:0, unsubscribe:null,
   weekZoom:100, weekFit:true,
   activePage:"calendar",
+  statsDate:dateKey(new Date()),
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
@@ -102,7 +103,11 @@ const el = {
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
-  statsMonthCombinedProgress:$("statsMonthCombinedProgress"), statsBestStreak:$("statsBestStreak"), statsBestStreakHabit:$("statsBestStreakHabit"),
+  statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
+  statsDayEventLabel:$("statsDayEventLabel"), statsDayHabitLabel:$("statsDayHabitLabel"),
+  statsMonthCombinedLabel:$("statsMonthCombinedLabel"), statsChecklistLabel:$("statsChecklistLabel"),
+  statsWeeklyTitle:$("statsWeeklyTitle"), statsMonthSummaryTitle:$("statsMonthSummaryTitle"),
+  statsCategoryTitle:$("statsCategoryTitle"), statsHabitRankingTitle:$("statsHabitRankingTitle"),
   weeklyProgressChart:$("weeklyProgressChart"), statsMonthEventCount:$("statsMonthEventCount"), statsMonthEventProgress:$("statsMonthEventProgress"),
   statsMonthHabitCount:$("statsMonthHabitCount"), statsMonthHabitProgress:$("statsMonthHabitProgress"),
   statsMonthPerfectHabitDays:$("statsMonthPerfectHabitDays"),
@@ -584,19 +589,27 @@ function habitMonthAverage(habit,keys){
   return Math.round(activeKeys.reduce((sum,key)=>sum+habitProgress(habit.id,key),0)/activeKeys.length);
 }
 function renderStats(){
+  const selectedDate=parseDateKey(state.statsDate||dateKey(new Date()));
+  const selectedKey=dateKey(selectedDate);
   const todayKey=dateKey(new Date());
-  const todayEvents=allEventsForDate(todayKey);
-  const todayHabits=activeHabitsOn(todayKey);
-  const todayEventAvg=average(todayEvents);
-  const todayHabitAvg=habitAverageForDate(todayKey);
+  const isToday=selectedKey===todayKey;
+  const dayName=`${selectedDate.getMonth()+1}월 ${selectedDate.getDate()}일`;
 
-  el.statsTodayEventProgress.textContent=`${todayEventAvg}%`;
-  el.statsTodayEventCount.textContent=`일정 ${todayEvents.length}개`;
-  el.statsTodayHabitProgress.textContent=`${todayHabitAvg}%`;
-  el.statsTodayHabitCount.textContent=`습관 ${todayHabits.length}개`;
+  const dayEvents=allEventsForDate(selectedKey);
+  const dayHabits=activeHabitsOn(selectedKey);
+  const dayEventAvg=average(dayEvents);
+  const dayHabitAvg=habitAverageForDate(selectedKey);
 
-  const now=new Date();
-  const keys=monthKeys(startOfMonth(now));
+  el.statsDayEventLabel.textContent=isToday?"오늘 일정 완료율":`${dayName} 일정 완료율`;
+  el.statsDayHabitLabel.textContent=isToday?"오늘 습관 완료율":`${dayName} 습관 완료율`;
+  el.statsTodayEventProgress.textContent=`${dayEventAvg}%`;
+  el.statsTodayEventCount.textContent=`일정 ${dayEvents.length}개`;
+  el.statsTodayHabitProgress.textContent=`${dayHabitAvg}%`;
+  el.statsTodayHabitCount.textContent=`습관 ${dayHabits.length}개`;
+
+  const monthAnchor=startOfMonth(selectedDate);
+  const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
+  const keys=monthKeys(monthAnchor);
   const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
   const monthEventAvg=average(monthEventOccurrences);
 
@@ -607,7 +620,10 @@ function renderStats(){
   const checklistProgress=checklistTotal
     ?Math.round(checklistDone/checklistTotal*100)
     :0;
-  const activeMonthHabits=state.habits.filter(habit=>parseDateKey(habit.startDate)<=parseDateKey(keys[keys.length-1]));
+
+  const activeMonthHabits=state.habits.filter(habit=>
+    parseDateKey(habit.startDate)<=parseDateKey(keys[keys.length-1])
+  );
   const monthHabitValues=[];
   let perfectCount=0;
 
@@ -621,11 +637,22 @@ function renderStats(){
     });
   });
 
-  const monthHabitAvg=monthHabitValues.length?Math.round(monthHabitValues.reduce((a,b)=>a+b,0)/monthHabitValues.length):0;
+  const monthHabitAvg=monthHabitValues.length
+    ?Math.round(monthHabitValues.reduce((a,b)=>a+b,0)/monthHabitValues.length)
+    :0;
   const combinedValues=[];
   if(monthEventOccurrences.length)combinedValues.push(monthEventAvg);
   if(monthHabitValues.length)combinedValues.push(monthHabitAvg);
-  const monthCombined=combinedValues.length?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length):0;
+  const monthCombined=combinedValues.length
+    ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
+    :0;
+
+  el.statsMonthCombinedLabel.textContent=`${monthText} 종합 완료율`;
+  el.statsChecklistLabel.textContent=`${monthText} 체크리스트 완료율`;
+  el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 완료율`;
+  el.statsMonthSummaryTitle.textContent=`${monthText} 요약`;
+  el.statsCategoryTitle.textContent=`카테고리별 ${selectedDate.getMonth()+1}월 성취도`;
+  el.statsHabitRankingTitle.textContent=`습관별 ${selectedDate.getMonth()+1}월 달성률`;
 
   el.statsMonthCombinedProgress.textContent=`${monthCombined}%`;
   el.statsMonthEventCount.textContent=`${monthEventOccurrences.length}개`;
@@ -639,21 +666,16 @@ function renderStats(){
   el.statsChecklistDone.textContent=`${checklistDone}개`;
   el.statsChecklistFailed.textContent=`${checklistFailed}개`;
 
-  let best={streak:0,name:"기록 없음"};
-  state.habits.forEach(habit=>{
-    const streak=habitStreak(habit);
-    if(streak>best.streak)best={streak,name:habit.name};
-  });
-  el.statsBestStreak.textContent=`${best.streak}일`;
-  el.statsBestStreakHabit.textContent=best.name;
-
-  renderWeeklyProgress();
+  renderWeeklyProgress(selectedDate);
   renderCategoryAchievement(keys);
   renderHabitRanking(keys);
+
+  const nextButton=$("statsNextDayButton");
+  if(nextButton)nextButton.disabled=selectedKey>=todayKey;
 }
-function renderWeeklyProgress(){
+function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   el.weeklyProgressChart.innerHTML="";
-  const today=new Date();
+  const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
     const d=addDays(today,-offset),key=dateKey(d),value=combinedProgressForDate(key);
     const col=document.createElement("div");col.className="weekly-chart-day";
@@ -1207,21 +1229,16 @@ function heatmapRowsForHabit(habit){
   const repeat=habit.repeat||"daily";
   const anchor=startOfMonth(state.habitMonth);
   const end=habit.endDate?parseDateKey(habit.endDate):null;
-  const rows=[];
+  const keys=[];
 
   if(repeat==="weekly"){
     const first=firstWeeklyOccurrenceOnOrAfter(habit,anchor);
-    const keys=[];
     for(let i=0;i<52;i++){
       const date=addDays(first,i*7);
       if(end&&date>end)break;
       keys.push(dateKey(date));
     }
-    [[0,18,"1~18주"],[18,35,"19~35주"],[35,52,"36~52주"]].forEach(([from,to,label])=>{
-      const slice=keys.slice(from,to);
-      if(slice.length)rows.push({label,keys:slice});
-    });
-    return rows;
+    return [{label:"",keys}];
   }
 
   if(repeat==="monthly"){
@@ -1231,7 +1248,7 @@ function heatmapRowsForHabit(habit){
       (anchor.getFullYear()-habitStart.getFullYear())*12
       +(anchor.getMonth()-habitStart.getMonth())
     );
-    const keys=[];
+
     for(let i=0;i<12;i++){
       const date=monthlyOccurrenceDate(habitStart,firstMonthOffset+i);
       if(!date)continue;
@@ -1239,31 +1256,7 @@ function heatmapRowsForHabit(habit){
       if(end&&date>end)break;
       keys.push(dateKey(date));
     }
-    if(!keys.length)return rows;
-
-    let group=[];
-    let groupYear=null;
-    const pushGroup=()=>{
-      if(!group.length)return;
-      const first=parseDateKey(group[0]);
-      const last=parseDateKey(group[group.length-1]);
-      rows.push({
-        label:first.getMonth()===last.getMonth()
-          ?`${first.getMonth()+1}월`
-          :`${first.getMonth()+1}~${last.getMonth()+1}월`,
-        keys:[...group]
-      });
-      group=[];
-    };
-
-    keys.forEach(key=>{
-      const date=parseDateKey(key);
-      if(groupYear!==null&&date.getFullYear()!==groupYear)pushGroup();
-      groupYear=date.getFullYear();
-      group.push(key);
-    });
-    pushGroup();
-    return rows;
+    return [{label:"",keys}];
   }
 
   const y=anchor.getFullYear();
@@ -1274,36 +1267,18 @@ function heatmapRowsForHabit(habit){
   const visibleStart=habitStart>monthFirst?habitStart:monthFirst;
   const visibleEnd=end&&end<monthLast?end:monthLast;
 
-  if(visibleStart>visibleEnd)return rows;
+  if(visibleStart>visibleEnd)return [];
 
-  const startDay=visibleStart.getDate();
-  const endDay=visibleEnd.getDate();
-  const totalDays=endDay-startDay+1;
-
-  const rowCount=Math.min(3,Math.max(1,Math.ceil(totalDays/11)));
-  const baseSize=Math.floor(totalDays/rowCount);
-  const remainder=totalDays%rowCount;
-
-  let from=startDay;
-  for(let rowIndex=0;rowIndex<rowCount;rowIndex++){
-    const size=baseSize+(rowIndex<remainder?1:0);
-    const to=from+size-1;
-    const keys=[];
-
-    for(let day=from;day<=to;day++){
-      const key=dateKey(new Date(y,m,day));
-      if(habitIsActive(habit,key))keys.push(key);
-    }
-
-    if(keys.length){
-      rows.push({
-        label:`${from}~${to}일`,
-        keys
-      });
-    }
-    from=to+1;
+  for(let day=visibleStart.getDate();day<=visibleEnd.getDate();day++){
+    const key=dateKey(new Date(y,m,day));
+    if(habitIsActive(habit,key))keys.push(key);
   }
-  return rows;
+
+  return [{label:"",keys}];
+}
+function heatmapCellShortLabel(key){
+  const date=parseDateKey(key);
+  return `${date.getMonth()+1}/${date.getDate()}`;
 }
 function createHeatmapHabitBlock(habit,className){
   const block=document.createElement("section");
@@ -1317,7 +1292,9 @@ function createHeatmapHabitBlock(habit,className){
   block.appendChild(title);
 
   const rows=heatmapRowsForHabit(habit);
-  if(!rows.length){
+  const keys=rows.flatMap(row=>row.keys);
+
+  if(!keys.length){
     const empty=document.createElement("div");
     empty.className="heatmap-period-empty";
     empty.textContent="이 기간에는 반복 일정이 없습니다.";
@@ -1325,29 +1302,23 @@ function createHeatmapHabitBlock(habit,className){
     return block;
   }
 
-  rows.forEach(rowData=>{
-    const row=document.createElement("div");
-    row.className="heatmap-compact-row";
+  const cells=document.createElement("div");
+  cells.className="heatmap-square-grid";
 
-    const label=document.createElement("span");
-    label.className="heatmap-compact-range";
-    label.textContent=rowData.label;
-    row.appendChild(label);
+  keys.forEach(key=>{
+    const cell=document.createElement("button");
+    cell.className="heatmap-square-cell";
 
-    const cells=document.createElement("div");
-    cells.className="heatmap-compact-cells";
+    const dateLabel=document.createElement("span");
+    dateLabel.className="heatmap-square-date";
+    dateLabel.textContent=heatmapCellShortLabel(key);
 
-    rowData.keys.forEach(key=>{
-      const cell=document.createElement("button");
-      cell.className="heatmap-compact-cell";
-      bindHeatmapCell(cell,habit,key);
-      cells.appendChild(cell);
-    });
-
-    row.appendChild(cells);
-    block.appendChild(row);
+    cell.appendChild(dateLabel);
+    bindHeatmapCell(cell,habit,key);
+    cells.appendChild(cell);
   });
 
+  block.appendChild(cells);
   return block;
 }
 function renderHabitHeatmap(){
@@ -3977,7 +3948,7 @@ function renderDayView(){
   for(let hour=0;hour<24;hour++){
     const label=document.createElement("div");
     label.className="day-view-time-label";
-    label.style.top=`calc(var(--week-row-height) * ${hour})`;
+    label.style.top=`calc(var(--day-row-height) * ${hour})`;
     label.textContent=`${pad(hour)}:00`;
     timeColumn.appendChild(label);
   }
@@ -4014,7 +3985,7 @@ function renderDayView(){
     const rect=column.getBoundingClientRect();
     const rowHeight=parseFloat(
       getComputedStyle(document.documentElement)
-        .getPropertyValue("--week-row-height")
+        .getPropertyValue("--day-row-height")
     )||40;
 
     const minutes=Math.max(
@@ -4051,9 +4022,9 @@ function renderDayView(){
       const duration=Math.max(30,endMinutes-startMinutes);
 
       const block=document.createElement("div");
-      block.className="day-view-event";
-      block.style.top=`calc(var(--week-row-height) * ${startMinutes/60})`;
-      block.style.height=`calc(var(--week-row-height) * ${duration/60})`;
+      block.className=`day-view-event${duration<=30?" compact":""}`;
+      block.style.top=`calc(var(--day-row-height) * ${startMinutes/60})`;
+      block.style.height=`calc(var(--day-row-height) * ${duration/60})`;
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 8px)`;
       block.style.width=`calc(100% / ${columnCount} - 16px)`;
       block.style.background=COLORS[event.progress]||COLORS[0];
@@ -4294,23 +4265,8 @@ function setupWheelTimePicker(){
   };
 
   const applyBoundary=(previous,next)=>{
-    if(previous===next)return;
-
-    /*
-     * 날짜는 양 끝 00시에 들어갈 때만 변경합니다.
-     * 01 -> 위쪽 00 : -1일
-     * 위쪽 00 -> 01 : 변화 없음
-     * 23 -> 아래쪽 00 : +1일
-     * 아래쪽 00 -> 23 : 변화 없음
-     */
-    if(previous===23&&next===24){
-      changeDate(1);
-      return;
-    }
-
-    if(previous===1&&next===0){
-      changeDate(-1);
-    }
+    // v6.7: 시간 휠은 시간만 변경하고 날짜는 자동 변경하지 않습니다.
+    return;
   };
 
   const commitHour=next=>{
@@ -4373,77 +4329,7 @@ function setupWheelTimePicker(){
     );
     const [hour,minute]=value.split(":").map(Number);
 
-    /*
-     * 저장된 00:00을 열 때는 위쪽 00시(index 0)를 기본으로 사용합니다.
-     * 사용자가 23시 아래의 00시를 선택하면 그 순간 날짜가 이미 +1일
-     * 적용되므로 저장 값 자체는 다시 00:00으로 유지됩니다.
-     */
-    selectedIndex=Math.max(
-      0,
-      Math.min(23,Number.isFinite(hour)?hour:9)
-    );
-    selectedMinute=minute>=30?30:0;
-    committedIndex=selectedIndex;
-    initialHourIndex=selectedIndex;
-    baseDateAtOpen=
-      target.dateInput.value||dateKey(new Date());
-    temporaryDate=baseDateAtOpen;
-    boundaryShift=0;
-
-    title.textContent=target.title;
-    renderDatePreview();
-    backdrop.hidden=false;
-
-    requestAnimationFrame(()=>{
-      setColumnPosition(hoursColumn,selectedIndex);
-      setColumnPosition(minutesColumn,selectedMinute);
-      highlight();
-    });
-  };
-
-  const close=()=>{
-    backdrop.hidden=true;
-    active=null;
-    clearTimeout(scrollTimer);
-  };
-
-  backdrop.querySelector("[data-wheel-cancel]").onclick=close;
-
-  backdrop.querySelector("[data-wheel-confirm]").onclick=()=>{
-    if(!active)return;
-
-    /*
-     * 스크롤 debounce가 아직 끝나지 않았을 수 있으므로
-     * 완료 버튼을 누르는 순간 현재 중앙값을 한 번 더 확정합니다.
-     */
-    const finalHourIndex=selectedValue(hoursColumn);
-    const finalMinute=selectedValue(minutesColumn);
-
-    if(finalHourIndex!==committedIndex){
-      applyBoundary(committedIndex,finalHourIndex);
-      committedIndex=finalHourIndex;
-    }
-
-    selectedIndex=finalHourIndex;
-    selectedMinute=finalMinute;
-
-    /*
-     * 빠르게 스크롤하면 중간 scroll 이벤트가 생략될 수 있으므로
-     * 완료 시점에 양 끝 00시의 날짜 경계를 한 번 더 보정합니다.
-     */
-    if(selectedIndex===24&&boundaryShift===0){
-      boundaryShift=1;
-      temporaryDate=dateKey(addDays(parseDateKey(baseDateAtOpen),1));
-    }else if(
-      selectedIndex===0
-      &&initialHourIndex>0
-      &&boundaryShift===0
-    ){
-      boundaryShift=-1;
-      temporaryDate=dateKey(addDays(parseDateKey(baseDateAtOpen),-1));
-    }
-
-    const chosenHour=
+const chosenHour=
       selectedIndex===24
         ?0
         :selectedIndex;
@@ -5345,7 +5231,20 @@ el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 el.mobileSearchNav.onclick=()=>navigateToPage("search");
-$("statsTodayButton").onclick=renderStats;
+$("statsPrevDayButton").onclick=()=>{
+  state.statsDate=dateKey(addDays(parseDateKey(state.statsDate),-1));
+  renderStats();
+};
+$("statsTodayButton").onclick=()=>{
+  state.statsDate=dateKey(new Date());
+  renderStats();
+};
+$("statsNextDayButton").onclick=()=>{
+  const next=addDays(parseDateKey(state.statsDate),1);
+  if(dateKey(next)>dateKey(new Date()))return;
+  state.statsDate=dateKey(next);
+  renderStats();
+};
 
 el.openCategoryManagerButton.onclick=openCategoryManager;
 $("closeCategoryManagerButton").onclick=closeCategoryManager;

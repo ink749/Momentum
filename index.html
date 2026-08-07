@@ -202,35 +202,32 @@
             <h1>통계</h1>
             <p class="sync-status">일정과 습관의 진행 상황을 한눈에 확인하세요.</p>
           </div>
-          <div class="top-actions">
-            <button id="statsTodayButton" class="secondary-button" type="button">이번 달</button>
+          <div class="top-actions stats-date-navigation">
+            <button id="statsPrevDayButton" class="secondary-button" type="button">‹ 이전날</button>
+            <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
+            <button id="statsNextDayButton" class="secondary-button" type="button">다음날 ›</button>
           </div>
         </header>
 
         <section class="stats-dashboard">
           <div class="stats-metrics">
             <article class="stats-metric-card">
-              <span>오늘 일정 완료율</span>
+              <span id="statsDayEventLabel">오늘 일정 완료율</span>
               <strong id="statsTodayEventProgress">0%</strong>
               <small id="statsTodayEventCount">일정 0개</small>
             </article>
             <article class="stats-metric-card">
-              <span>오늘 습관 완료율</span>
+              <span id="statsDayHabitLabel">오늘 습관 완료율</span>
               <strong id="statsTodayHabitProgress">0%</strong>
               <small id="statsTodayHabitCount">습관 0개</small>
             </article>
             <article class="stats-metric-card">
-              <span>이번 달 종합 완료율</span>
+              <span id="statsMonthCombinedLabel">이번 달 종합 완료율</span>
               <strong id="statsMonthCombinedProgress">0%</strong>
               <small>일정과 습관 평균</small>
             </article>
             <article class="stats-metric-card">
-              <span>최고 연속 달성</span>
-              <strong id="statsBestStreak">0일</strong>
-              <small id="statsBestStreakHabit">기록 없음</small>
-            </article>
-            <article class="stats-metric-card">
-              <span>이번 달 체크리스트 완료율</span>
+              <span id="statsChecklistLabel">이번 달 체크리스트 완료율</span>
               <strong id="statsChecklistProgress">0%</strong>
               <small id="statsChecklistCount">완료 0 / 전체 0</small>
             </article>
@@ -241,7 +238,7 @@
               <div class="stats-card-heading">
                 <div>
                   <p class="eyebrow">LAST 7 DAYS</p>
-                  <h2>최근 7일 완료율</h2>
+                  <h2 id="statsWeeklyTitle">최근 7일 완료율</h2>
                 </div>
               </div>
               <div id="weeklyProgressChart" class="weekly-progress-chart"></div>
@@ -251,7 +248,7 @@
               <div class="stats-card-heading">
                 <div>
                   <p class="eyebrow">THIS MONTH</p>
-                  <h2>이번 달 요약</h2>
+                  <h2 id="statsMonthSummaryTitle">이번 달 요약</h2>
                 </div>
               </div>
               <div class="monthly-summary-list">
@@ -271,7 +268,7 @@
             <div class="stats-card-heading">
               <div>
                 <p class="eyebrow">CATEGORY PERFORMANCE</p>
-                <h2>카테고리별 이번 달 성취도</h2>
+                <h2 id="statsCategoryTitle">카테고리별 이번 달 성취도</h2>
               </div>
             </div>
             <div id="categoryAchievement" class="habit-ranking"></div>
@@ -281,7 +278,7 @@
             <div class="stats-card-heading">
               <div>
                 <p class="eyebrow">HABIT RANKING</p>
-                <h2>습관별 이번 달 달성률</h2>
+                <h2 id="statsHabitRankingTitle">습관별 이번 달 달성률</h2>
               </div>
             </div>
             <div id="habitRanking" class="habit-ranking"></div>
