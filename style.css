@@ -5560,3 +5560,134 @@ body.week-four-weeks .week-event-checklist{
   display: none !important;
   border: 0 !important;
 }
+
+
+/* Momentum v7.6 — 주간 카테고리 바를 renderWeek 바깥에 유지 */
+#calendarPage .category-filter-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:0 0 7px;
+  padding:7px 9px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:rgba(255,255,255,.78);
+}
+#calendarPage .category-filter-bar[hidden]{
+  display:none!important;
+}
+#calendarPage .category-filter-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  min-width:0;
+}
+#calendarPage .category-manage-button{
+  flex:0 0 auto;
+  min-height:30px;
+  padding:0 10px;
+}
+
+/* SELECTED DAY 빠른 일정 — 외곽 테두리 제거 + 높이 축소 */
+.selected-view-panel .quick-add-bar{
+  display:block!important;
+  margin:3px 0 6px!important;
+  padding:2px 0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+.selected-view-panel .quick-add-copy{
+  display:none!important;
+}
+.selected-view-panel .quick-add-controls{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:5px!important;
+}
+.selected-view-panel .quick-add-controls input{
+  min-height:30px!important;
+  height:30px!important;
+  padding:0 10px!important;
+  border-color:var(--line)!important;
+  border-radius:9px!important;
+  font-size:.84rem!important;
+}
+.selected-view-panel .quick-register-button{
+  min-height:30px!important;
+  height:30px!important;
+  padding:0 11px!important;
+  border-radius:9px!important;
+  font-size:.82rem!important;
+}
+.selected-view-panel .quick-add-message{
+  display:none!important;
+}
+
+/* 실제 DAY INSIGHT 팝업 화살표 완전 제거 */
+.month-day-insight-popover::before,
+.month-day-insight-popover::after{
+  content:none!important;
+  display:none!important;
+  width:0!important;
+  height:0!important;
+  border:0!important;
+  background:transparent!important;
+}
+
+/* 모바일 주간 달력이 하단 내비게이션 바로 위까지 사용하도록 세로 공간 확대 */
+@media(max-width:720px){
+  #calendarPage .category-filter-bar{
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    margin:0 0 5px;
+    padding:5px 6px;
+  }
+  #calendarPage .category-filter-buttons{
+    flex:1 1 auto;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding:0;
+    scrollbar-width:none;
+  }
+  #calendarPage .category-filter-buttons::-webkit-scrollbar{
+    display:none;
+  }
+  #calendarPage .category-manage-button{
+    width:auto!important;
+    margin:0 0 0 5px!important;
+    min-height:28px;
+    padding:0 8px;
+  }
+
+  #weekView:not([hidden]){
+    display:block!important;
+    height:calc(100dvh - 205px)!important;
+    min-height:calc(100dvh - 205px)!important;
+    max-height:none!important;
+    overflow:hidden!important;
+  }
+  #weekView:not([hidden]) .google-week-shell{
+    height:100%!important;
+    min-height:0!important;
+  }
+  #weekView:not([hidden]) .google-week-body-scroll{
+    flex:1 1 0!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:auto!important;
+  }
+
+  .selected-view-panel .quick-add-bar{
+    margin:2px 0 5px!important;
+    padding:1px 0!important;
+  }
+  .selected-view-panel .quick-add-controls input,
+  .selected-view-panel .quick-register-button{
+    min-height:29px!important;
+    height:29px!important;
+  }
+}
