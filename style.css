@@ -5691,3 +5691,88 @@ body.week-four-weeks .week-event-checklist{
     height:29px!important;
   }
 }
+
+
+/* Momentum v7.7 — 주간 툴바 카테고리 관리 */
+.week-category-manager-button{
+  min-height:34px;
+  padding:0 11px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  color:var(--green-dark);
+  font-size:10px;
+  font-weight:800;
+}
+.week-category-manager-button[hidden]{
+  display:none!important;
+}
+body.week-fullscreen .category-filter-bar{
+  display:flex!important;
+}
+
+/* SELECTED DAY — DAY INSIGHT */
+.selected-support-grid{
+  display:block!important;
+}
+.selected-day-insight-card{
+  padding:14px!important;
+}
+.selected-insight-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.selected-insight-heading .eyebrow{
+  margin:0;
+}
+.selected-insight-heading>strong{
+  color:var(--soft);
+  font-size:.78rem;
+}
+.selected-insight-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.selected-insight-grid>div{
+  padding:10px 11px;
+  border-radius:11px;
+  background:var(--muted);
+}
+.selected-insight-grid span,
+.selected-insight-grid small{
+  display:block;
+  color:var(--soft);
+  font-size:.68rem;
+  line-height:1.15;
+}
+.selected-insight-grid strong{
+  display:block;
+  margin:3px 0 2px;
+  font-size:1.18rem;
+  line-height:1;
+}
+.legacy-summary-hooks{
+  display:none!important;
+}
+
+@media(max-width:720px){
+  .week-category-manager-button{
+    min-height:32px;
+    padding:0 8px;
+    font-size:8px;
+  }
+  .selected-day-insight-card{
+    padding:11px!important;
+  }
+  .selected-insight-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+  .selected-insight-grid>div{
+    padding:8px 9px;
+  }
+}

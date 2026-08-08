@@ -33,6 +33,7 @@ const state = {
   weekZoom:100, weekFit:true,
   activePage:"calendar",
   statsDate:dateKey(new Date()),
+  statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
@@ -110,7 +111,6 @@ const el = {
   statsCategoryTitle:$("statsCategoryTitle"), statsHabitRankingTitle:$("statsHabitRankingTitle"),
   weeklyProgressChart:$("weeklyProgressChart"), statsMonthEventCount:$("statsMonthEventCount"), statsMonthEventProgress:$("statsMonthEventProgress"),
   statsMonthHabitCount:$("statsMonthHabitCount"), statsMonthHabitProgress:$("statsMonthHabitProgress"),
-  statsMonthPerfectHabitDays:$("statsMonthPerfectHabitDays"),
   statsChecklistProgress:$("statsChecklistProgress"), statsChecklistCount:$("statsChecklistCount"),
   statsChecklistTotal:$("statsChecklistTotal"), statsChecklistDone:$("statsChecklistDone"), statsChecklistFailed:$("statsChecklistFailed"),
   statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
@@ -119,6 +119,14 @@ const el = {
   globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
   searchSummary:$("searchSummary"), searchResults:$("searchResults"),
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
+  selectedInsightDate:$("selectedInsightDate"),
+  selectedInsightCombined:$("selectedInsightCombined"),
+  selectedInsightEvents:$("selectedInsightEvents"),
+  selectedInsightEventCount:$("selectedInsightEventCount"),
+  selectedInsightHabits:$("selectedInsightHabits"),
+  selectedInsightHabitCount:$("selectedInsightHabitCount"),
+  selectedInsightChecklist:$("selectedInsightChecklist"),
+  selectedInsightChecklistFailed:$("selectedInsightChecklistFailed"),
   mobileEventActionSheet:$("mobileEventActionSheet"),
   mobileEventActionTitle:$("mobileEventActionTitle"),
   mobileEventActionTime:$("mobileEventActionTime"),
@@ -635,14 +643,12 @@ function renderStats(){
     keys.some(key=>habitIsActive(habit,key))
   );
   const monthHabitValues=[];
-  let perfectCount=0;
 
   activeMonthHabits.forEach(habit=>{
     keys.forEach(key=>{
       if(habitIsActive(habit,key)){
         const value=habitProgress(habit.id,key);
         monthHabitValues.push(value);
-        if(value===100)perfectCount++;
       }
     });
   });
@@ -683,7 +689,6 @@ function renderStats(){
   el.statsMonthEventProgress.textContent=`${monthEventAvg}%`;
   el.statsMonthHabitCount.textContent=`${activeMonthHabits.length}개`;
   el.statsMonthHabitProgress.textContent=`${monthHabitAvg}%`;
-  el.statsMonthPerfectHabitDays.textContent=`${perfectCount}회`;
   el.statsChecklistTotal.textContent=`${checklistTotal}개`;
   el.statsChecklistDone.textContent=`${checklistDone}개`;
   el.statsChecklistFailed.textContent=`${checklistFailed}개`;
@@ -1020,6 +1025,9 @@ function navigateToPage(page,{push=true}={}){
   if(!["calendar","habit","stats","search"].includes(page))page="calendar";
 
   state.activePage=page;
+  if(page==="stats"){
+    state.statsInsightDate=null;
+  }
 
   if(push){
     history.pushState(currentHistoryState(),"",location.href);
@@ -1807,45 +1815,53 @@ function restoreViewScroll(position){
 }
 function renderAll(){
   const preservedScroll=captureViewScroll();
-
-  const weekAddButton=$("weekAddEventButton");
-  if(weekAddButton){
-    weekAddButton.hidden=
-      state.currentView!=="week"
-      ||window.matchMedia("(max-width:720px)").matches;
-  }
-
-  const quickAddBar=document.querySelector(".quick-add-bar");
-  if(quickAddBar){
-    quickAddBar.hidden=state.currentView!=="selected";
-  }
-
-  const categoryBar=document.querySelector(".category-filter-bar");
-  if(categoryBar){
-    categoryBar.hidden=state.currentView!=="week";
-  }
-
-  el.selectedView.hidden=state.currentView!=="selected";
-  el.weekView.hidden=state.currentView!=="week";
-  el.weekZoomControls.hidden=state.currentView!=="week";
-
-  el.selectedBtn.classList.toggle("active",state.currentView==="selected");
-  el.weekBtn.classList.toggle("active",state.currentView==="week");
+  const calendarMode=state.activePage==="calendar";
 
   renderPage();
-  applyWeekZoom();
-  renderCategoryControls();
-  renderPeriodLabel();
 
-  if(state.currentView==="week"){
-    renderWeek();
-  }
+  if(calendarMode){
+    const weekMode=state.currentView==="week";
 
-  renderSelected();
-  renderSummary();
+    const weekAddButton=$("weekAddEventButton");
+    if(weekAddButton){
+      weekAddButton.hidden=
+        !weekMode
+        ||window.matchMedia("(max-width:720px)").matches;
+    }
 
-  if(state.activePage==="stats"){
-    renderStats();
+    const weekCategoryManagerButton=$("weekCategoryManagerButton");
+    if(weekCategoryManagerButton){
+      weekCategoryManagerButton.hidden=!weekMode;
+    }
+
+    const quickAddBar=document.querySelector(".quick-add-bar");
+    if(quickAddBar){
+      quickAddBar.hidden=state.currentView!=="selected";
+    }
+
+    const categoryBar=document.querySelector(".category-filter-bar");
+    if(categoryBar){
+      categoryBar.hidden=!weekMode;
+    }
+
+    el.selectedView.hidden=state.currentView!=="selected";
+    el.weekView.hidden=!weekMode;
+    el.weekZoomControls.hidden=!weekMode;
+
+    el.selectedBtn.classList.toggle("active",state.currentView==="selected");
+    el.weekBtn.classList.toggle("active",weekMode);
+
+    applyWeekZoom();
+    renderCategoryControls();
+    renderPeriodLabel();
+
+    if(weekMode){
+      renderWeek();
+    }else{
+      renderSelected();
+      renderSelectedDayInsight();
+      renderSummary();
+    }
   }
 
   restoreViewScroll(preservedScroll);
@@ -2189,7 +2205,7 @@ function renderMonth(){
     cell.dataset.date=key;
     if(d.getMonth()!==m)cell.classList.add("outside");
     if(key===today)cell.classList.add("today");
-    if(key===state.statsDate)cell.classList.add("selected");
+    if(key===state.statsInsightDate)cell.classList.add("selected");
 
     const top=document.createElement("div");
     top.className="day-topline";
@@ -2211,6 +2227,7 @@ function renderMonth(){
       e.stopPropagation();
 
       state.statsDate=key;
+      state.statsInsightDate=key;
       if(d.getMonth()!==m){
         state.currentMonth=startOfMonth(d);
       }
@@ -2230,12 +2247,14 @@ function renderMonthDayInsightPopover(){
 
   monthView.querySelector(".month-day-insight-popover")?.remove();
 
+  if(!state.statsInsightDate)return;
+
   const selected=grid.querySelector(
-    `.day-cell[data-date="${state.statsDate}"]`
+    `.day-cell[data-date="${state.statsInsightDate}"]`
   );
   if(!selected)return;
 
-  const key=state.statsDate;
+  const key=state.statsInsightDate;
   const date=parseDateKey(key);
   const combined=combinedProgressForDate(key);
   const dayEvents=allEventsForDate(key);
@@ -2296,6 +2315,7 @@ function renderMonthDayInsightPopover(){
     e.stopPropagation();
     popover.remove();
     selected.classList.remove("selected");
+    state.statsInsightDate=null;
   };
 }
 function weekZoomMinimum(){
@@ -3463,6 +3483,39 @@ function renderSelected(){
     }});
   el.dayProgress.textContent=`${avg}%`;el.dayBar.style.width=`${avg}%`;el.dayCaption.textContent=items.length?`${items.length}개 일정의 평균 완료율`:"등록된 일정이 없습니다.";
 }
+function renderSelectedDayInsight(){
+  if(!el.selectedInsightCombined)return;
+
+  const key=state.selectedDateKey;
+  const date=parseDateKey(key);
+  const dayEvents=allEventsForDate(key);
+  const dayHabits=activeHabitsOn(key);
+  const eventAvg=average(dayEvents);
+  const habitAvg=habitAverageForDate(key);
+  const combined=combinedProgressForDate(key);
+
+  const checklist=dayEvents.flatMap(event=>
+    checklistForOccurrence(event).map(item=>({
+      ...item,
+      autoFailed:item.status==="pending"&&isOccurrencePast(event)
+    }))
+  );
+  const done=checklist.filter(item=>item.status==="done").length;
+  const failed=checklist.filter(
+    item=>item.status==="failed"||item.autoFailed
+  ).length;
+
+  el.selectedInsightDate.textContent=
+    `${date.getMonth()+1}월 ${date.getDate()}일 ${["일","월","화","수","목","금","토"][date.getDay()]}요일`;
+  el.selectedInsightCombined.textContent=`${combined}%`;
+  el.selectedInsightEvents.textContent=`${eventAvg}%`;
+  el.selectedInsightEventCount.textContent=`${dayEvents.length}개`;
+  el.selectedInsightHabits.textContent=`${habitAvg}%`;
+  el.selectedInsightHabitCount.textContent=`${dayHabits.length}개`;
+  el.selectedInsightChecklist.textContent=`${done}/${checklist.length}`;
+  el.selectedInsightChecklistFailed.textContent=`실패 ${failed}`;
+}
+
 function renderSummary(){
   const items=monthOccurrences();
   el.monthCount.textContent=String(items.length);
@@ -5388,7 +5441,43 @@ function setupPageSwipeNavigation(){
 }
 
 function setupCalendarSwipe(){
-  // 주간 내부는 날짜 가로 스크롤, 화면 가장자리 스와이프는 화면 전환에 사용합니다.
+  if(!el.weekView)return;
+
+  let startX=0;
+  let startY=0;
+  let tracking=false;
+
+  el.weekView.addEventListener("touchstart",event=>{
+    if(state.currentView!=="week"||event.touches.length!==1)return;
+    if(event.target.closest("button,.week-event,.google-week-event,input,select,textarea"))return;
+
+    const touch=event.touches[0];
+    startX=touch.clientX;
+    startY=touch.clientY;
+    tracking=true;
+  },{passive:true});
+
+  el.weekView.addEventListener("touchend",event=>{
+    if(!tracking||state.currentView!=="week")return;
+    tracking=false;
+
+    const touch=event.changedTouches[0];
+    const dx=touch.clientX-startX;
+    const dy=touch.clientY-startY;
+
+    if(Math.abs(dx)<65)return;
+    if(Math.abs(dx)<Math.abs(dy)*1.25)return;
+
+    // 기본 7일 보기에서는 좌우 스와이프로 한 주씩 이동.
+    // 확대/축소로 7일보다 많이 보는 경우에는 기존 가로 스크롤을 방해하지 않음.
+    if(!state.weekFit&&visibleDaysForZoom()>7)return;
+
+    shiftCalendarPeriod(dx<0?1:-1);
+  },{passive:true});
+
+  el.weekView.addEventListener("touchcancel",()=>{
+    tracking=false;
+  },{passive:true});
 }
 
 
@@ -5515,6 +5604,7 @@ el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 el.mobileSearchNav.onclick=()=>navigateToPage("search");
 $("statsTodayButton").onclick=()=>{
   state.statsDate=dateKey(new Date());
+  state.statsInsightDate=null;
   state.currentMonth=startOfMonth(new Date());
   renderStats();
 };
@@ -5522,22 +5612,26 @@ $("statsPrevMonthButton").onclick=()=>{
   const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()-1,1);
   state.currentMonth=next;
   state.statsDate=dateKey(next);
+  state.statsInsightDate=null;
   renderStats();
 };
 $("statsThisMonthButton").onclick=()=>{
   const now=new Date();
   state.currentMonth=startOfMonth(now);
   state.statsDate=dateKey(now);
+  state.statsInsightDate=null;
   renderStats();
 };
 $("statsNextMonthButton").onclick=()=>{
   const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()+1,1);
   state.currentMonth=next;
   state.statsDate=dateKey(next);
+  state.statsInsightDate=null;
   renderStats();
 };
 
 el.openCategoryManagerButton.onclick=openCategoryManager;
+$("weekCategoryManagerButton").onclick=openCategoryManager;
 $("closeCategoryManagerButton").onclick=closeCategoryManager;
 $("cancelCategoryManagerButton").onclick=closeCategoryManager;
 $("addCategoryButton").onclick=addCategory;
@@ -5742,6 +5836,7 @@ window.addEventListener("popstate",event=>{
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
+setupCalendarSwipe();
 
 await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
