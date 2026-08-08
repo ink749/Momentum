@@ -78,8 +78,8 @@
               </div>
               <button id="weekAddEventButton" class="week-add-event-button" type="button">+ 일정 추가</button>
               <div class="view-switch">
-                <button id="weekViewButton" class="view-button active" type="button">주간</button>
-                <button id="monthViewButton" class="view-button" type="button">월간</button>
+                <button id="selectedViewButton" class="view-button active" type="button">SELECTED DAY</button>
+                <button id="weekViewButton" class="view-button" type="button">주간</button>
               </div>
             </div>
           </div>
@@ -89,7 +89,22 @@
             <button id="openCategoryManagerButton" class="category-manage-button" type="button">카테고리 수정</button>
           </div>
 
-          <section class="quick-add-bar" aria-label="빠른 일정 입력">
+
+          <div id="monthView">
+            <div class="weekday-row">
+              <span class="sunday">일</span><span>월</span><span>화</span><span>수</span>
+              <span>목</span><span>금</span><span class="saturday">토</span>
+            </div>
+            <div id="monthGrid" class="month-grid"></div>
+          </div>
+
+        <section id="selectedView" class="selected-view-panel">
+          <section class="summary-card">
+            <div class="summary-heading">
+              <div><p class="eyebrow">SELECTED DAY</p><h3 id="selectedDateTitle">오늘 일정</h3></div>
+              <span id="selectedDateLabel"></span>
+            </div>
+            <section class="quick-add-bar" aria-label="빠른 일정 입력">
             <div class="quick-add-copy">
               <strong>빠른 입력</strong>
 
@@ -100,38 +115,15 @@
             </div>
             <p id="quickAddMessage" class="quick-add-message"></p>
           </section>
-
-          <div id="monthView">
-            <div class="weekday-row">
-              <span class="sunday">일</span><span>월</span><span>화</span><span>수</span>
-              <span>목</span><span>금</span><span class="saturday">토</span>
-            </div>
-            <div id="monthGrid" class="month-grid"></div>
-          </div>
-
-          <div id="weekView" class="week-view" hidden>
-            <div id="weekScroll" class="week-scroll">
-              <div id="weekGrid" class="week-grid"></div>
-            </div>
-          </div>
-        </section>
-
-        <aside class="summary-column">
-          <section class="summary-card">
-            <div class="summary-heading">
-              <div><p class="eyebrow">SELECTED DAY</p><h3 id="selectedDateTitle">오늘 일정</h3></div>
-              <span id="selectedDateLabel"></span>
-            </div>
             <div id="selectedDayEvents" class="selected-day-events"></div>
           </section>
-
+          <div class="selected-support-grid">
           <section class="summary-card">
             <p class="eyebrow">DAY PROGRESS</p>
             <div id="dayProgressNumber" class="progress-number">0%</div>
             <div class="progress-track"><div id="dayProgressBar" class="progress-fill"></div></div>
             <p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
           </section>
-
           <section class="summary-card">
             <p class="eyebrow">MONTH SUMMARY</p>
             <div class="summary-stats">
@@ -143,7 +135,16 @@
               <div id="summaryHabitNames" class="summary-habit-names"></div>
             </div>
           </section>
-        </aside>
+          </div>
+        </section>
+          <div id="weekView" class="week-view" hidden>
+            <div id="weekScroll" class="week-scroll">
+              <div id="weekGrid" class="week-grid"></div>
+            </div>
+          </div>
+        </section>
+
+
       </section>
       </section>
 
@@ -202,10 +203,8 @@
             <h1>통계</h1>
             <p class="sync-status">일정과 습관의 진행 상황을 한눈에 확인하세요.</p>
           </div>
-          <div class="top-actions stats-date-navigation">
-            <button id="statsPrevDayButton" class="secondary-button" type="button">‹ 이전날</button>
-            <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
-            <button id="statsNextDayButton" class="secondary-button" type="button">다음날 ›</button>
+          <div class="top-actions">
+            <button id="statsTodayButton" class="secondary-button" type="button">오늘 보기</button>
           </div>
         </header>
 
@@ -233,6 +232,42 @@
             </article>
           </div>
 
+
+          <section class="stats-card stats-month-calendar-card">
+            <div class="stats-card-heading stats-month-heading">
+              <div>
+                <p class="eyebrow">MONTH OVERVIEW</p>
+                <h2 id="statsMonthCalendarTitle">월간 성과</h2>
+              </div>
+              <div class="stats-month-navigation">
+                <button id="statsPrevMonthButton" class="round-button" type="button">‹</button>
+                <button id="statsThisMonthButton" class="today-chip" type="button">이번 달</button>
+                <button id="statsNextMonthButton" class="round-button" type="button">›</button>
+              </div>
+            </div>
+            <div id="monthView" class="stats-month-view">
+              <div class="weekday-row">
+                <span class="sunday">일</span><span>월</span><span>화</span><span>수</span>
+                <span>목</span><span>금</span><span class="saturday">토</span>
+              </div>
+              <div id="monthGrid" class="month-grid"></div>
+            </div>
+          </section>
+
+          <section class="stats-card day-insight-card">
+            <div class="stats-card-heading">
+              <div>
+                <p class="eyebrow">DAY INSIGHT</p>
+                <h2 id="dayInsightTitle">오늘</h2>
+              </div>
+            </div>
+            <div class="day-insight-metrics">
+              <div><span>종합</span><strong id="dayInsightCombined">0%</strong></div>
+              <div><span>일정</span><strong id="dayInsightEvents">0%</strong><small id="dayInsightEventCount">0개</small></div>
+              <div><span>습관</span><strong id="dayInsightHabits">0%</strong><small id="dayInsightHabitCount">0개</small></div>
+              <div><span>체크리스트</span><strong id="dayInsightChecklist">0/0</strong><small id="dayInsightChecklistFailed">실패 0</small></div>
+            </div>
+          </section>
           <div class="stats-content-grid">
             <section class="stats-card">
               <div class="stats-card-heading">

@@ -27,7 +27,7 @@ const DEFAULT_CATEGORIES = [
   {id:"other",name:"기타",color:"#8a9790",locked:true}
 ];
 const state = {
-  user:null, events:[], currentView:"week",
+  user:null, events:[], currentView:"selected",
   currentMonth:startOfMonth(new Date()), currentWeek:startOfWeek(new Date()),
   selectedDateKey:dateKey(new Date()), selectedProgress:0, unsubscribe:null,
   weekZoom:100, weekFit:true,
@@ -70,9 +70,9 @@ const el = {
   logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
   mobilePhoto:$("mobileUserPhoto"), sheetPhoto:$("sheetUserPhoto"), sheetName:$("sheetUserName"), sheetEmail:$("sheetUserEmail"),
   mobileUser:$("mobileUserButton"), accountSheet:$("accountSheet"), closeSheet:$("closeAccountSheet"),
-  monthView:$("monthView"), weekView:$("weekView"), monthGrid:$("monthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
+  monthView:$("monthView"), selectedView:$("selectedView"), weekView:$("weekView"), monthGrid:$("monthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
-  monthBtn:$("monthViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
+  selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
   selectedEvents:$("selectedDayEvents"), dayProgress:$("dayProgressNumber"), dayBar:$("dayProgressBar"), dayCaption:$("dayProgressCaption"),
   monthCount:$("monthEventCount"), monthAverage:$("monthAverageProgress"), summaryHabitNames:$("summaryHabitNames"),
   modal:$("eventModal"), form:$("eventForm"),
@@ -113,6 +113,11 @@ const el = {
   statsMonthPerfectHabitDays:$("statsMonthPerfectHabitDays"),
   statsChecklistProgress:$("statsChecklistProgress"), statsChecklistCount:$("statsChecklistCount"),
   statsChecklistTotal:$("statsChecklistTotal"), statsChecklistDone:$("statsChecklistDone"), statsChecklistFailed:$("statsChecklistFailed"),
+  statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
+  dayInsightTitle:$("dayInsightTitle"), dayInsightCombined:$("dayInsightCombined"),
+  dayInsightEvents:$("dayInsightEvents"), dayInsightEventCount:$("dayInsightEventCount"),
+  dayInsightHabits:$("dayInsightHabits"), dayInsightHabitCount:$("dayInsightHabitCount"),
+  dayInsightChecklist:$("dayInsightChecklist"), dayInsightChecklistFailed:$("dayInsightChecklistFailed"),
   categoryAchievement:$("categoryAchievement"), habitRanking:$("habitRanking"),
   searchPage:$("searchPage"), searchNav:$("searchNavButton"), mobileSearchNav:$("mobileSearchNavButton"),
   globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
@@ -595,22 +600,38 @@ function renderStats(){
   const isToday=selectedKey===todayKey;
   const dayName=`${selectedDate.getMonth()+1}월 ${selectedDate.getDate()}일`;
 
+  if(
+    state.currentMonth.getFullYear()!==selectedDate.getFullYear()
+    ||state.currentMonth.getMonth()!==selectedDate.getMonth()
+  ){
+    state.currentMonth=startOfMonth(selectedDate);
+  }
+
   const dayEvents=allEventsForDate(selectedKey);
   const dayHabits=activeHabitsOn(selectedKey);
   const dayEventAvg=average(dayEvents);
   const dayHabitAvg=habitAverageForDate(selectedKey);
+  const dayCombined=combinedProgressForDate(selectedKey);
 
-  const mobileStats=window.matchMedia("(max-width:720px)").matches;
-  el.statsDayEventLabel.textContent=mobileStats
-    ?(isToday?"오늘 일정":`${selectedDate.getMonth()+1}/${selectedDate.getDate()} 일정`)
-    :(isToday?"오늘 일정 완료율":`${dayName} 일정 완료율`);
-  el.statsDayHabitLabel.textContent=mobileStats
-    ?(isToday?"오늘 습관":`${selectedDate.getMonth()+1}/${selectedDate.getDate()} 습관`)
-    :(isToday?"오늘 습관 완료율":`${dayName} 습관 완료율`);
-  el.statsTodayEventProgress.textContent=`${dayEventAvg}%`;
-  el.statsTodayEventCount.textContent=`일정 ${dayEvents.length}개`;
-  el.statsTodayHabitProgress.textContent=`${dayHabitAvg}%`;
-  el.statsTodayHabitCount.textContent=`습관 ${dayHabits.length}개`;
+  const dayChecklistRows=dayEvents.flatMap(event=>
+    checklistForOccurrence(event).map(item=>({
+      ...item,
+      autoFailed:item.status==="pending"&&isOccurrencePast(event)
+    }))
+  );
+  const dayChecklistDone=dayChecklistRows.filter(item=>item.status==="done").length;
+  const dayChecklistFailed=dayChecklistRows.filter(
+    item=>item.status==="failed"||item.autoFailed
+  ).length;
+
+  el.dayInsightTitle.textContent=`${dayName} ${["일","월","화","수","목","금","토"][selectedDate.getDay()]}요일`;
+  el.dayInsightCombined.textContent=`${dayCombined}%`;
+  el.dayInsightEvents.textContent=`${dayEventAvg}%`;
+  el.dayInsightEventCount.textContent=`일정 ${dayEvents.length}개`;
+  el.dayInsightHabits.textContent=`${dayHabitAvg}%`;
+  el.dayInsightHabitCount.textContent=`습관 ${dayHabits.length}개`;
+  el.dayInsightChecklist.textContent=`${dayChecklistDone}/${dayChecklistRows.length}`;
+  el.dayInsightChecklistFailed.textContent=`실패 ${dayChecklistFailed}`;
 
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
@@ -634,7 +655,7 @@ function renderStats(){
     :0;
 
   const activeMonthHabits=state.habits.filter(habit=>
-    parseDateKey(habit.startDate)<=parseDateKey(keys[keys.length-1])
+    keys.some(key=>habitIsActive(habit,key))
   );
   const monthHabitValues=[];
   let perfectCount=0;
@@ -659,35 +680,41 @@ function renderStats(){
     ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
     :0;
 
-  el.statsMonthCombinedLabel.textContent=mobileStats
-    ?`${selectedDate.getMonth()+1}월 종합`
-    :`${monthText} 종합 완료율`;
-  el.statsChecklistLabel.textContent=mobileStats
-    ?`${selectedDate.getMonth()+1}월 체크리스트`
-    :`${monthText} 체크리스트 완료율`;
+  const mobileStats=window.matchMedia("(max-width:720px)").matches;
+  el.statsDayEventLabel.textContent=mobileStats?`${selectedDate.getMonth()+1}월 종합`:`${monthText} 종합 완료율`;
+  el.statsDayHabitLabel.textContent=mobileStats?"일정":`${monthText} 일정 완료율`;
+  el.statsMonthCombinedLabel.textContent=mobileStats?"습관":`${monthText} 습관 완료율`;
+  el.statsChecklistLabel.textContent=mobileStats?"체크리스트":`${monthText} 체크리스트 완료율`;
+
+  el.statsTodayEventProgress.textContent=`${monthCombined}%`;
+  el.statsTodayEventCount.textContent="일정 + 습관";
+  el.statsTodayHabitProgress.textContent=`${monthEventAvg}%`;
+  el.statsTodayHabitCount.textContent=`일정 ${monthEventOccurrences.length}개`;
+  el.statsMonthCombinedProgress.textContent=`${monthHabitAvg}%`;
+  const monthHabitCountLabel=el.statsMonthCombinedProgress.nextElementSibling;
+  if(monthHabitCountLabel)monthHabitCountLabel.textContent=`활성 습관 ${activeMonthHabits.length}개`;
+  el.statsChecklistProgress.textContent=`${checklistProgress}%`;
+  el.statsChecklistCount.textContent=`완료 ${checklistDone} / 전체 ${checklistTotal}`;
+
+  el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
   el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 완료율`;
   el.statsMonthSummaryTitle.textContent=`${monthText} 요약`;
   el.statsCategoryTitle.textContent=`카테고리별 ${selectedDate.getMonth()+1}월 성취도`;
   el.statsHabitRankingTitle.textContent=`습관별 ${selectedDate.getMonth()+1}월 달성률`;
 
-  el.statsMonthCombinedProgress.textContent=`${monthCombined}%`;
   el.statsMonthEventCount.textContent=`${monthEventOccurrences.length}개`;
   el.statsMonthEventProgress.textContent=`${monthEventAvg}%`;
   el.statsMonthHabitCount.textContent=`${activeMonthHabits.length}개`;
   el.statsMonthHabitProgress.textContent=`${monthHabitAvg}%`;
   el.statsMonthPerfectHabitDays.textContent=`${perfectCount}회`;
-  el.statsChecklistProgress.textContent=`${checklistProgress}%`;
-  el.statsChecklistCount.textContent=`완료 ${checklistDone} / 전체 ${checklistTotal}`;
   el.statsChecklistTotal.textContent=`${checklistTotal}개`;
   el.statsChecklistDone.textContent=`${checklistDone}개`;
   el.statsChecklistFailed.textContent=`${checklistFailed}개`;
 
+  renderMonth();
   renderWeeklyProgress(selectedDate);
   renderCategoryAchievement(keys);
   renderHabitRanking(keys);
-
-  const nextButton=$("statsNextDayButton");
-  if(nextButton)nextButton.disabled=selectedKey>=todayKey;
 }
 function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   el.weeklyProgressChart.innerHTML="";
@@ -909,7 +936,7 @@ function parseQuickDate(text){
     return candidate;
   }
 
-  return now;
+  return parseDateKey(state.selectedDateKey||dateKey(now));
 }
 function startOfDay(date){
   const value=new Date(date);
@@ -1067,7 +1094,10 @@ function renderPage(){
   el.mobileStatsNav.classList.toggle("active",statsMode);
   el.mobileSearchNav.classList.toggle("active",searchMode);
 
-  el.mobileAdd.hidden=statsMode||searchMode;
+  el.mobileAdd.hidden=
+    statsMode
+    ||searchMode
+    ||(calendarMode&&state.currentView==="week");
   el.mobileAdd.classList.toggle("habit-mode",habitMode);
 
   document.body.classList.toggle(
@@ -1799,6 +1829,7 @@ function restoreViewScroll(position){
 }
 function renderAll(){
   const preservedScroll=captureViewScroll();
+
   const weekAddButton=$("weekAddEventButton");
   if(weekAddButton){
     weekAddButton.hidden=
@@ -1808,20 +1839,25 @@ function renderAll(){
 
   const quickAddBar=document.querySelector(".quick-add-bar");
   if(quickAddBar){
-    quickAddBar.hidden=state.currentView!=="week";
+    quickAddBar.hidden=state.currentView!=="selected";
   }
-  el.monthView.hidden=state.currentView!=="month";
+
+  const categoryBar=document.querySelector(".category-filter-bar");
+  if(categoryBar){
+    categoryBar.hidden=state.currentView!=="week";
+  }
+
+  el.selectedView.hidden=state.currentView!=="selected";
   el.weekView.hidden=state.currentView!=="week";
   el.weekZoomControls.hidden=state.currentView!=="week";
-  el.monthBtn.classList.toggle("active",state.currentView==="month");
+
+  el.selectedBtn.classList.toggle("active",state.currentView==="selected");
   el.weekBtn.classList.toggle("active",state.currentView==="week");
 
   renderPage();
   applyWeekZoom();
-
   renderCategoryControls();
   renderPeriodLabel();
-  renderMonth();
 
   if(state.currentView==="week"){
     renderWeek();
@@ -1829,12 +1865,18 @@ function renderAll(){
 
   renderSelected();
   renderSummary();
+
+  if(state.activePage==="stats"){
+    renderStats();
+  }
+
   restoreViewScroll(preservedScroll);
 }
 function renderPeriodLabel(){
-  if(state.currentView==="month"){
+  if(state.currentView==="selected"){
+    const d=parseDateKey(state.selectedDateKey);
     el.periodLabel.textContent=
-      `${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth()+1}월`;
+      `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
     return;
   }
 
@@ -1847,7 +1889,6 @@ function renderPeriodLabel(){
   el.periodLabel.textContent=
     `${state.currentWeek.getMonth()+1}.${state.currentWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
 }
-
 
 function addLongPress(element,callback){
   let timer=null;
@@ -2149,6 +2190,8 @@ function createEventChip(event){
   return chip;
 }
 function renderMonth(){
+  if(!el.monthGrid)return;
+
   const y=state.currentMonth.getFullYear();
   const m=state.currentMonth.getMonth();
   const first=new Date(y,m,1);
@@ -2166,7 +2209,7 @@ function renderMonth(){
     cell.className="day-cell";
     if(d.getMonth()!==m)cell.classList.add("outside");
     if(key===today)cell.classList.add("today");
-    if(key===state.selectedDateKey)cell.classList.add("selected");
+    if(key===state.statsDate)cell.classList.add("selected");
 
     const top=document.createElement("div");
     top.className="day-topline";
@@ -2187,19 +2230,17 @@ function renderMonth(){
     `;
 
     cell.append(top,insight);
-
     cell.addEventListener("click",clickEvent=>{
       clickEvent.preventDefault();
       clickEvent.stopPropagation();
 
-      state.selectedDateKey=key;
+      state.statsDate=key;
       if(d.getMonth()!==m){
         state.currentMonth=startOfMonth(d);
       }
-      renderAll();
+      renderStats();
     });
 
-    bindContextActions(cell,{date:key,time:"09:00"});
     el.monthGrid.appendChild(cell);
   }
 }
@@ -4025,6 +4066,60 @@ function closeDayView({fromHistory=false}={}){
     history.back();
   }
 }
+function openDayChecklistPopover(event){
+  const existing=document.querySelector(".day-checklist-popover-backdrop");
+  if(existing)existing.remove();
+
+  const backdrop=document.createElement("div");
+  backdrop.className="day-checklist-popover-backdrop";
+
+  const panel=document.createElement("section");
+  panel.className="day-checklist-popover";
+  const occurrenceDate=checklistOccurrenceDate(event);
+
+  const render=()=>{
+    const items=checklistForOccurrence(event);
+    const past=isOccurrencePast(event);
+    panel.innerHTML=`
+      <header>
+        <div>
+          <p class="eyebrow">CHECKLIST</p>
+          <strong>${escapeHtml(event.title)}</strong>
+          <small>${escapeHtml(occurrenceDate)} · ${escapeHtml(eventDisplayStart(event))} - ${escapeHtml(eventDisplayEnd(event))}</small>
+        </div>
+        <button type="button" class="close-button" data-close-checklist>×</button>
+      </header>
+      <div class="day-checklist-popover-list${past?" past":""}">
+        ${items.map(item=>`
+          <button type="button"
+            class="day-checklist-popover-item status-${item.status}"
+            data-checklist-id="${escapeHtml(item.id)}">
+            <i>${checklistStatusIcon(item.status)}</i>
+            <span>${escapeHtml(item.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+
+    panel.querySelector("[data-close-checklist]").onclick=()=>backdrop.remove();
+    panel.querySelectorAll(".day-checklist-popover-item").forEach(button=>{
+      button.onclick=async clickEvent=>{
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        await toggleChecklistItem(event,button.dataset.checklistId);
+        render();
+        renderDayView();
+      };
+    });
+  };
+
+  render();
+  backdrop.appendChild(panel);
+  backdrop.addEventListener("click",clickEvent=>{
+    if(clickEvent.target===backdrop)backdrop.remove();
+  });
+  document.body.appendChild(backdrop);
+}
 function renderDayView(){
   if(!state.dayViewDate)return;
 
@@ -4129,32 +4224,50 @@ function renderDayView(){
 
       const checklist=checklistForOccurrence(event);
       const past=isOccurrencePast(event);
+      const compactChecklist=checklist.length&&duration<=60;
+      const doneChecklist=checklist.filter(item=>item.status==="done").length;
+
       block.innerHTML=`
         <strong class="event-title-trigger">${escapeHtml(event.title)}</strong>
         ${
           checklist.length
-            ?`<div class="day-view-checklist${past?" past":""}">${
-              checklist.slice(0,4).map(item=>
-                `<button type="button"
-                  class="day-view-checkitem status-${item.status}"
-                  data-checklist-id="${escapeHtml(item.id)}">
-                  <i>${checklistStatusIcon(item.status)}</i>
-                  <span>${escapeHtml(item.text)}</span>
-                </button>`
-              ).join("")
-            }</div>`
+            ?(
+              compactChecklist
+                ?`<button type="button" class="day-view-checklist-summary-button">
+                    ✓ ${doneChecklist}/${checklist.length} <span>›</span>
+                  </button>`
+                :`<div class="day-view-checklist${past?" past":""}">${
+                    checklist.slice(0,4).map(item=>
+                      `<button type="button"
+                        class="day-view-checkitem status-${item.status}"
+                        data-checklist-id="${escapeHtml(item.id)}">
+                        <i>${checklistStatusIcon(item.status)}</i>
+                        <span>${escapeHtml(item.text)}</span>
+                      </button>`
+                    ).join("")
+                  }</div>`
+            )
             :""
         }
       `;
 
-      bindChecklistTaps(
-        block,
-        event,
-        ".day-view-checkitem"
-      );
+      if(compactChecklist){
+        block.querySelector(".day-view-checklist-summary-button")
+          ?.addEventListener("click",clickEvent=>{
+            clickEvent.preventDefault();
+            clickEvent.stopPropagation();
+            openDayChecklistPopover(event);
+          });
+      }else{
+        bindChecklistTaps(
+          block,
+          event,
+          ".day-view-checkitem"
+        );
+      }
 
       block.addEventListener("click",eventClick=>{
-        if(eventClick.target.closest(".day-view-checkitem")){
+        if(eventClick.target.closest(".day-view-checkitem, .day-view-checklist-summary-button")){
           eventClick.preventDefault();
           eventClick.stopPropagation();
           return;
@@ -5125,11 +5238,9 @@ function addHorizontalSwipe(element,onLeft,onRight){
 
 
 function shiftCalendarPeriod(direction){
-  if(state.currentView==="month"){
-    state.currentMonth=new Date(
-      state.currentMonth.getFullYear(),
-      state.currentMonth.getMonth()+direction,
-      1
+  if(state.currentView==="selected"){
+    state.selectedDateKey=dateKey(
+      addDays(parseDateKey(state.selectedDateKey),direction)
     );
   }else{
     state.currentWeek=addDays(state.currentWeek,7*direction);
@@ -5139,8 +5250,8 @@ function shiftCalendarPeriod(direction){
 }
 function setupPageSwipeNavigation(){
   const screens=[
+    {page:"calendar",view:"selected"},
     {page:"calendar",view:"week"},
-    {page:"calendar",view:"month"},
     {page:"habit"},
     {page:"stats"},
     {page:"search"}
@@ -5152,7 +5263,7 @@ function setupPageSwipeNavigation(){
 
   const currentIndex=()=>{
     if(state.activePage==="calendar"){
-      return state.currentView==="week"?0:1;
+      return state.currentView==="selected"?0:1;
     }
     if(state.activePage==="habit")return 2;
     if(state.activePage==="stats")return 3;
@@ -5236,10 +5347,33 @@ function closeSheet(){
   clearModalHistory("account");
 }
 
-$("prevPeriod").onclick=()=>{if(state.currentView==="month")state.currentMonth=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()-1,1);else state.currentWeek=addDays(state.currentWeek,-7);renderAll()};
-$("nextPeriod").onclick=()=>{if(state.currentView==="month")state.currentMonth=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()+1,1);else state.currentWeek=addDays(state.currentWeek,7);renderAll()};
-$("todayButton").onclick=()=>{const t=new Date();state.currentMonth=startOfMonth(t);state.currentWeek=startOfWeek(t);state.selectedDateKey=dateKey(t);renderAll()};
-el.monthBtn.onclick=()=>{state.currentView="month";renderAll()};
+$("prevPeriod").onclick=()=>{
+  if(state.currentView==="selected"){
+    state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
+  }else{
+    state.currentWeek=addDays(state.currentWeek,-7);
+  }
+  renderAll();
+};
+$("nextPeriod").onclick=()=>{
+  if(state.currentView==="selected"){
+    state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),1));
+  }else{
+    state.currentWeek=addDays(state.currentWeek,7);
+  }
+  renderAll();
+};
+$("todayButton").onclick=()=>{
+  const t=new Date();
+  state.currentMonth=startOfMonth(t);
+  state.currentWeek=startOfWeek(t);
+  state.selectedDateKey=dateKey(t);
+  renderAll();
+};
+el.selectedBtn.onclick=()=>{
+  state.currentView="selected";
+  renderAll();
+};
 el.weekBtn.onclick=()=>{
   state.currentView="week";
   state.currentWeek=startOfWeek(parseDateKey(state.selectedDateKey));
@@ -5325,17 +5459,26 @@ el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 el.mobileSearchNav.onclick=()=>navigateToPage("search");
-$("statsPrevDayButton").onclick=()=>{
-  state.statsDate=dateKey(addDays(parseDateKey(state.statsDate),-1));
-  renderStats();
-};
 $("statsTodayButton").onclick=()=>{
   state.statsDate=dateKey(new Date());
+  state.currentMonth=startOfMonth(new Date());
   renderStats();
 };
-$("statsNextDayButton").onclick=()=>{
-  const next=addDays(parseDateKey(state.statsDate),1);
-  if(dateKey(next)>dateKey(new Date()))return;
+$("statsPrevMonthButton").onclick=()=>{
+  const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()-1,1);
+  state.currentMonth=next;
+  state.statsDate=dateKey(next);
+  renderStats();
+};
+$("statsThisMonthButton").onclick=()=>{
+  const now=new Date();
+  state.currentMonth=startOfMonth(now);
+  state.statsDate=dateKey(now);
+  renderStats();
+};
+$("statsNextMonthButton").onclick=()=>{
+  const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()+1,1);
+  state.currentMonth=next;
   state.statsDate=dateKey(next);
   renderStats();
 };

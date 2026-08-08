@@ -5105,3 +5105,205 @@ body.week-four-weeks .week-event-checklist{
     font-size:1rem;
   }
 }
+
+
+/* Momentum v7.0 — 캘린더: SELECTED DAY / 주간 */
+#calendarPage .dashboard-grid{
+  display:block;
+}
+#calendarPage .calendar-card{
+  width:100%;
+}
+.selected-view-panel{
+  display:grid;
+  grid-template-columns:minmax(0,1.6fr) minmax(260px,.8fr);
+  gap:18px;
+  align-items:start;
+  padding-top:4px;
+}
+.selected-view-panel>.summary-card:first-child{
+  min-width:0;
+}
+.selected-support-grid{
+  display:grid;
+  gap:14px;
+}
+.selected-view-panel .quick-add-bar{
+  margin:14px 0 16px;
+}
+#calendarPage .category-filter-bar[hidden],
+#calendarPage .quick-add-bar[hidden]{
+  display:none!important;
+}
+
+/* 통계 + 월간 캘린더 */
+.stats-month-calendar-card{
+  overflow:hidden;
+}
+.stats-month-heading,
+.stats-month-navigation{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.stats-month-navigation{
+  justify-content:flex-end;
+}
+.stats-month-view{
+  margin-top:12px;
+}
+.stats-month-view .month-grid{
+  min-height:540px;
+}
+.stats-month-view .day-cell{
+  cursor:pointer;
+}
+.day-insight-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.day-insight-metrics>div{
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.55);
+}
+.day-insight-metrics span,
+.day-insight-metrics small{
+  display:block;
+  color:var(--soft);
+}
+.day-insight-metrics strong{
+  display:block;
+  margin:7px 0 3px;
+  font-size:1.55rem;
+}
+
+/* 하루 캘린더: 짧은 일정은 체크리스트 요약 버튼으로 표시 */
+.day-view-event{
+  position:absolute;
+}
+.day-view-checklist-summary-button{
+  position:absolute;
+  right:7px;
+  bottom:3px;
+  max-width:46%;
+  border:0;
+  border-radius:999px;
+  padding:2px 6px;
+  background:rgba(255,255,255,.68);
+  color:rgba(18,54,39,.85);
+  font-size:.67rem;
+  font-weight:900;
+  line-height:1.05;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.day-view-event.compact .day-view-checklist-summary-button{
+  right:5px;
+  bottom:3px;
+  padding:1px 5px;
+  font-size:.63rem;
+}
+.day-checklist-popover-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(13,30,22,.38);
+}
+.day-checklist-popover{
+  width:min(430px,100%);
+  max-height:min(640px,82vh);
+  overflow:auto;
+  border-radius:20px;
+  background:var(--card);
+  border:1px solid var(--line);
+  box-shadow:0 18px 60px rgba(0,0,0,.18);
+  padding:16px;
+}
+.day-checklist-popover header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:14px;
+}
+.day-checklist-popover header strong,
+.day-checklist-popover header small{
+  display:block;
+}
+.day-checklist-popover header small{
+  margin-top:4px;
+  color:var(--soft);
+}
+.day-checklist-popover-list{
+  display:grid;
+  gap:7px;
+}
+.day-checklist-popover-item{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 11px;
+  background:rgba(255,255,255,.65);
+  color:var(--text);
+  text-align:left;
+}
+.day-checklist-popover-item i{
+  font-style:normal;
+  font-weight:900;
+}
+.day-checklist-popover-item.status-done span{
+  text-decoration:line-through;
+  opacity:.62;
+}
+.day-checklist-popover-item.status-failed span,
+.day-checklist-popover-list.past .day-checklist-popover-item.status-pending span{
+  text-decoration:line-through;
+  opacity:.52;
+}
+
+@media(max-width:900px){
+  .selected-view-panel{
+    grid-template-columns:1fr;
+  }
+  .selected-support-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:720px){
+  .selected-view-panel{
+    display:block;
+  }
+  .selected-support-grid{
+    grid-template-columns:1fr;
+    margin-top:12px;
+  }
+  .selected-view-panel .quick-add-bar{
+    margin:12px 0;
+  }
+  .day-insight-metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .stats-month-view .month-grid{
+    min-height:420px;
+  }
+  .stats-month-navigation{
+    gap:5px;
+  }
+  .stats-month-navigation .today-chip{
+    padding-inline:9px;
+  }
+  .day-view-checklist-summary-button{
+    max-width:50%;
+  }
+}
