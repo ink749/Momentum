@@ -5543,3 +5543,20 @@ body.week-four-weeks .week-event-checklist{
     margin-top:7px;
   }
 }
+
+
+/* Momentum v7.5 — 월간 DAY INSIGHT 팝업 화살표 제거 */
+.month-day-insight::before,
+.month-day-insight::after,
+.month-insight-popover::before,
+.month-insight-popover::after,
+.day-insight-popover::before,
+.day-insight-popover::after,
+.stats-day-popover::before,
+.stats-day-popover::after,
+.calendar-day-popover::before,
+.calendar-day-popover::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+}
