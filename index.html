@@ -88,21 +88,14 @@
             <div id="categoryFilterButtons" class="category-filter-buttons"></div>
             <button id="openCategoryManagerButton" class="category-manage-button" type="button">카테고리 수정</button>
           </div>
-
-
-          <div id="monthView">
-            <div class="weekday-row">
-              <span class="sunday">일</span><span>월</span><span>화</span><span>수</span>
-              <span>목</span><span>금</span><span class="saturday">토</span>
-            </div>
-            <div id="monthGrid" class="month-grid"></div>
-          </div>
-
-        <section id="selectedView" class="selected-view-panel">
+<section id="selectedView" class="selected-view-panel">
           <section class="summary-card">
-            <div class="summary-heading">
-              <div><p class="eyebrow">SELECTED DAY</p><h3 id="selectedDateTitle">오늘 일정</h3></div>
-              <span id="selectedDateLabel"></span>
+            <div class="summary-heading selected-day-heading">
+              <div class="selected-day-heading-line">
+                <p class="eyebrow">SELECTED DAY</p>
+                <span id="selectedDateLabel"></span>
+              </div>
+              <h3 id="selectedDateTitle" class="visually-hidden">오늘 일정</h3>
             </div>
             <section class="quick-add-bar" aria-label="빠른 일정 입력">
             <div class="quick-add-copy">
@@ -245,30 +238,15 @@
                 <button id="statsNextMonthButton" class="round-button" type="button">›</button>
               </div>
             </div>
-            <div id="monthView" class="stats-month-view">
-              <div class="weekday-row">
-                <span class="sunday">일</span><span>월</span><span>화</span><span>수</span>
-                <span>목</span><span>금</span><span class="saturday">토</span>
+            <div id="statsMonthView" class="stats-month-view">
+              <div class="weekday-row stats-weekday-row">
+                <span>월</span><span>화</span><span>수</span><span>목</span>
+                <span>금</span><span class="saturday">토</span><span class="sunday">일</span>
               </div>
-              <div id="monthGrid" class="month-grid"></div>
+              <div id="statsMonthGrid" class="month-grid"></div>
             </div>
           </section>
-
-          <section class="stats-card day-insight-card">
-            <div class="stats-card-heading">
-              <div>
-                <p class="eyebrow">DAY INSIGHT</p>
-                <h2 id="dayInsightTitle">오늘</h2>
-              </div>
-            </div>
-            <div class="day-insight-metrics">
-              <div><span>종합</span><strong id="dayInsightCombined">0%</strong></div>
-              <div><span>일정</span><strong id="dayInsightEvents">0%</strong><small id="dayInsightEventCount">0개</small></div>
-              <div><span>습관</span><strong id="dayInsightHabits">0%</strong><small id="dayInsightHabitCount">0개</small></div>
-              <div><span>체크리스트</span><strong id="dayInsightChecklist">0/0</strong><small id="dayInsightChecklistFailed">실패 0</small></div>
-            </div>
-          </section>
-          <div class="stats-content-grid">
+<div class="stats-content-grid">
             <section class="stats-card">
               <div class="stats-card-heading">
                 <div>

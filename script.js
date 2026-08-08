@@ -70,7 +70,7 @@ const el = {
   logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
   mobilePhoto:$("mobileUserPhoto"), sheetPhoto:$("sheetUserPhoto"), sheetName:$("sheetUserName"), sheetEmail:$("sheetUserEmail"),
   mobileUser:$("mobileUserButton"), accountSheet:$("accountSheet"), closeSheet:$("closeAccountSheet"),
-  monthView:$("monthView"), selectedView:$("selectedView"), weekView:$("weekView"), monthGrid:$("monthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
+  statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
   selectedEvents:$("selectedDayEvents"), dayProgress:$("dayProgressNumber"), dayBar:$("dayProgressBar"), dayCaption:$("dayProgressCaption"),
@@ -114,10 +114,6 @@ const el = {
   statsChecklistProgress:$("statsChecklistProgress"), statsChecklistCount:$("statsChecklistCount"),
   statsChecklistTotal:$("statsChecklistTotal"), statsChecklistDone:$("statsChecklistDone"), statsChecklistFailed:$("statsChecklistFailed"),
   statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
-  dayInsightTitle:$("dayInsightTitle"), dayInsightCombined:$("dayInsightCombined"),
-  dayInsightEvents:$("dayInsightEvents"), dayInsightEventCount:$("dayInsightEventCount"),
-  dayInsightHabits:$("dayInsightHabits"), dayInsightHabitCount:$("dayInsightHabitCount"),
-  dayInsightChecklist:$("dayInsightChecklist"), dayInsightChecklistFailed:$("dayInsightChecklistFailed"),
   categoryAchievement:$("categoryAchievement"), habitRanking:$("habitRanking"),
   searchPage:$("searchPage"), searchNav:$("searchNavButton"), mobileSearchNav:$("mobileSearchNavButton"),
   globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
@@ -613,25 +609,6 @@ function renderStats(){
   const dayHabitAvg=habitAverageForDate(selectedKey);
   const dayCombined=combinedProgressForDate(selectedKey);
 
-  const dayChecklistRows=dayEvents.flatMap(event=>
-    checklistForOccurrence(event).map(item=>({
-      ...item,
-      autoFailed:item.status==="pending"&&isOccurrencePast(event)
-    }))
-  );
-  const dayChecklistDone=dayChecklistRows.filter(item=>item.status==="done").length;
-  const dayChecklistFailed=dayChecklistRows.filter(
-    item=>item.status==="failed"||item.autoFailed
-  ).length;
-
-  el.dayInsightTitle.textContent=`${dayName} ${["일","월","화","수","목","금","토"][selectedDate.getDay()]}요일`;
-  el.dayInsightCombined.textContent=`${dayCombined}%`;
-  el.dayInsightEvents.textContent=`${dayEventAvg}%`;
-  el.dayInsightEventCount.textContent=`일정 ${dayEvents.length}개`;
-  el.dayInsightHabits.textContent=`${dayHabitAvg}%`;
-  el.dayInsightHabitCount.textContent=`습관 ${dayHabits.length}개`;
-  el.dayInsightChecklist.textContent=`${dayChecklistDone}/${dayChecklistRows.length}`;
-  el.dayInsightChecklistFailed.textContent=`실패 ${dayChecklistFailed}`;
 
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
@@ -1023,7 +1000,8 @@ async function submitQuickAdd(){
     state.currentWeek=startOfWeek(parsedDate);
 
     el.quickAddInput.value="";
-    el.quickAddMessage.textContent=`${date} ${time}에 "${title}" 일정을 추가했습니다.`;
+    el.quickAddMessage.textContent="";
+    el.quickAddMessage.classList.remove("error");
     renderAll();
   }catch(error){
     console.error(error);
@@ -2190,15 +2168,16 @@ function createEventChip(event){
   return chip;
 }
 function renderMonth(){
-  if(!el.monthGrid)return;
+  if(!el.statsMonthGrid)return;
 
   const y=state.currentMonth.getFullYear();
   const m=state.currentMonth.getMonth();
   const first=new Date(y,m,1);
-  const start=new Date(y,m,1-first.getDay());
+  const mondayIndex=(first.getDay()+6)%7;
+  const start=addDays(first,-mondayIndex);
   const today=dateKey(new Date());
 
-  el.monthGrid.innerHTML="";
+  el.statsMonthGrid.innerHTML="";
 
   for(let i=0;i<42;i++){
     const d=addDays(start,i);
@@ -2213,35 +2192,45 @@ function renderMonth(){
 
     const top=document.createElement("div");
     top.className="day-topline";
-    top.innerHTML=`
-      <span class="day-number ${
-        d.getDay()===0?"sunday":d.getDay()===6?"saturday":""
-      }">${d.getDate()}</span>
-    `;
+    top.innerHTML=`<span class="day-number ${d.getDay()===0?"sunday":d.getDay()===6?"saturday":""}">${d.getDate()}</span>`;
 
-    const insight=document.createElement("div");
-    insight.className="month-day-insight";
-    insight.innerHTML=`
-      <div class="month-day-progress-track"
-        aria-label="${d.getMonth()+1}월 ${d.getDate()}일 종합 달성률 ${combined}%">
-        <span style="width:${combined}%"></span>
-      </div>
-      <strong>${combined}%</strong>
-    `;
+    const progress=document.createElement("div");
+    progress.className="month-day-insight";
+    progress.innerHTML=`<div class="month-day-progress-track"><span style="width:${combined}%"></span></div><strong>${combined}%</strong>`;
+    cell.append(top,progress);
 
-    cell.append(top,insight);
-    cell.addEventListener("click",clickEvent=>{
-      clickEvent.preventDefault();
-      clickEvent.stopPropagation();
+    if(key===state.statsDate){
+      const dayEvents=allEventsForDate(key);
+      const dayHabits=activeHabitsOn(key);
+      const eventAvg=average(dayEvents);
+      const habitAvg=habitAverageForDate(key);
+      const checklist=dayEvents.flatMap(event=>checklistForOccurrence(event).map(item=>({
+        ...item,
+        autoFailed:item.status==="pending"&&isOccurrencePast(event)
+      })));
+      const done=checklist.filter(item=>item.status==="done").length;
+      const failed=checklist.filter(item=>item.status==="failed"||item.autoFailed).length;
 
+      const inline=document.createElement("div");
+      inline.className="month-inline-day-insight";
+      inline.innerHTML=`
+        <div><span>종합</span><strong>${combined}%</strong></div>
+        <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayEvents.length}개</small></div>
+        <div><span>습관</span><strong>${habitAvg}%</strong><small>${dayHabits.length}개</small></div>
+        <div><span>체크</span><strong>${done}/${checklist.length}</strong><small>실패 ${failed}</small></div>
+      `;
+      cell.appendChild(inline);
+      cell.classList.add("with-inline-insight");
+    }
+
+    cell.addEventListener("click",e=>{
+      e.preventDefault(); e.stopPropagation();
       state.statsDate=key;
-      if(d.getMonth()!==m){
-        state.currentMonth=startOfMonth(d);
-      }
+      if(d.getMonth()!==m)state.currentMonth=startOfMonth(d);
       renderStats();
     });
 
-    el.monthGrid.appendChild(cell);
+    el.statsMonthGrid.appendChild(cell);
   }
 }
 function weekZoomMinimum(){
@@ -3324,7 +3313,7 @@ async function setEventProgressFromCard(event,value){
 
 function renderSelected(){
   const d=parseDateKey(state.selectedDateKey),items=eventsForDate(state.selectedDateKey),avg=average(items),isToday=state.selectedDateKey===dateKey(new Date());
-  el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}.${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})`;el.selectedEvents.innerHTML="";
+  el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
   if(!items.length){el.selectedEvents.innerHTML='<button class="empty-message secondary-button" id="emptyAdd" type="button">등록된 일정이 없습니다.<br>일정 추가하기</button>';$("emptyAdd").onclick=()=>openCreate(state.selectedDateKey)}
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";item.style.borderLeft=`4px solid ${COLORS[event.progress]}`;{
       const main=document.createElement("div");
@@ -3364,7 +3353,7 @@ function renderSelected(){
         main.appendChild(list);
       }
 
-      item.innerHTML=`<time>${escapeHtml(event.time)}</time>`;
+      item.innerHTML=`<time class="selected-event-time"><span>${escapeHtml(eventDisplayStart(event))}</span><span>${escapeHtml(eventDisplayEnd(event))}</span></time>`;
       item.appendChild(main);
 
       const progress=document.createElement("span");
