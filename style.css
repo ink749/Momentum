@@ -5495,7 +5495,7 @@ body.week-four-weeks .week-event-checklist{
 }
 
 
-/* Momentum v7.3 — 카테고리 관리는 주간 캘린더 전용 */
+/* Momentum v7.4 — v7.3 DOM 복구 + 주간 카테고리 관리 */
 #weekView > .category-filter-bar{
   display:flex;
   align-items:center;
@@ -5505,7 +5505,7 @@ body.week-four-weeks .week-event-checklist{
   padding:9px 10px;
   border:1px solid var(--line);
   border-radius:12px;
-  background:rgba(255,255,255,.72);
+  background:rgba(255,255,255,.78);
 }
 #weekView > .category-filter-bar[hidden]{
   display:none!important;
@@ -5526,7 +5526,7 @@ body.week-four-weeks .week-event-checklist{
 @media(max-width:720px){
   #weekView > .category-filter-bar{
     display:block;
-    margin:0 0 8px;
+    margin-bottom:8px;
     padding:8px;
   }
   #weekView .category-filter-buttons{
