@@ -83,10 +83,27 @@
               </div>
             </div>
           </div>
+<p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
+          </section>
+          <section class="summary-card">
+            <p class="eyebrow">MONTH SUMMARY</p>
+            <div class="summary-stats">
+              <div><strong id="monthEventCount">0</strong><span>전체 일정</span></div>
+              <div><strong id="monthAverageProgress">0%</strong><span>평균 완료율</span></div>
+            </div>
+            <div class="summary-habits">
+              <span class="summary-habits-label">오늘의 습관</span>
+              <div id="summaryHabitNames" class="summary-habit-names"></div>
+            </div>
+          </section>
+          </div>
+        </section>
+          <div id="weekView" class="week-view" hidden>
 
-          <div class="category-filter-bar" aria-label="일정 카테고리 필터">
+
+          <div class="category-filter-bar" aria-label="주간 일정 카테고리 필터">
             <div id="categoryFilterButtons" class="category-filter-buttons"></div>
-            <button id="openCategoryManagerButton" class="category-manage-button" type="button">카테고리 수정</button>
+            <button id="openCategoryManagerButton" class="category-manage-button" type="button">카테고리 관리</button>
           </div>
 <section id="selectedView" class="selected-view-panel">
           <section class="summary-card">
@@ -115,22 +132,7 @@
             <p class="eyebrow">DAY PROGRESS</p>
             <div id="dayProgressNumber" class="progress-number">0%</div>
             <div class="progress-track"><div id="dayProgressBar" class="progress-fill"></div></div>
-            <p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
-          </section>
-          <section class="summary-card">
-            <p class="eyebrow">MONTH SUMMARY</p>
-            <div class="summary-stats">
-              <div><strong id="monthEventCount">0</strong><span>전체 일정</span></div>
-              <div><strong id="monthAverageProgress">0%</strong><span>평균 완료율</span></div>
-            </div>
-            <div class="summary-habits">
-              <span class="summary-habits-label">오늘의 습관</span>
-              <div id="summaryHabitNames" class="summary-habit-names"></div>
-            </div>
-          </section>
-          </div>
-        </section>
-          <div id="weekView" class="week-view" hidden>
+            
             <div id="weekScroll" class="week-scroll">
               <div id="weekGrid" class="week-grid"></div>
             </div>

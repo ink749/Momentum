@@ -2186,6 +2186,7 @@ function renderMonth(){
     const combined=combinedProgressForDate(key);
 
     cell.className="day-cell";
+    cell.dataset.date=key;
     if(d.getMonth()!==m)cell.classList.add("outside");
     if(key===today)cell.classList.add("today");
     if(key===state.statsDate)cell.classList.add("selected");
@@ -2196,42 +2197,106 @@ function renderMonth(){
 
     const progress=document.createElement("div");
     progress.className="month-day-insight";
-    progress.innerHTML=`<div class="month-day-progress-track"><span style="width:${combined}%"></span></div><strong>${combined}%</strong>`;
+    progress.innerHTML=`
+      <div class="month-day-progress-track">
+        <span style="width:${combined}%"></span>
+      </div>
+      <strong>${combined}%</strong>
+    `;
+
     cell.append(top,progress);
 
-    if(key===state.statsDate){
-      const dayEvents=allEventsForDate(key);
-      const dayHabits=activeHabitsOn(key);
-      const eventAvg=average(dayEvents);
-      const habitAvg=habitAverageForDate(key);
-      const checklist=dayEvents.flatMap(event=>checklistForOccurrence(event).map(item=>({
-        ...item,
-        autoFailed:item.status==="pending"&&isOccurrencePast(event)
-      })));
-      const done=checklist.filter(item=>item.status==="done").length;
-      const failed=checklist.filter(item=>item.status==="failed"||item.autoFailed).length;
-
-      const inline=document.createElement("div");
-      inline.className="month-inline-day-insight";
-      inline.innerHTML=`
-        <div><span>종합</span><strong>${combined}%</strong></div>
-        <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayEvents.length}개</small></div>
-        <div><span>습관</span><strong>${habitAvg}%</strong><small>${dayHabits.length}개</small></div>
-        <div><span>체크</span><strong>${done}/${checklist.length}</strong><small>실패 ${failed}</small></div>
-      `;
-      cell.appendChild(inline);
-      cell.classList.add("with-inline-insight");
-    }
-
     cell.addEventListener("click",e=>{
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
+
       state.statsDate=key;
-      if(d.getMonth()!==m)state.currentMonth=startOfMonth(d);
+      if(d.getMonth()!==m){
+        state.currentMonth=startOfMonth(d);
+      }
       renderStats();
     });
 
     el.statsMonthGrid.appendChild(cell);
   }
+
+  requestAnimationFrame(renderMonthDayInsightPopover);
+}
+
+function renderMonthDayInsightPopover(){
+  const monthView=el.statsMonthView;
+  const grid=el.statsMonthGrid;
+  if(!monthView||!grid)return;
+
+  monthView.querySelector(".month-day-insight-popover")?.remove();
+
+  const selected=grid.querySelector(
+    `.day-cell[data-date="${state.statsDate}"]`
+  );
+  if(!selected)return;
+
+  const key=state.statsDate;
+  const date=parseDateKey(key);
+  const combined=combinedProgressForDate(key);
+  const dayEvents=allEventsForDate(key);
+  const dayHabits=activeHabitsOn(key);
+  const eventAvg=average(dayEvents);
+  const habitAvg=habitAverageForDate(key);
+
+  const checklist=dayEvents.flatMap(event=>
+    checklistForOccurrence(event).map(item=>({
+      ...item,
+      autoFailed:item.status==="pending"&&isOccurrencePast(event)
+    }))
+  );
+  const done=checklist.filter(item=>item.status==="done").length;
+  const failed=checklist.filter(
+    item=>item.status==="failed"||item.autoFailed
+  ).length;
+
+  const popover=document.createElement("aside");
+  popover.className="month-day-insight-popover";
+  popover.innerHTML=`
+    <button type="button" class="month-insight-close" aria-label="닫기">×</button>
+    <div class="month-insight-title">
+      <strong>${date.getMonth()+1}월 ${date.getDate()}일</strong>
+      <span>${["일","월","화","수","목","금","토"][date.getDay()]}요일</span>
+    </div>
+    <div class="month-insight-grid">
+      <div><span>종합</span><strong>${combined}%</strong></div>
+      <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayEvents.length}개</small></div>
+      <div><span>습관</span><strong>${habitAvg}%</strong><small>${dayHabits.length}개</small></div>
+      <div><span>체크</span><strong>${done}/${checklist.length}</strong><small>실패 ${failed}</small></div>
+    </div>
+  `;
+
+  monthView.appendChild(popover);
+
+  const viewRect=monthView.getBoundingClientRect();
+  const cellRect=selected.getBoundingClientRect();
+  const popRect=popover.getBoundingClientRect();
+
+  let left=cellRect.right-viewRect.left+8;
+  let top=cellRect.top-viewRect.top+8;
+
+  if(left+popRect.width>viewRect.width-8){
+    left=cellRect.left-viewRect.left-popRect.width-8;
+  }
+  if(left<8)left=8;
+
+  if(top+popRect.height>viewRect.height-8){
+    top=Math.max(8,viewRect.height-popRect.height-8);
+  }
+
+  popover.style.left=`${left}px`;
+  popover.style.top=`${top}px`;
+
+  popover.querySelector(".month-insight-close").onclick=e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    popover.remove();
+    selected.classList.remove("selected");
+  };
 }
 function weekZoomMinimum(){
   return window.matchMedia("(max-width:720px)").matches?30:10;

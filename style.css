@@ -5330,3 +5330,216 @@ body.week-four-weeks .week-event-checklist{
   .month-inline-day-insight strong{font-size:.74rem}
   .stats-month-view .day-cell.with-inline-insight{min-height:138px}
 }
+
+
+/* Momentum v7.2 — 월간 캘린더 압축 */
+.stats-month-view{
+  position:relative;
+}
+.stats-month-view .month-grid{
+  min-height:0!important;
+  grid-auto-rows:minmax(84px,auto);
+}
+.stats-month-view .day-cell{
+  min-height:84px!important;
+  padding:10px 9px!important;
+}
+.stats-month-view .day-cell.selected{
+  min-height:84px!important;
+}
+.stats-month-view .month-day-insight{
+  margin-top:auto;
+  padding-top:8px;
+}
+.stats-month-view .day-cell.with-inline-insight{
+  min-height:84px!important;
+}
+.month-inline-day-insight{
+  display:none!important;
+}
+
+/* 선택 날짜 상세는 엑셀 메모처럼 떠 있는 작은 창 */
+.month-day-insight-popover{
+  position:absolute;
+  z-index:50;
+  width:min(220px,calc(100% - 16px));
+  padding:12px 13px;
+  border:1px solid rgba(31,138,91,.24);
+  border-radius:14px;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 12px 30px rgba(23,61,43,.18);
+  color:var(--text);
+}
+.month-day-insight-popover::before{
+  content:"";
+  position:absolute;
+  top:14px;
+  left:-7px;
+  width:12px;
+  height:12px;
+  border-left:1px solid rgba(31,138,91,.24);
+  border-bottom:1px solid rgba(31,138,91,.24);
+  background:#fff;
+  transform:rotate(45deg);
+}
+.month-insight-close{
+  position:absolute;
+  top:5px;
+  right:7px;
+  width:24px;
+  height:24px;
+  border:0;
+  background:transparent;
+  color:var(--soft);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+}
+.month-insight-title{
+  padding-right:22px;
+  margin-bottom:9px;
+}
+.month-insight-title strong,
+.month-insight-title span{
+  display:block;
+}
+.month-insight-title strong{
+  font-size:.92rem;
+}
+.month-insight-title span{
+  margin-top:2px;
+  color:var(--soft);
+  font-size:.67rem;
+}
+.month-insight-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+}
+.month-insight-grid>div{
+  padding:7px 8px;
+  border-radius:9px;
+  background:var(--muted);
+}
+.month-insight-grid span,
+.month-insight-grid small{
+  display:block;
+  color:var(--soft);
+  font-size:.61rem;
+  line-height:1.15;
+}
+.month-insight-grid strong{
+  display:block;
+  margin:2px 0;
+  font-size:.95rem;
+  line-height:1;
+}
+
+/* SELECTED DAY 빠른 입력 바를 더 작게 */
+.selected-view-panel .quick-add-bar{
+  grid-template-columns:auto minmax(0,1fr)!important;
+  gap:7px 10px!important;
+  padding:7px 9px!important;
+  margin:8px 0 10px!important;
+  border:1px solid var(--line);
+  border-radius:12px;
+}
+.selected-view-panel .quick-add-copy{
+  display:none!important;
+}
+.selected-view-panel .quick-add-controls{
+  grid-column:1 / -1;
+  gap:6px!important;
+}
+.selected-view-panel .quick-add-controls input{
+  min-height:36px!important;
+  height:36px!important;
+  padding:0 11px!important;
+  font-size:.9rem!important;
+}
+.selected-view-panel .quick-register-button{
+  min-height:36px!important;
+  height:36px!important;
+  padding:0 13px!important;
+}
+.selected-view-panel .quick-add-message{
+  display:none!important;
+}
+
+@media(max-width:720px){
+  .stats-month-view .month-grid{
+    grid-auto-rows:minmax(70px,auto);
+  }
+  .stats-month-view .day-cell,
+  .stats-month-view .day-cell.selected,
+  .stats-month-view .day-cell.with-inline-insight{
+    min-height:70px!important;
+    padding:7px 6px!important;
+  }
+  .stats-month-view .month-day-insight{
+    padding-top:5px;
+  }
+  .month-day-insight-popover{
+    width:min(205px,calc(100% - 12px));
+    padding:10px 11px;
+  }
+  .selected-view-panel .quick-add-bar{
+    padding:6px 7px!important;
+    margin:7px 0 9px!important;
+  }
+  .selected-view-panel .quick-add-controls input,
+  .selected-view-panel .quick-register-button{
+    min-height:34px!important;
+    height:34px!important;
+  }
+}
+
+
+/* Momentum v7.3 — 카테고리 관리는 주간 캘린더 전용 */
+#weekView > .category-filter-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 0 10px;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+}
+#weekView > .category-filter-bar[hidden]{
+  display:none!important;
+}
+#weekView .category-filter-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  min-width:0;
+}
+#weekView .category-manage-button{
+  flex:0 0 auto;
+  min-height:32px;
+  padding:0 11px;
+  border-radius:999px;
+}
+
+@media(max-width:720px){
+  #weekView > .category-filter-bar{
+    display:block;
+    margin:0 0 8px;
+    padding:8px;
+  }
+  #weekView .category-filter-buttons{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  #weekView .category-filter-buttons::-webkit-scrollbar{
+    display:none;
+  }
+  #weekView .category-manage-button{
+    width:100%;
+    margin-top:7px;
+  }
+}
