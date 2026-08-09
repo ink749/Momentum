@@ -18,8 +18,6 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-let persistenceReady=Promise.resolve();
-let startupWatchdog=null;
 
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
 const DEFAULT_CATEGORIES = [
@@ -1783,26 +1781,8 @@ function listenHabits(user){
 async function login(){
   el.loginError.textContent="";
   try{
-    // persistence 설정이 지연되더라도 로그인 자체를 막지 않습니다.
-    await Promise.race([persistenceReady,new Promise(resolve=>setTimeout(resolve,1500))]);
-    const result=await signInWithPopup(auth,provider);
-    const user=result?.user||auth.currentUser;
-
-    // 인증 observer가 늦거나 누락되어도 로그인 성공 결과로 즉시 앱을 엽니다.
-    if(user){
-      if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
-      state.user=user;
-      el.loading.hidden=true;
-      el.login.hidden=true;
-      el.app.hidden=false;
-      fillUser(user);
-      if(!history.state?.momentum)syncHistoryState({replace:true});
-      renderAll();
-      saveProfile(user).catch(error=>console.warn("프로필 저장 실패",error));
-      listenCategories(user);
-      listen(user);
-      listenHabits(user);
-    }
+    await signInWithPopup(auth,provider);
+    // 화면 전환과 데이터 연결은 onAuthStateChanged 한 곳에서 처리합니다.
   }catch(error){
     console.error(error);
     el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`;
@@ -1833,7 +1813,7 @@ function listen(user){
         return;
       }
 
-      scheduleRenderAll();
+      renderAll();
       if(state.activePage==="search")renderSearch();
     },
     error=>{
@@ -1853,7 +1833,7 @@ function listen(user){
         return;
       }
 
-      scheduleRenderAll();
+      renderAll();
     },
     error=>{
       console.error(error);
@@ -1956,15 +1936,6 @@ function restoreViewScroll(position){
     }
   });
 }
-let scheduledRenderFrame=0;
-function scheduleRenderAll(){
-  if(scheduledRenderFrame)return;
-  scheduledRenderFrame=requestAnimationFrame(()=>{
-    scheduledRenderFrame=0;
-    renderAll();
-  });
-}
-
 function renderAll(){
   const preservedScroll=captureViewScroll();
   const calendarMode=state.activePage==="calendar";
@@ -4299,12 +4270,12 @@ function listenCategories(user){
         state.categoryFilter="all";
       }
 
-      scheduleRenderAll();
+      renderAll();
     },
     error=>{
       console.error(error);
       state.categories=DEFAULT_CATEGORIES.map(category=>({...category}));
-      scheduleRenderAll();
+      renderAll();
     }
   );
 }
@@ -5613,24 +5584,25 @@ setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 
-// 로그인 상태 유지 설정은 초기 화면 표시를 막지 않고 비동기로 준비합니다.
-persistenceReady=setPersistence(auth,browserLocalPersistence).catch(error=>{
-  console.warn("브라우저 로그인 유지 설정 실패",error);
-});
-
-// 시작 화면이 무한 로딩에 갇히지 않도록 안전장치를 둡니다.
-startupWatchdog=setTimeout(()=>{
+let startupFallbackTimer=setTimeout(()=>{
   if(el.loading && !el.loading.hidden){
     el.loading.hidden=true;
     el.app.hidden=true;
     el.login.hidden=false;
-    if(el.loginError)el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. Google 계정으로 시작해 주세요.";
+    if(el.loginError){
+      el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. Google 계정으로 다시 시도해 주세요.";
+    }
   }
-},8000);
+},12000);
 
-onAuthStateChanged(auth,user=>{
-  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
+onAuthStateChanged(auth,async user=>{
+  if(startupFallbackTimer){
+    clearTimeout(startupFallbackTimer);
+    startupFallbackTimer=null;
+  }
+
   el.loading.hidden=true;
+  window.dispatchEvent(new Event("momentum-ready"));
 
   if(!user){
     state.user=null;
@@ -5659,21 +5631,36 @@ onAuthStateChanged(auth,user=>{
     syncHistoryState({replace:true});
   }
 
-  // 화면은 즉시 열고, 서버 데이터는 뒤에서 연결합니다.
+  // 먼저 화면부터 열고, 데이터 연결은 이어서 시작합니다.
   renderAll();
 
-  saveProfile(user).catch(error=>{
+  try{
+    await saveProfile(user);
+  }catch(error){
     console.warn("프로필 저장 실패",error);
-  });
+  }
+
+  // 중복 연결 방지
+  if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
+  if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
+  if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
+  if(state.unsubscribeHabits){state.unsubscribeHabits();state.unsubscribeHabits=null}
+  if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
 
   listenCategories(user);
   listen(user);
   listenHabits(user);
 },error=>{
+  if(startupFallbackTimer){
+    clearTimeout(startupFallbackTimer);
+    startupFallbackTimer=null;
+  }
+
   console.error("Auth 상태 확인 실패",error);
   el.loading.hidden=true;
   el.app.hidden=true;
   el.login.hidden=false;
+
   if(el.loginError){
     el.loginError.textContent="로그인 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
   }

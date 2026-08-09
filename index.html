@@ -600,5 +600,30 @@
 
   <script type="module" src="script.js"></script>
 
+
+<script>
+(function(){
+  var timer=setTimeout(function(){
+    var loading=document.getElementById("loadingScreen");
+    var app=document.getElementById("app");
+    var login=document.getElementById("loginScreen");
+    var error=document.getElementById("loginError");
+
+    if(loading && !loading.hidden){
+      loading.hidden=true;
+      if(app) app.hidden=true;
+      if(login) login.hidden=false;
+      if(error && !error.textContent){
+        error.textContent="앱 초기화가 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.";
+      }
+    }
+  },15000);
+
+  window.addEventListener("momentum-ready",function(){
+    clearTimeout(timer);
+  },{once:true});
+})();
+</script>
+
 </body>
 </html>
