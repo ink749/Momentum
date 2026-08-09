@@ -599,5 +599,23 @@
   </div>
 
   <script type="module" src="script.js"></script>
+
+<script>
+setTimeout(function(){
+  const loading=document.getElementById("loadingScreen");
+  const app=document.getElementById("app");
+  const login=document.getElementById("loginScreen");
+  if(loading && !loading.hidden){
+    loading.hidden=true;
+    if(app) app.hidden=true;
+    if(login) login.hidden=false;
+    const error=document.getElementById("loginError");
+    if(error){
+      error.textContent="앱 연결이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.";
+    }
+  }
+},12000);
+</script>
+
 </body>
 </html>

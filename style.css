@@ -5802,3 +5802,9 @@ body.week-fullscreen .category-filter-bar{
 .google-week-event.google-moving{
   touch-action:none!important;
 }
+
+#loadingScreen[hidden],
+#loginScreen[hidden],
+#app[hidden]{
+  display:none!important;
+}

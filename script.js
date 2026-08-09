@@ -5523,9 +5523,26 @@ setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 
+const startupWatchdog=setTimeout(()=>{
+  if(el.loading&&!el.loading.hidden){
+    el.loading.hidden=true;
+    if(el.app)el.app.hidden=true;
+    if(el.login)el.login.hidden=false;
+    if(el.loginError){
+      el.loginError.textContent="연결이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.";
+    }
+  }
+},10000);
 
-await setPersistence(auth,browserLocalPersistence);
+// v7.10 startup hardening
+try{
+  await setPersistence(auth,browserLocalPersistence);
+}catch(error){
+  console.warn("Auth persistence 설정 실패 — 세션 인증으로 계속합니다.",error);
+}
+
 onAuthStateChanged(auth,async user=>{
+  clearTimeout(startupWatchdog);
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
@@ -5552,6 +5569,15 @@ onAuthStateChanged(auth,async user=>{
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");
+  }
+},error=>{
+  clearTimeout(startupWatchdog);
+  console.error("Auth 상태 확인 실패",error);
+  el.loading.hidden=true;
+  el.app.hidden=true;
+  el.login.hidden=false;
+  if(el.loginError){
+    el.loginError.textContent="로그인 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
   }
 });
 setProgress(0);
