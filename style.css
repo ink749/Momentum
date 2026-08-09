@@ -5808,3 +5808,108 @@ body.week-fullscreen .category-filter-bar{
 #app[hidden]{
   display:none!important;
 }
+
+
+/* Momentum v7.13 — 일정 이동 시 날짜/열 전체 강조 제거 */
+.drag-over,
+.week-slot.drag-over,
+.move-drop-target,
+.google-week-day-column.drag-over,
+.google-week-day-column.move-drop-target{
+  outline:none!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+
+/* 실제 들어갈 위치의 네모 미리보기만 유지 */
+.google-week-drop-silhouette{
+  display:block!important;
+}
+
+
+/* 24시간제 시간 선택 창 */
+.wheel-time-input{
+  cursor:pointer!important;
+  caret-color:transparent;
+}
+.simple-time-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:500;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(10,24,18,.28);
+}
+.simple-time-backdrop[hidden]{
+  display:none!important;
+}
+.simple-time-picker{
+  width:min(360px,100%);
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 18px 54px rgba(20,55,38,.22);
+}
+.simple-time-picker header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.simple-time-picker header button{
+  min-height:34px;
+  padding:0 10px;
+  border:0;
+  border-radius:9px;
+  background:var(--muted);
+  color:var(--green-dark);
+  font-weight:800;
+}
+.simple-time-columns{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:10px;
+}
+.simple-time-columns label>span{
+  display:block;
+  margin-bottom:6px;
+  text-align:center;
+  color:var(--soft);
+  font-size:10px;
+  font-weight:800;
+}
+.simple-time-columns select{
+  width:100%;
+  min-height:210px;
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--muted);
+  color:var(--text);
+  font-size:18px;
+  font-weight:800;
+  text-align:center;
+}
+.simple-time-columns option{
+  padding:7px;
+}
+.simple-time-columns b{
+  font-size:24px;
+}
+@media(max-width:720px){
+  .simple-time-picker{
+    align-self:flex-end;
+    border-radius:20px 20px 10px 10px;
+  }
+}
+
+.legacy-time-controls,
+.mobile-time-editor,
+.native-time-wrap{
+  display:none!important;
+}

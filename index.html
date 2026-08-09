@@ -380,13 +380,13 @@
             <input id="eventDate" type="date" required />
           </label>
           <label>시작 시간
-            <input id="eventStartClock" class="wheel-time-input" type="time" step="1800" required />
+            <input id="eventStartClock" class="wheel-time-input" type="text" inputmode="none" readonly required />
           </label>
           <label>종료 날짜
             <input id="eventEndDate" type="date" required />
           </label>
           <label>종료 시간
-            <input id="eventEndClock" class="wheel-time-input" type="time" step="1800" required />
+            <input id="eventEndClock" class="wheel-time-input" type="text" inputmode="none" readonly required />
           </label>
         </div>
 
@@ -599,23 +599,6 @@
   </div>
 
   <script type="module" src="script.js"></script>
-
-<script>
-setTimeout(function(){
-  const loading=document.getElementById("loadingScreen");
-  const app=document.getElementById("app");
-  const login=document.getElementById("loginScreen");
-  if(loading && !loading.hidden){
-    loading.hidden=true;
-    if(app) app.hidden=true;
-    if(login) login.hidden=false;
-    const error=document.getElementById("loginError");
-    if(error){
-      error.textContent="자동 로그인 확인이 지연되고 있습니다. 아래 Google 버튼으로 로그인해 주세요.";
-    }
-  }
-},12000);
-</script>
 
 </body>
 </html>

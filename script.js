@@ -18,7 +18,7 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-let startupWatchdog=null;
+let persistenceReady=Promise.resolve();
 
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
 const DEFAULT_CATEGORIES = [
@@ -212,39 +212,22 @@ function refreshMobileEndTimes(start,preferredEnd){
 }
 
 function setTimeParts(start,end){
-  const roundedStart=roundTimeValue(start||"09:00");
-  let roundedEnd=roundTimeValue(
-    end||defaultEndTime(roundedStart)
-  );
+  const normalizedStart=roundTimeValue(start||"09:00");
+  let normalizedEnd=roundTimeValue(end||defaultEndTime(normalizedStart));
 
-  if(timeToMinutes(roundedEnd)<=timeToMinutes(roundedStart)){
-    roundedEnd=defaultEndTime(roundedStart);
+  if(timeToMinutes(normalizedEnd)<=timeToMinutes(normalizedStart)){
+    normalizedEnd=defaultEndTime(normalizedStart);
   }
 
-  el.startClock.value=roundedStart;
-  el.endClock.value=roundedEnd;
-  el.time.value=roundedStart;
-  el.endTime.value=roundedEnd;
-
-  // legacy controls도 값만 동기화해 이전 코드와 충돌하지 않게 유지
-  if(el.mobileStartTime)el.mobileStartTime.value=roundedStart;
-  if(el.mobileEndTime){
-    refreshMobileEndTimes(roundedStart,roundedEnd);
-    el.mobileEndTime.value=roundedEnd;
-  }
+  el.startClock.value=normalizedStart;
+  el.endClock.value=normalizedEnd;
+  el.time.value=normalizedStart;
+  el.endTime.value=normalizedEnd;
 }
 function syncHiddenTimes(){
-  const start=roundTimeValue(
-    el.startClock.value
-    ||el.mobileStartTime?.value
-    ||el.time.value
-    ||"09:00"
-  );
+  const start=roundTimeValue(el.startClock.value||el.time.value||"09:00");
   let end=roundTimeValue(
-    el.endClock.value
-    ||el.mobileEndTime?.value
-    ||el.endTime.value
-    ||defaultEndTime(start)
+    el.endClock.value||el.endTime.value||defaultEndTime(start)
   );
 
   if(timeToMinutes(end)<=timeToMinutes(start)){
@@ -1076,6 +1059,12 @@ async function submitQuickAdd(){
   const raw=el.quickAddInput.value.trim();
   el.quickAddMessage.classList.remove("error");
 
+  if(!state.user){
+    el.quickAddMessage.textContent="로그인 후 사용할 수 있습니다.";
+    el.quickAddMessage.classList.add("error");
+    return;
+  }
+
   if(!raw){
     el.quickAddMessage.textContent="일정 내용을 입력하세요.";
     el.quickAddMessage.classList.add("error");
@@ -1097,22 +1086,35 @@ async function submitQuickAdd(){
   }
 
   try{
-    await addDoc(
+    state.skipEventSnapshotRenders+=1;
+
+    const payload={
+      title,
+      category:"other",
+      date,
+      endDate:date,
+      time,
+      endTime,
+      repeat,
+      memo:"",
+      checklist:[],
+      progress:0,
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    };
+
+    const created=await addDoc(
       collection(db,"users",state.user.uid,"events"),
-      {
-        title,
-        category:"other",
-        date,
-        time,
-        endTime,
-        repeat,
-        memo:"",
-        checklist:[],
-        progress:0,
-        createdAt:serverTimestamp(),
-        updatedAt:serverTimestamp()
-      }
+      payload
     );
+
+    // 서버 snapshot을 기다리지 않고 화면에 즉시 반영
+    state.events.push({
+      id:created.id,
+      ...payload,
+      createdAt:null,
+      updatedAt:null
+    });
 
     state.selectedDateKey=date;
     state.currentMonth=startOfMonth(parsedDate);
@@ -1121,14 +1123,17 @@ async function submitQuickAdd(){
     el.quickAddInput.value="";
     el.quickAddMessage.textContent="";
     el.quickAddMessage.classList.remove("error");
-    renderAll();
+
+    renderSelected();
+    renderSelectedDayInsight();
+    renderSummary();
   }catch(error){
+    state.skipEventSnapshotRenders=Math.max(0,state.skipEventSnapshotRenders-1);
     console.error(error);
     el.quickAddMessage.textContent="일정을 추가하지 못했습니다.";
     el.quickAddMessage.classList.add("error");
   }
 }
-
 function currentHistoryState(){
   return {
     momentum:true,
@@ -1777,35 +1782,9 @@ function listenHabits(user){
 async function login(){
   el.loginError.textContent="";
   try{
-    const result=await signInWithPopup(auth,provider);
-    const user=result?.user||auth.currentUser;
-
-    // v7.11: 로그인 성공 후 onAuthStateChanged만 기다리지 않고
-    // 반환된 사용자 정보로 즉시 앱 화면을 엽니다.
-    if(user){
-      if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
-      state.user=user;
-      el.loading.hidden=true;
-      el.login.hidden=true;
-      el.app.hidden=false;
-      fillUser(user);
-
-      if(!history.state?.momentum){
-        syncHistoryState({replace:true});
-      }
-
-      renderAll();
-
-      try{
-        await saveProfile(user);
-        listenCategories(user);
-        listen(user);
-        listenHabits(user);
-      }catch(error){
-        console.error("로그인 후 데이터 연결 실패",error);
-        el.loginError.textContent="로그인은 완료됐지만 데이터를 불러오지 못했습니다.";
-      }
-    }
+    await persistenceReady;
+    await signInWithPopup(auth,provider);
+    // 실제 화면 전환과 데이터 연결은 onAuthStateChanged 한 곳에서만 처리합니다.
   }catch(error){
     console.error(error);
     el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`;
@@ -1836,7 +1815,7 @@ function listen(user){
         return;
       }
 
-      renderAll();
+      scheduleRenderAll();
       if(state.activePage==="search")renderSearch();
     },
     error=>{
@@ -1856,7 +1835,7 @@ function listen(user){
         return;
       }
 
-      renderAll();
+      scheduleRenderAll();
     },
     error=>{
       console.error(error);
@@ -1959,6 +1938,15 @@ function restoreViewScroll(position){
     }
   });
 }
+let scheduledRenderFrame=0;
+function scheduleRenderAll(){
+  if(scheduledRenderFrame)return;
+  scheduledRenderFrame=requestAnimationFrame(()=>{
+    scheduledRenderFrame=0;
+    renderAll();
+  });
+}
+
 function renderAll(){
   const preservedScroll=captureViewScroll();
   const calendarMode=state.activePage==="calendar";
@@ -2186,37 +2174,25 @@ async function detachRecurringOccurrence(event,overrides={}){
 async function moveEventTo(event,newDate,newTime){
   if(!state.user||!event)return;
 
-  const currentWeekScroll=
-    el.weekView?.querySelector(".google-week-body-scroll");
-
-  if(state.currentView==="week"&&currentWeekScroll){
-    state.pendingWeekScroll={
-      top:currentWeekScroll.scrollTop,
-      left:currentWeekScroll.scrollLeft,
-      pageX:window.scrollX,
-      pageY:window.scrollY
-    };
-  }
+  const preservedScroll=captureViewScroll();
 
   const originalStart=timeToMinutes(event.time||"09:00");
-  const originalEnd=timeToMinutes(event.endTime||defaultEndTime(event.time||"09:00"));
+  const originalEnd=timeToMinutes(
+    event.endTime||defaultEndTime(event.time||"09:00")
+  );
   const duration=Math.max(30,originalEnd-originalStart);
 
   let movedStart=timeToMinutes(newTime||event.time||"09:00");
-  movedStart=Math.min(movedStart,24*60-duration);
-  movedStart=Math.max(0,movedStart);
+  movedStart=Math.max(0,Math.min(movedStart,24*60-duration));
 
   const movedTime=minutesToTime(movedStart);
   const movedEndTime=minutesToTime(movedStart+duration);
 
   try{
-    if(isRecurringEvent(event)){
-      await detachRecurringOccurrence(event,{
-        date:newDate,
-        time:movedTime,
-        endTime:movedEndTime
-      });
-    }else{
+    // 일반 일정은 서버 snapshot 재렌더를 한 번 건너뛰고 로컬에서 즉시 이동합니다.
+    if(!isRecurringEvent(event)){
+      state.skipEventSnapshotRenders+=1;
+
       await updateDoc(
         doc(db,"users",state.user.uid,"events",event.id),
         {
@@ -2251,18 +2227,29 @@ async function moveEventTo(event,newDate,newTime){
           }
         );
       });
+    }else{
+      await detachRecurringOccurrence(event,{
+        date:newDate,
+        time:movedTime,
+        endTime:movedEndTime
+      });
     }
 
     state.selectedDateKey=newDate;
     haptic([16,24,16]);
-    showToast(`${newDate} ${movedTime}–${movedEndTime}로 이동했습니다.`);
+
     if(state.currentView==="week"){
       renderWeek();
+      restoreViewScroll(preservedScroll);
+    }else{
+      renderSelected();
+      renderSelectedDayInsight();
     }
   }catch(error){
-    state.pendingWeekScroll=null;
+    state.skipEventSnapshotRenders=Math.max(0,state.skipEventSnapshotRenders-1);
     console.error(error);
     alert("일정을 이동하지 못했습니다.");
+    restoreViewScroll(preservedScroll);
   }
 }
 function bindDesktopDrag(element,event){
@@ -4294,12 +4281,12 @@ function listenCategories(user){
         state.categoryFilter="all";
       }
 
-      renderAll();
+      scheduleRenderAll();
     },
     error=>{
       console.error(error);
       state.categories=DEFAULT_CATEGORIES.map(category=>({...category}));
-      renderAll();
+      scheduleRenderAll();
     }
   );
 }
@@ -4564,40 +4551,109 @@ function renderDayView(){
 }
 
 function setupWheelTimePicker(){
-  // v7.8 emergency fix:
-  // 커스텀 휠 대신 브라우저 기본 time input을 사용해
-  // PC/모바일 모두 시간 입력값이 정확히 저장되도록 합니다.
-  const normalizePair=()=>{
-    const start=roundTimeValue(el.startClock.value||"09:00");
-    let end=roundTimeValue(el.endClock.value||defaultEndTime(start));
+  const backdrop=document.createElement("div");
+  backdrop.className="simple-time-backdrop";
+  backdrop.hidden=true;
+  backdrop.innerHTML=`
+    <section class="simple-time-picker" role="dialog" aria-modal="true">
+      <header>
+        <button type="button" data-time-cancel>취소</button>
+        <strong data-time-title>시간 선택</strong>
+        <button type="button" data-time-confirm>완료</button>
+      </header>
+      <div class="simple-time-columns">
+        <label>
+          <span>시</span>
+          <select data-time-hour size="6"></select>
+        </label>
+        <b>:</b>
+        <label>
+          <span>분</span>
+          <select data-time-minute size="2">
+            <option value="00">00</option>
+            <option value="30">30</option>
+          </select>
+        </label>
+      </div>
+    </section>
+  `;
+  document.body.appendChild(backdrop);
 
-    if(timeToMinutes(end)<=timeToMinutes(start)){
-      end=defaultEndTime(start);
-    }
+  const title=backdrop.querySelector("[data-time-title]");
+  const hour=backdrop.querySelector("[data-time-hour]");
+  const minute=backdrop.querySelector("[data-time-minute]");
 
-    el.startClock.value=start;
-    el.endClock.value=end;
-    el.time.value=start;
-    el.endTime.value=end;
+  for(let value=0;value<24;value++){
+    const option=document.createElement("option");
+    option.value=pad(value);
+    option.textContent=pad(value);
+    hour.appendChild(option);
+  }
+
+  let activeInput=null;
+
+  const close=()=>{
+    backdrop.hidden=true;
+    activeInput=null;
   };
 
-  el.startClock.addEventListener("change",()=>{
-    const start=roundTimeValue(el.startClock.value||"09:00");
-    el.startClock.value=start;
+  const open=(input,label)=>{
+    activeInput=input;
+    title.textContent=label;
 
-    if(
-      !el.endClock.value
-      ||timeToMinutes(el.endClock.value)<=timeToMinutes(start)
-    ){
-      el.endClock.value=defaultEndTime(start);
+    const [h,m]=(input.value||"09:00").split(":");
+    hour.value=pad(Number(h)||0);
+    minute.value=Number(m)>=30?"30":"00";
+
+    backdrop.hidden=false;
+
+    requestAnimationFrame(()=>{
+      hour.querySelector(`option[value="${hour.value}"]`)?.scrollIntoView({
+        block:"center"
+      });
+    });
+  };
+
+  const commit=()=>{
+    if(!activeInput)return;
+
+    const value=`${hour.value}:${minute.value}`;
+    activeInput.value=value;
+
+    if(activeInput===el.startClock){
+      const currentEnd=el.endClock.value||defaultEndTime(value);
+      if(timeToMinutes(currentEnd)<=timeToMinutes(value)){
+        el.endClock.value=defaultEndTime(value);
+      }
     }
 
-    normalizePair();
+    syncHiddenTimes();
+    close();
+  };
+
+  el.startClock.addEventListener("click",()=>open(el.startClock,"시작 시간"));
+  el.endClock.addEventListener("click",()=>open(el.endClock,"종료 시간"));
+  el.startClock.addEventListener("keydown",event=>{
+    if(event.key==="Enter"||event.key===" "){
+      event.preventDefault();
+      open(el.startClock,"시작 시간");
+    }
+  });
+  el.endClock.addEventListener("keydown",event=>{
+    if(event.key==="Enter"||event.key===" "){
+      event.preventDefault();
+      open(el.endClock,"종료 시간");
+    }
   });
 
-  el.endClock.addEventListener("change",normalizePair);
-  el.startClock.addEventListener("input",syncHiddenTimes);
-  el.endClock.addEventListener("input",syncHiddenTimes);
+  backdrop.querySelector("[data-time-cancel]").onclick=close;
+  backdrop.querySelector("[data-time-confirm]").onclick=commit;
+  backdrop.addEventListener("click",event=>{
+    if(event.target===backdrop)close();
+  });
+
+  hour.addEventListener("dblclick",commit);
+  minute.addEventListener("dblclick",commit);
 }
 function setupMondayFirstDatePicker(){
   // v7.8 emergency fix:
@@ -5408,24 +5464,6 @@ el.endDate.addEventListener("change",()=>{
 });
 
 
-[el.startHour,el.startMinute,el.endHour,el.endMinute].forEach(control=>{
-  control.addEventListener("change",()=>{
-    syncHiddenTimes();
-
-    if(timeToMinutes(el.endTime.value)<=timeToMinutes(el.time.value)){
-      setTimeParts(el.time.value,defaultEndTime(el.time.value));
-    }
-
-    if(el.endHour.value==="24"){
-      el.endMinute.value="00";
-      el.endMinute.disabled=true;
-    }else{
-      el.endMinute.disabled=false;
-    }
-
-    syncHiddenTimes();
-  });
-});
 el.quickAddButton.onclick=submitQuickAdd;
 el.quickAddInput.addEventListener("keydown",event=>{
   if(event.key==="Enter"){
@@ -5557,36 +5595,32 @@ setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 
-startupWatchdog=setTimeout(()=>{
-  if(el.loading&&!el.loading.hidden){
-    el.loading.hidden=true;
-    if(el.app)el.app.hidden=true;
-    if(el.login)el.login.hidden=false;
-    if(el.loginError){
-      el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. 아래 Google 버튼으로 로그인해 주세요.";
-    }
-  }
-},10000);
+// 로그인 상태 유지 설정은 초기 화면 표시를 막지 않고 비동기로 준비합니다.
+persistenceReady=setPersistence(auth,browserLocalPersistence).catch(error=>{
+  console.warn("브라우저 로그인 유지 설정 실패",error);
+});
 
-// v7.10 startup hardening
-try{
-  await setPersistence(auth,browserLocalPersistence);
-}catch(error){
-  console.warn("Auth persistence 설정 실패 — 세션 인증으로 계속합니다.",error);
-}
-
-onAuthStateChanged(auth,async user=>{
-  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
+onAuthStateChanged(auth,user=>{
   el.loading.hidden=true;
+
   if(!user){
-    state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
+    state.user=null;
+    state.events=[];
+    state.eventLogs={};
+    state.habits=[];
+    state.habitLogs={};
+
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
     if(state.unsubscribeHabits){state.unsubscribeHabits();state.unsubscribeHabits=null}
     if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
-    el.login.hidden=false;el.app.hidden=true;return
+
+    el.login.hidden=false;
+    el.app.hidden=true;
+    return;
   }
+
   state.user=user;
   el.login.hidden=true;
   el.app.hidden=false;
@@ -5595,17 +5629,18 @@ onAuthStateChanged(auth,async user=>{
   if(!history.state?.momentum){
     syncHistoryState({replace:true});
   }
-  try{
-    await saveProfile(user);
-    listenCategories(user);
-    listen(user);
-    listenHabits(user);
-  }catch(error){
-    console.error(error);
-    alert("Firebase에 연결하지 못했습니다.");
-  }
+
+  // 화면은 즉시 열고, 서버 데이터는 뒤에서 연결합니다.
+  renderAll();
+
+  saveProfile(user).catch(error=>{
+    console.warn("프로필 저장 실패",error);
+  });
+
+  listenCategories(user);
+  listen(user);
+  listenHabits(user);
 },error=>{
-  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
   console.error("Auth 상태 확인 실패",error);
   el.loading.hidden=true;
   el.app.hidden=true;
@@ -5614,4 +5649,5 @@ onAuthStateChanged(auth,async user=>{
     el.loginError.textContent="로그인 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
   }
 });
+
 setProgress(0);
