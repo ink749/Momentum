@@ -1774,8 +1774,40 @@ function listenHabits(user){
 
 async function login(){
   el.loginError.textContent="";
-  try{await signInWithPopup(auth,provider)}
-  catch(error){console.error(error);el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`}
+  try{
+    const result=await signInWithPopup(auth,provider);
+    const user=result?.user||auth.currentUser;
+
+    // v7.11: 로그인 성공 후 onAuthStateChanged만 기다리지 않고
+    // 반환된 사용자 정보로 즉시 앱 화면을 엽니다.
+    if(user){
+      clearTimeout(startupWatchdog);
+      state.user=user;
+      el.loading.hidden=true;
+      el.login.hidden=true;
+      el.app.hidden=false;
+      fillUser(user);
+
+      if(!history.state?.momentum){
+        syncHistoryState({replace:true});
+      }
+
+      renderAll();
+
+      try{
+        await saveProfile(user);
+        listenCategories(user);
+        listen(user);
+        listenHabits(user);
+      }catch(error){
+        console.error("로그인 후 데이터 연결 실패",error);
+        el.loginError.textContent="로그인은 완료됐지만 데이터를 불러오지 못했습니다.";
+      }
+    }
+  }catch(error){
+    console.error(error);
+    el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`;
+  }
 }
 async function logout(){await signOut(auth);closeSheet()}
 async function saveProfile(user){
@@ -5529,7 +5561,7 @@ const startupWatchdog=setTimeout(()=>{
     if(el.app)el.app.hidden=true;
     if(el.login)el.login.hidden=false;
     if(el.loginError){
-      el.loginError.textContent="연결이 지연되고 있습니다. 새로고침 후 다시 시도해 주세요.";
+      el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. 아래 Google 버튼으로 로그인해 주세요.";
     }
   }
 },10000);
