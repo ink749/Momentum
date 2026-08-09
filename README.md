@@ -1,4 +1,4 @@
-# Momentum v7.11
+# Momentum v7.12
 
 일정과 습관을 한곳에서 관리하고, 진행률과 통계를 확인할 수 있는 개인 일정 관리 웹앱입니다.
 
@@ -150,3 +150,9 @@
 - Google 팝업 로그인이 성공하면 `onAuthStateChanged` 응답만 기다리지 않고 반환된 사용자 정보로 즉시 앱 진입
 - 로그인 직후 캘린더 렌더링 및 Firebase 데이터 리스너 연결
 - 자동 로그인 확인이 늦을 때도 Google 로그인 버튼을 정상적으로 사용할 수 있도록 안내 수정
+
+
+## v7.12 긴급 수정
+- `Cannot access 'startupWatchdog' before initialization` 오류 수정
+- `startupWatchdog`를 앱 초기화 초기에 선언하고 이후 타이머를 할당하도록 변경
+- 로그인 성공 / 인증 상태 확인 / 인증 오류 시 watchdog 타이머를 안전하게 정리

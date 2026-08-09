@@ -18,6 +18,8 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
+let startupWatchdog=null;
+
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
 const DEFAULT_CATEGORIES = [
   {id:"study",name:"공부",color:"#5b7cfa"},
@@ -1781,7 +1783,7 @@ async function login(){
     // v7.11: 로그인 성공 후 onAuthStateChanged만 기다리지 않고
     // 반환된 사용자 정보로 즉시 앱 화면을 엽니다.
     if(user){
-      clearTimeout(startupWatchdog);
+      if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
       state.user=user;
       el.loading.hidden=true;
       el.login.hidden=true;
@@ -5555,7 +5557,7 @@ setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 
-const startupWatchdog=setTimeout(()=>{
+startupWatchdog=setTimeout(()=>{
   if(el.loading&&!el.loading.hidden){
     el.loading.hidden=true;
     if(el.app)el.app.hidden=true;
@@ -5574,7 +5576,7 @@ try{
 }
 
 onAuthStateChanged(auth,async user=>{
-  clearTimeout(startupWatchdog);
+  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
@@ -5603,7 +5605,7 @@ onAuthStateChanged(auth,async user=>{
     alert("Firebase에 연결하지 못했습니다.");
   }
 },error=>{
-  clearTimeout(startupWatchdog);
+  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
   console.error("Auth 상태 확인 실패",error);
   el.loading.hidden=true;
   el.app.hidden=true;
