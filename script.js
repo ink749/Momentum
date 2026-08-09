@@ -19,6 +19,7 @@ const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 let persistenceReady=Promise.resolve();
+let startupWatchdog=null;
 
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
 const DEFAULT_CATEGORIES = [
@@ -1782,9 +1783,26 @@ function listenHabits(user){
 async function login(){
   el.loginError.textContent="";
   try{
-    await persistenceReady;
-    await signInWithPopup(auth,provider);
-    // 실제 화면 전환과 데이터 연결은 onAuthStateChanged 한 곳에서만 처리합니다.
+    // persistence 설정이 지연되더라도 로그인 자체를 막지 않습니다.
+    await Promise.race([persistenceReady,new Promise(resolve=>setTimeout(resolve,1500))]);
+    const result=await signInWithPopup(auth,provider);
+    const user=result?.user||auth.currentUser;
+
+    // 인증 observer가 늦거나 누락되어도 로그인 성공 결과로 즉시 앱을 엽니다.
+    if(user){
+      if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
+      state.user=user;
+      el.loading.hidden=true;
+      el.login.hidden=true;
+      el.app.hidden=false;
+      fillUser(user);
+      if(!history.state?.momentum)syncHistoryState({replace:true});
+      renderAll();
+      saveProfile(user).catch(error=>console.warn("프로필 저장 실패",error));
+      listenCategories(user);
+      listen(user);
+      listenHabits(user);
+    }
   }catch(error){
     console.error(error);
     el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`;
@@ -5600,7 +5618,18 @@ persistenceReady=setPersistence(auth,browserLocalPersistence).catch(error=>{
   console.warn("브라우저 로그인 유지 설정 실패",error);
 });
 
+// 시작 화면이 무한 로딩에 갇히지 않도록 안전장치를 둡니다.
+startupWatchdog=setTimeout(()=>{
+  if(el.loading && !el.loading.hidden){
+    el.loading.hidden=true;
+    el.app.hidden=true;
+    el.login.hidden=false;
+    if(el.loginError)el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. Google 계정으로 시작해 주세요.";
+  }
+},8000);
+
 onAuthStateChanged(auth,user=>{
+  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
   el.loading.hidden=true;
 
   if(!user){
