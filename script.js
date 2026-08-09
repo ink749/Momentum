@@ -211,26 +211,49 @@ function refreshMobileEndTimes(start,preferredEnd){
 
 function setTimeParts(start,end){
   const roundedStart=roundTimeValue(start||"09:00");
-  const roundedEnd=roundTimeValue(
+  let roundedEnd=roundTimeValue(
     end||defaultEndTime(roundedStart)
   );
 
+  if(timeToMinutes(roundedEnd)<=timeToMinutes(roundedStart)){
+    roundedEnd=defaultEndTime(roundedStart);
+  }
+
   el.startClock.value=roundedStart;
   el.endClock.value=roundedEnd;
-  syncHiddenTimes();
+  el.time.value=roundedStart;
+  el.endTime.value=roundedEnd;
+
+  // legacy controls도 값만 동기화해 이전 코드와 충돌하지 않게 유지
+  if(el.mobileStartTime)el.mobileStartTime.value=roundedStart;
+  if(el.mobileEndTime){
+    refreshMobileEndTimes(roundedStart,roundedEnd);
+    el.mobileEndTime.value=roundedEnd;
+  }
 }
 function syncHiddenTimes(){
-  const start=roundTimeValue(el.startClock.value||"09:00");
-  const end=roundTimeValue(
-    el.endClock.value||defaultEndTime(start)
+  const start=roundTimeValue(
+    el.startClock.value
+    ||el.mobileStartTime?.value
+    ||el.time.value
+    ||"09:00"
   );
+  let end=roundTimeValue(
+    el.endClock.value
+    ||el.mobileEndTime?.value
+    ||el.endTime.value
+    ||defaultEndTime(start)
+  );
+
+  if(timeToMinutes(end)<=timeToMinutes(start)){
+    end=defaultEndTime(start);
+  }
 
   el.startClock.value=start;
   el.endClock.value=end;
   el.time.value=start;
   el.endTime.value=end;
 }
-
 
 function dateKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
 function parseDateKey(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
@@ -925,19 +948,102 @@ function startOfDay(date){
   value.setHours(0,0,0,0);
   return value;
 }
+function parseQuickTimeRange(text){
+  const normalized=String(text||"")
+    .replace(/[–—−~∼]/g,"-")
+    .replace(/\s+/g," ")
+    .trim();
+
+  const to24=(ampm,hour,minute=0)=>{
+    let h=Number(hour);
+    const m=Number(minute||0);
+    if(!Number.isFinite(h)||!Number.isFinite(m)||m<0||m>59)return null;
+
+    if(ampm){
+      h=h%12;
+      if(ampm==="오후")h+=12;
+    }
+
+    if(h<0||h>23)return null;
+    return `${pad(h)}:${pad(m)}`;
+  };
+
+  // 예: 오후 7-10시 / 오후 7시-10시 / 오전 9시-오후 1시
+  let match=normalized.match(
+    /(오전|오후)\s*(\d{1,2})(?:시|:\s*(\d{1,2}))?\s*-\s*(?:(오전|오후)\s*)?(\d{1,2})(?:시|:\s*(\d{1,2}))?/
+  );
+  if(match){
+    const start=to24(match[1],match[2],match[3]||0);
+    const endAmpm=match[4]||match[1];
+    const end=to24(endAmpm,match[5],match[6]||0);
+    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
+      return {start,end};
+    }
+  }
+
+  // 예: 19-22시 / 19-22 / 19:00-22:30 / 19시-22시
+  match=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*-\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?(?=\s|에|부터|까지|$|[,.)])/
+  );
+  if(match){
+    const start=to24(null,match[1],match[2]||0);
+    const end=to24(null,match[3],match[4]||0);
+    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
+      return {start,end};
+    }
+  }
+
+  // 예: 19시부터 22시 / 19:00부터 22:00
+  match=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*부터\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?/
+  );
+  if(match){
+    const start=to24(null,match[1],match[2]||0);
+    const end=to24(null,match[3],match[4]||0);
+    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
+      return {start,end};
+    }
+  }
+
+  return null;
+}
+
 function parseQuickTime(text){
-  const ampm=text.match(/(오전|오후)\s*(\d{1,2})(?:시|\s*:\s*(\d{2}))?/);
+  const normalized=String(text||"").replace(/\s+/g," ").trim();
+
+  // 오후 7시 30분 / 오전 9시 / 오후 7:30
+  const ampm=normalized.match(
+    /(오전|오후)\s*(\d{1,2})(?:시|\s*:\s*(\d{1,2}))?(?:\s*(\d{1,2})분)?/
+  );
   if(ampm){
     let hour=Number(ampm[2])%12;
     if(ampm[1]==="오후")hour+=12;
-    return `${pad(hour)}:${pad(Number(ampm[3]||0))}`;
+
+    const minute=
+      ampm[4]!==undefined
+        ?Number(ampm[4])
+        :(ampm[3]!==undefined?Number(ampm[3]):0);
+
+    if(minute>=0&&minute<60){
+      return `${pad(hour)}:${pad(minute)}`;
+    }
   }
 
-  const clock=text.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?:\s|$)/);
-  if(clock)return `${pad(Number(clock[1]))}:${clock[2]}`;
+  // 19:00, 19:00에, 19:30 일정
+  const clock=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])\s*:\s*([0-5]\d)(?=\s|에|부터|까지|$|[,.)])/
+  );
+  if(clock){
+    return `${pad(Number(clock[1]))}:${clock[2]}`;
+  }
 
-  const hourOnly=text.match(/(?:^|\s)([01]?\d|2[0-3])시(?:\s|$)/);
-  if(hourOnly)return `${pad(Number(hourOnly[1]))}:00`;
+  // 19시 30분 / 19시 / 19시에
+  const koreanClock=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])시(?:\s*([0-5]?\d)분)?(?=\s|에|부터|까지|$|[,.)])/
+  );
+  if(koreanClock){
+    return `${pad(Number(koreanClock[1]))}:${pad(Number(koreanClock[2]||0))}`;
+  }
 
   return "09:00";
 }
@@ -953,9 +1059,13 @@ function quickTitle(text){
     .replace(/20\d{2}[-./년\s]\d{1,2}[-./월\s]\d{1,2}일?/g," ")
     .replace(/\d{1,2}월\s*\d{1,2}일/g," ")
     .replace(/오늘|내일|모레/g," ")
-    .replace(/(오전|오후)\s*\d{1,2}(?:시|\s*:\s*\d{2})?/g," ")
-    .replace(/(?:^|\s)([01]?\d|2[0-3]):[0-5]\d(?:\s|$)/g," ")
-    .replace(/(?:^|\s)([01]?\d|2[0-3])시(?:\s|$)/g," ")
+    // 시간 범위: 19-22시, 19:00-22:30, 19시부터 22시
+    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*[-~∼–—−]\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?(?=\s|에|부터|까지|$|[,.)])/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*부터\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?/g," ")
+    .replace(/(오전|오후)\s*\d{1,2}(?:시|:\s*\d{1,2})?\s*[-~∼–—−]\s*(?:(오전|오후)\s*)?\d{1,2}(?:시|:\s*\d{1,2})?/g," ")
+    .replace(/(오전|오후)\s*\d{1,2}(?:시|\s*:\s*\d{1,2})?(?:\s*\d{1,2}분)?/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])\s*:\s*[0-5]\d(?=\s|에|부터|까지|$|[,.)])/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])시(?:\s*[0-5]?\d분)?(?=\s|에|부터|까지|$|[,.)])/g," ")
     .replace(/평일|매일|매주|매월|매달/g," ")
     .replace(/\s+/g," ")
     .trim();
@@ -972,7 +1082,9 @@ async function submitQuickAdd(){
 
   const parsedDate=parseQuickDate(raw);
   const date=dateKey(parsedDate);
-  const time=parseQuickTime(raw);
+  const timeRange=parseQuickTimeRange(raw);
+  const time=timeRange?.start||parseQuickTime(raw);
+  const endTime=timeRange?.end||defaultEndTime(time);
   const repeat=parseQuickRepeat(raw);
   const title=quickTitle(raw);
 
@@ -990,7 +1102,7 @@ async function submitQuickAdd(){
         category:"other",
         date,
         time,
-        endTime:defaultEndTime(time),
+        endTime,
         repeat,
         memo:"",
         checklist:[],
@@ -2075,11 +2187,23 @@ async function moveEventTo(event,newDate,newTime){
         doc(db,"users",state.user.uid,"events",event.id),
         {
           date:newDate,
+          endDate:newDate,
           time:movedTime,
           endTime:movedEndTime,
           updatedAt:serverTimestamp()
         }
       );
+
+      const localIndex=state.events.findIndex(item=>item.id===event.id);
+      if(localIndex>=0){
+        state.events[localIndex]={
+          ...state.events[localIndex],
+          date:newDate,
+          endDate:newDate,
+          time:movedTime,
+          endTime:movedEndTime
+        };
+      }
 
       pushUndo("일정 이동",async()=>{
         await updateDoc(
@@ -2098,6 +2222,9 @@ async function moveEventTo(event,newDate,newTime){
     state.selectedDateKey=newDate;
     haptic([16,24,16]);
     showToast(`${newDate} ${movedTime}–${movedEndTime}로 이동했습니다.`);
+    if(state.currentView==="week"){
+      renderWeek();
+    }
   }catch(error){
     state.pendingWeekScroll=null;
     console.error(error);
@@ -3195,7 +3322,7 @@ function bindGoogleMobileMove(block,event){
 
     holdTimer=setTimeout(()=>{
       if(pointerId===pointerEvent.pointerId)begin(pointerEvent);
-    },300);
+    },220);
   });
 
   block.addEventListener("pointermove",pointerEvent=>{
@@ -3207,7 +3334,7 @@ function bindGoogleMobileMove(block,event){
         pointerEvent.clientY-startY
       );
 
-      if(distance>6){
+      if(distance>12){
         clearTimeout(holdTimer);
         holdTimer=null;
       }
@@ -3926,7 +4053,7 @@ function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTim
   el.remove.hidden=true;
 
   const modeSwitch=el.modal.querySelector(".modal-mode-switch");
-  if(modeSwitch)modeSwitch.hidden=false;
+  if(modeSwitch)modeSwitch.hidden=true;
 
   showModal();
 }
@@ -4403,460 +4530,46 @@ function renderDayView(){
 }
 
 function setupWheelTimePicker(){
-  const targets=[
-    {
-      input:el.startClock,
-      dateInput:el.date,
-      type:"start",
-      title:"시작 시간"
-    },
-    {
-      input:el.endClock,
-      dateInput:el.endDate,
-      type:"end",
-      title:"종료 시간"
+  // v7.8 emergency fix:
+  // 커스텀 휠 대신 브라우저 기본 time input을 사용해
+  // PC/모바일 모두 시간 입력값이 정확히 저장되도록 합니다.
+  const normalizePair=()=>{
+    const start=roundTimeValue(el.startClock.value||"09:00");
+    let end=roundTimeValue(el.endClock.value||defaultEndTime(start));
+
+    if(timeToMinutes(end)<=timeToMinutes(start)){
+      end=defaultEndTime(start);
     }
-  ];
 
-  let active=null;
-  let selectedIndex=9;
-  let selectedMinute=0;
-  let committedIndex=9;
-  let temporaryDate=null;
-  let baseDateAtOpen=null;
-  let boundaryShift=0;
-  let initialHourIndex=9;
-  let scrollTimer=null;
+    el.startClock.value=start;
+    el.endClock.value=end;
+    el.time.value=start;
+    el.endTime.value=end;
+  };
 
-  const settlingColumns=new WeakSet();
+  el.startClock.addEventListener("change",()=>{
+    const start=roundTimeValue(el.startClock.value||"09:00");
+    el.startClock.value=start;
 
-  /*
-   * index 0  = 01시 앞의 00시
-   * index 1  = 01시
-   * ...
-   * index 23 = 23시
-   * index 24 = 23시 뒤의 00시
-   *
-   * 같은 00시라도 위쪽과 아래쪽을 서로 다른 index로 유지해야
-   * 날짜 경계를 정확히 판정할 수 있습니다.
-   */
-  const hourEntries=[
-    ...Array.from(
-      {length:24},
-      (_,index)=>({
-        index,
-        hour:index,
-        label:pad(index)
-      })
-    ),
-    {
-      index:24,
-      hour:0,
-      label:"00"
+    if(
+      !el.endClock.value
+      ||timeToMinutes(el.endClock.value)<=timeToMinutes(start)
+    ){
+      el.endClock.value=defaultEndTime(start);
     }
-  ];
 
-  const backdrop=document.createElement("div");
-  backdrop.className="wheel-time-backdrop";
-  backdrop.hidden=true;
-  backdrop.innerHTML=`
-    <section class="wheel-time-picker" role="dialog" aria-modal="true">
-      <header>
-        <button type="button" data-wheel-cancel>취소</button>
-        <strong data-wheel-title>시간 선택</strong>
-        <button type="button" data-wheel-confirm>완료</button>
-      </header>
-
-      <div class="wheel-date-preview" data-wheel-date></div>
-
-      <div class="wheel-columns">
-        <div class="wheel-column-wrap">
-          <span>시</span>
-          <div class="wheel-column" data-wheel-hours></div>
-        </div>
-        <div class="wheel-separator">:</div>
-        <div class="wheel-column-wrap">
-          <span>분</span>
-          <div class="wheel-column" data-wheel-minutes></div>
-        </div>
-      </div>
-    </section>
-  `;
-  document.body.appendChild(backdrop);
-
-  const title=backdrop.querySelector("[data-wheel-title]");
-  const datePreview=backdrop.querySelector("[data-wheel-date]");
-  const hoursColumn=backdrop.querySelector("[data-wheel-hours]");
-  const minutesColumn=backdrop.querySelector("[data-wheel-minutes]");
-  const itemHeight=48;
-
-  hoursColumn.innerHTML='<div class="wheel-spacer"></div>';
-  hourEntries.forEach(entry=>{
-    const item=document.createElement("button");
-    item.type="button";
-    item.className="wheel-item";
-    item.dataset.value=String(entry.index);
-    item.textContent=`${entry.label}시`;
-    hoursColumn.appendChild(item);
-  });
-  hoursColumn.insertAdjacentHTML(
-    "beforeend",
-    '<div class="wheel-spacer"></div>'
-  );
-
-  minutesColumn.innerHTML=`
-    <div class="wheel-spacer"></div>
-    <button type="button" class="wheel-item" data-value="0">00분</button>
-    <button type="button" class="wheel-item" data-value="30">30분</button>
-    <div class="wheel-spacer"></div>
-  `;
-
-  const renderDatePreview=()=>{
-    if(!temporaryDate)return;
-    const date=parseDateKey(temporaryDate);
-    datePreview.textContent=
-      `${date.getFullYear()}년 ${date.getMonth()+1}월 ${date.getDate()}일`;
-  };
-
-  const selectedValue=column=>{
-    const items=Array.from(
-      column.querySelectorAll(".wheel-item")
-    );
-
-    const index=Math.max(
-      0,
-      Math.min(
-        items.length-1,
-        Math.round(column.scrollTop/itemHeight)
-      )
-    );
-
-    return Number(items[index].dataset.value);
-  };
-
-  const highlight=()=>{
-    hoursColumn.querySelectorAll(".wheel-item").forEach(item=>{
-      item.classList.toggle(
-        "selected",
-        Number(item.dataset.value)===selectedIndex
-      );
-    });
-
-    minutesColumn.querySelectorAll(".wheel-item").forEach(item=>{
-      item.classList.toggle(
-        "selected",
-        Number(item.dataset.value)===selectedMinute
-      );
-    });
-  };
-
-  const setColumnPosition=(column,value)=>{
-    const items=Array.from(
-      column.querySelectorAll(".wheel-item")
-    );
-    const index=items.findIndex(
-      item=>Number(item.dataset.value)===value
-    );
-
-    if(index<0)return;
-
-    settlingColumns.add(column);
-    column.scrollTop=index*itemHeight;
-
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        settlingColumns.delete(column);
-      });
-    });
-  };
-
-  const changeDate=days=>{
-    boundaryShift+=days;
-    temporaryDate=dateKey(
-      addDays(parseDateKey(baseDateAtOpen),boundaryShift)
-    );
-    renderDatePreview();
-  };
-
-  const applyBoundary=(previous,next)=>{
-    // v6.7: 시간 휠은 시간만 변경하고 날짜는 자동 변경하지 않습니다.
-    return;
-  };
-
-  const commitHour=next=>{
-    applyBoundary(committedIndex,next);
-    selectedIndex=next;
-    committedIndex=next;
-    highlight();
-    setColumnPosition(hoursColumn,next);
-  };
-
-  const commitMinute=next=>{
-    selectedMinute=next;
-    highlight();
-    setColumnPosition(minutesColumn,next);
-  };
-
-  hoursColumn.addEventListener("scroll",()=>{
-    if(settlingColumns.has(hoursColumn))return;
-
-    clearTimeout(scrollTimer);
-    scrollTimer=setTimeout(()=>{
-      commitHour(selectedValue(hoursColumn));
-    },140);
-  },{passive:true});
-
-  minutesColumn.addEventListener("scroll",()=>{
-    if(settlingColumns.has(minutesColumn))return;
-
-    clearTimeout(scrollTimer);
-    scrollTimer=setTimeout(()=>{
-      commitMinute(selectedValue(minutesColumn));
-    },140);
-  },{passive:true});
-
-  hoursColumn.addEventListener("click",event=>{
-    const item=event.target.closest(".wheel-item");
-    if(!item)return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    commitHour(Number(item.dataset.value));
+    normalizePair();
   });
 
-  minutesColumn.addEventListener("click",event=>{
-    const item=event.target.closest(".wheel-item");
-    if(!item)return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    commitMinute(Number(item.dataset.value));
-  });
-
-  const open=target=>{
-    active=target;
-
-    const value=target.input.value||(
-      target.type==="start"?"09:00":"10:00"
-    );
-    const [hour,minute]=value.split(":").map(Number);
-
-const chosenHour=
-      selectedIndex===24
-        ?0
-        :selectedIndex;
-
-    const chosenTime=
-      `${pad(chosenHour)}:${pad(selectedMinute)}`;
-
-    active.dateInput.value=temporaryDate;
-    active.dateInput.dispatchEvent(
-      new Event("change",{bubbles:true})
-    );
-    active.input.value=chosenTime;
-    active.input.dispatchEvent(
-      new Event("change",{bubbles:true})
-    );
-
-    syncHiddenTimes();
-    close();
-  };
-
-  backdrop.addEventListener("click",event=>{
-    if(event.target===backdrop)close();
-  });
-
-  targets.forEach(target=>{
-    target.input.addEventListener("click",()=>{
-      open(target);
-    });
-
-    target.input.addEventListener("keydown",event=>{
-      if(event.key==="Enter"||event.key===" "){
-        event.preventDefault();
-        open(target);
-      }
-    });
-  });
+  el.endClock.addEventListener("change",normalizePair);
+  el.startClock.addEventListener("input",syncHiddenTimes);
+  el.endClock.addEventListener("input",syncHiddenTimes);
 }
-
 function setupMondayFirstDatePicker(){
-  const inputs=[el.date,el.endDate];
-  let activeInput=null;
-  let viewMonth=startOfMonth(new Date());
-
-  const backdrop=document.createElement("div");
-  backdrop.className="monday-date-picker-backdrop";
-  backdrop.hidden=true;
-  backdrop.innerHTML=`
-    <section class="monday-date-picker" role="dialog" aria-modal="true">
-      <header>
-        <button type="button" data-picker-prev aria-label="이전 달">‹</button>
-        <strong data-picker-title></strong>
-        <button type="button" data-picker-next aria-label="다음 달">›</button>
-      </header>
-      <div class="monday-date-weekdays">
-        <span>월</span><span>화</span><span>수</span><span>목</span>
-        <span>금</span><span class="saturday">토</span><span class="sunday">일</span>
-      </div>
-      <div class="monday-date-grid"></div>
-      <footer>
-        <button type="button" data-picker-today>오늘</button>
-        <button type="button" data-picker-close>닫기</button>
-      </footer>
-    </section>
-  `;
-  document.body.appendChild(backdrop);
-
-  const title=backdrop.querySelector("[data-picker-title]");
-  const grid=backdrop.querySelector(".monday-date-grid");
-
-  const render=()=>{
-    title.textContent=
-      `${viewMonth.getFullYear()}년 ${viewMonth.getMonth()+1}월`;
-    grid.innerHTML="";
-
-    const first=startOfMonth(viewMonth);
-    const mondayOffset=(first.getDay()+6)%7;
-    const gridStart=addDays(first,-mondayOffset);
-    const selected=activeInput?.value||"";
-
-    for(let index=0;index<42;index++){
-      const day=addDays(gridStart,index);
-      const key=dateKey(day);
-      const button=document.createElement("button");
-      button.type="button";
-      button.textContent=day.getDate();
-      button.dataset.date=key;
-      if(day.getMonth()!==viewMonth.getMonth()){
-        button.classList.add("outside");
-      }
-      if(day.getDay()===0)button.classList.add("sunday");
-      if(day.getDay()===6)button.classList.add("saturday");
-      if(key===selected)button.classList.add("selected");
-      if(key===dateKey(new Date()))button.classList.add("today");
-
-      button.onclick=()=>{
-        if(!activeInput)return;
-        activeInput.value=key;
-        activeInput.dispatchEvent(
-          new Event("change",{bubbles:true})
-        );
-        close();
-      };
-      grid.appendChild(button);
-    }
-  };
-
-  const open=input=>{
-    activeInput=input;
-    viewMonth=startOfMonth(
-      input.value?parseDateKey(input.value):new Date()
-    );
-    backdrop.hidden=false;
-    render();
-  };
-  const close=()=>{
-    backdrop.hidden=true;
-    activeInput=null;
-  };
-
-  backdrop.querySelector("[data-picker-prev]").onclick=()=>{
-    viewMonth=new Date(
-      viewMonth.getFullYear(),
-      viewMonth.getMonth()-1,
-      1
-    );
-    render();
-  };
-  backdrop.querySelector("[data-picker-next]").onclick=()=>{
-    viewMonth=new Date(
-      viewMonth.getFullYear(),
-      viewMonth.getMonth()+1,
-      1
-    );
-    render();
-  };
-  backdrop.querySelector("[data-picker-today]").onclick=()=>{
-    if(!activeInput)return;
-    activeInput.value=dateKey(new Date());
-    activeInput.dispatchEvent(
-      new Event("change",{bubbles:true})
-    );
-    close();
-  };
-  backdrop.querySelector("[data-picker-close]").onclick=close;
-  backdrop.addEventListener("click",event=>{
-    if(event.target===backdrop)close();
-  });
-
-  inputs.forEach(input=>{
-    input.readOnly=true;
-    input.addEventListener("click",event=>{
-      event.preventDefault();
-      open(input);
-    });
-    input.addEventListener("keydown",event=>{
-      if(event.key==="Enter"||event.key===" "){
-        event.preventDefault();
-        open(input);
-      }
-    });
-  });
+  // v7.8 emergency fix:
+  // 날짜 선택은 브라우저 기본 date input을 사용합니다.
+  // 일정창을 열기 전에 별도 날짜 선택창이 뜨는 문제를 막습니다.
 }
-
-function pushModalHistory(type){
-  if(state.modalHistoryType)return;
-  state.modalHistoryType=type;
-  history.pushState(
-    {
-      ...(history.state||currentHistoryState()),
-      momentum:true,
-      modal:type
-    },
-    "",
-    location.href
-  );
-}
-function clearModalHistory(type){
-  if(state.modalHistoryType!==type)return;
-  state.modalHistoryType=null;
-
-  if(history.state?.modal===type){
-    state.ignoreNextPopstate=true;
-    history.back();
-  }
-}
-function closeEventModalFromHistory(){
-  resetEventModalScroll();
-  el.modal.classList.remove("show");
-  document.body.style.overflow=
-    state.dayViewOpen?"hidden":"";
-  state.modalHistoryType=null;
-
-  if(state.dayViewOpen){
-    requestAnimationFrame(renderDayView);
-  }
-}
-function closeHabitModalFromHistory(){
-  el.habitModal.classList.remove("show");
-  document.body.style.overflow="";
-  state.modalHistoryType=null;
-}
-function closeAccountSheetFromHistory(){
-  el.accountSheet.classList.remove("show");
-  state.modalHistoryType=null;
-}
-
-function autoResizeMemo(){
-  if(!el.memo)return;
-  el.memo.style.height="auto";
-  const oneLineHeight=46;
-  el.memo.style.height=`${Math.max(oneLineHeight,el.memo.scrollHeight)}px`;
-}
-
 function resetEventModalScroll(){
   const panel=el.modal.querySelector(":scope > .modal")
     ||el.modal.querySelector(".modal");
@@ -5646,30 +5359,9 @@ document.addEventListener("click",event=>{
   }
 });
 
-[el.mobileStartTime,el.mobileEndTime].forEach(control=>{
-  control.addEventListener("change",()=>{
-    control.value=roundTimeValue(control.value);
-
-    let start=roundTimeValue(el.mobileStartTime.value||"09:00");
-    let end=roundTimeValue(el.mobileEndTime.value||defaultEndTime(start));
-
-    if(timeToMinutes(end)<=timeToMinutes(start)){
-      end=defaultEndTime(start);
-      el.mobileEndTime.value=end==="24:00"?"23:30":end;
-    }
-
-    syncHiddenTimes();
-  });
-});
 
 el.memo.addEventListener("input",autoResizeMemo);
 
-[el.startClock,el.endClock].forEach(control=>{
-  control.addEventListener("change",()=>{
-    control.value=roundTimeValue(control.value);
-    syncHiddenTimes();
-  });
-});
 el.date.addEventListener("change",()=>{
   if(!el.endDate.value||el.endDate.value<el.date.value){
     el.endDate.value=el.date.value;
@@ -5681,12 +5373,6 @@ el.endDate.addEventListener("change",()=>{
   }
 });
 
-el.mobileStartTime.addEventListener("change",()=>{
-  const start=el.mobileStartTime.value;
-  refreshMobileEndTimes(start,defaultEndTime(start));
-  syncHiddenTimes();
-});
-el.mobileEndTime.addEventListener("change",syncHiddenTimes);
 
 [el.startHour,el.startMinute,el.endHour,el.endMinute].forEach(control=>{
   control.addEventListener("change",()=>{
@@ -5836,7 +5522,7 @@ window.addEventListener("popstate",event=>{
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
-setupCalendarSwipe();
+
 
 await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{

@@ -5776,3 +5776,29 @@ body.week-fullscreen .category-filter-bar{
     padding:8px 9px;
   }
 }
+
+
+/* Momentum v7.8 긴급 안정화 — 시간/날짜 입력 */
+.wheel-time-input[type="time"]{
+  appearance:auto!important;
+  -webkit-appearance:auto!important;
+  cursor:pointer;
+}
+.wheel-time-backdrop,
+.monday-date-picker-backdrop{
+  display:none!important;
+}
+
+/* 일정/습관 전환 선택창은 일정 모달에서 표시하지 않음 */
+#eventModal .modal-mode-switch{
+  display:none!important;
+}
+
+/* 모바일 일정 이동 롱프레스와 주간 스크롤 충돌 완화 */
+.google-week-event{
+  -webkit-user-select:none;
+  user-select:none;
+}
+.google-week-event.google-moving{
+  touch-action:none!important;
+}

@@ -360,7 +360,7 @@
 
   <div id="eventModal" class="modal-backdrop" aria-hidden="true">
     <div class="modal">
-      <div class="modal-mode-switch" aria-label="추가 종류 선택">
+      <div class="modal-mode-switch" aria-label="추가 종류 선택" hidden>
         <button id="eventModeTab" class="modal-mode-tab active" type="button">일정</button>
         <button id="habitModeFromEventTab" class="modal-mode-tab" type="button">습관</button>
       </div>
@@ -380,13 +380,13 @@
             <input id="eventDate" type="date" required />
           </label>
           <label>시작 시간
-            <input id="eventStartClock" class="wheel-time-input" type="text" inputmode="none" readonly required />
+            <input id="eventStartClock" class="wheel-time-input" type="time" step="1800" required />
           </label>
           <label>종료 날짜
             <input id="eventEndDate" type="date" required />
           </label>
           <label>종료 시간
-            <input id="eventEndClock" class="wheel-time-input" type="text" inputmode="none" readonly required />
+            <input id="eventEndClock" class="wheel-time-input" type="time" step="1800" required />
           </label>
         </div>
 
