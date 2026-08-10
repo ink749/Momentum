@@ -4049,7 +4049,21 @@ function resetForm(){
   state.editingChecklist=[];
   renderChecklistEditor();
 el.formError.textContent="";
-  setProgress(0);
+  // Optional UI enhancements run only after the auth observer is registered.
+ // Each feature is isolated so one broken enhancement cannot freeze Momentum.
+[
+  ["date picker", setupMondayFirstDatePicker],
+  ["time picker", setupWheelTimePicker],
+  ["desktop undo", setupDesktopUndo]
+].forEach(([name, setup])=>{
+  try{
+    setup();
+  }catch(error){
+    console.error(`Optional startup feature failed: ${name}`, error);
+  }
+});
+
+setProgress(0);
 renderChecklistEditor();
 }
 function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTime(time)){
@@ -5580,10 +5594,9 @@ window.addEventListener("popstate",event=>{
 });
 
 
-setupMondayFirstDatePicker();
-setupWheelTimePicker();
-setupDesktopUndo();
-
+// Startup-critical rule:
+ // Register Firebase auth observer BEFORE optional UI enhancements.
+ // If a date/time/undo enhancement fails, it must never block app startup.
 let startupFallbackTimer=setTimeout(()=>{
   if(el.loading && !el.loading.hidden){
     el.loading.hidden=true;
