@@ -3909,10 +3909,9 @@ function resetForm(){
   el.repeat.value="none";
   el.memo.value="";
   state.editingChecklist=[];
-  renderChecklistEditor();
-el.formError.textContent="";
+  el.formError.textContent="";
   setProgress(0);
-renderChecklistEditor();
+  renderChecklistEditor();
 }
 function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTime(time)){
   haptic(12);
@@ -5086,6 +5085,11 @@ async function finishEventSave(occurrenceDate){
   state.selectedDateKey=occurrenceDate;
   closeRepeatEditDialog();
   closeModal();
+
+  // 모달이 닫힌 뒤 한 번만 화면을 갱신합니다.
+  requestAnimationFrame(()=>{
+    renderAll();
+  });
 }
 
 async function applyPendingRepeatEdit(scope){
@@ -5172,7 +5176,21 @@ async function submit(event){
       }
 
       const previousEventData=firestoreRecordData(source);
+
+      // 수정 저장 직후 Firestore snapshot과 현재 저장 흐름이 동시에
+      // 전체 화면을 다시 그리지 않도록 snapshot 렌더 1회를 건너뜁니다.
+      state.skipEventSnapshotRenders+=1;
+
       await updateDoc(doc(eventsRef,eventId),baseData);
+
+      const localIndex=state.events.findIndex(item=>item.id===eventId);
+      if(localIndex>=0){
+        state.events[localIndex]={
+          ...state.events[localIndex],
+          ...baseData,
+          updatedAt:state.events[localIndex].updatedAt
+        };
+      }
 
       pushUndo("일정 수정",async()=>{
         await setDoc(
@@ -5223,6 +5241,10 @@ async function submit(event){
 
     await finishEventSave(occurrenceDate);
   }catch(error){
+    state.skipEventSnapshotRenders=Math.max(
+      0,
+      state.skipEventSnapshotRenders-1
+    );
     console.error(error);
     el.formError.textContent="저장하지 못했습니다.";
   }
