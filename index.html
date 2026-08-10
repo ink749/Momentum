@@ -107,24 +107,23 @@
           </section>
             <div id="selectedDayEvents" class="selected-day-events"></div>
           </section>
-          <div class="selected-support-grid">
-          <section class="summary-card">
-            <p class="eyebrow">DAY PROGRESS</p>
-            <div id="dayProgressNumber" class="progress-number">0%</div>
-            <div class="progress-track"><div id="dayProgressBar" class="progress-fill"></div></div>
-            <p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
-          </section>
-          <section class="summary-card">
-            <p class="eyebrow">MONTH SUMMARY</p>
-            <div class="summary-stats">
-              <div><strong id="monthEventCount">0</strong><span>전체 일정</span></div>
-              <div><strong id="monthAverageProgress">0%</strong><span>평균 완료율</span></div>
-            </div>
-            <div class="summary-habits">
-              <span class="summary-habits-label">오늘의 습관</span>
-              <div id="summaryHabitNames" class="summary-habit-names"></div>
-            </div>
-          </section>
+          <div class="selected-support-grid selected-insight-grid">
+            <section class="summary-card selected-day-insight-card">
+              <p class="eyebrow">DAY INSIGHT</p>
+              <div class="selected-insight-stats">
+                <div><span>종합</span><strong id="dayProgressNumber">0%</strong></div>
+                <div><span>일정</span><strong id="selectedInsightEventProgress">0%</strong></div>
+                <div><span>습관</span><strong id="selectedInsightHabitProgress">0%</strong></div>
+                <div><span>체크</span><strong id="selectedInsightChecklist">0/0</strong></div>
+              </div>
+              <div class="progress-track"><div id="dayProgressBar" class="progress-fill"></div></div>
+              <p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
+            </section>
+          </div>
+          <div hidden aria-hidden="true">
+            <strong id="monthEventCount">0</strong>
+            <strong id="monthAverageProgress">0%</strong>
+            <div id="summaryHabitNames"></div>
           </div>
         </section>
           <div class="category-filter-bar" aria-label="일정 카테고리 필터">
@@ -272,7 +271,7 @@
                 <div><span>일정 평균 완료율</span><strong id="statsMonthEventProgress">0%</strong></div>
                 <div><span>활성 습관</span><strong id="statsMonthHabitCount">0개</strong></div>
                 <div><span>습관 평균 완료율</span><strong id="statsMonthHabitProgress">0%</strong></div>
-                <div><span>100% 달성 습관 기록</span><strong id="statsMonthPerfectHabitDays">0회</strong></div>
+                <strong id="statsMonthPerfectHabitDays" hidden>0회</strong>
                 <div><span>체크리스트 전체 항목</span><strong id="statsChecklistTotal">0개</strong></div>
                 <div><span>체크리스트 완료</span><strong id="statsChecklistDone">0개</strong></div>
                 <div><span>체크리스트 실패</span><strong id="statsChecklistFailed">0개</strong></div>

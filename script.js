@@ -74,6 +74,9 @@ const el = {
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
   selectedEvents:$("selectedDayEvents"), dayProgress:$("dayProgressNumber"), dayBar:$("dayProgressBar"), dayCaption:$("dayProgressCaption"),
+  selectedInsightEventProgress:$("selectedInsightEventProgress"),
+  selectedInsightHabitProgress:$("selectedInsightHabitProgress"),
+  selectedInsightChecklist:$("selectedInsightChecklist"),
   monthCount:$("monthEventCount"), monthAverage:$("monthAverageProgress"), summaryHabitNames:$("summaryHabitNames"),
   modal:$("eventModal"), form:$("eventForm"),
   eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), category:$("eventCategory"),
@@ -920,6 +923,33 @@ function startOfDay(date){
   value.setHours(0,0,0,0);
   return value;
 }
+function parseQuickTimeRange(text){
+  const normalized=String(text||"")
+    .replace(/[–—−~∼]/g,"-")
+    .replace(/\s+/g," ")
+    .trim();
+
+  let match=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*-\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?(?=\s|$|[,.)])/
+  );
+  if(match){
+    const start=`${pad(Number(match[1]))}:${pad(Number(match[2]||0))}`;
+    const end=`${pad(Number(match[3]))}:${pad(Number(match[4]||0))}`;
+    if(timeToMinutes(end)>timeToMinutes(start))return {start,end};
+  }
+
+  match=normalized.match(
+    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*부터\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?/
+  );
+  if(match){
+    const start=`${pad(Number(match[1]))}:${pad(Number(match[2]||0))}`;
+    const end=`${pad(Number(match[3]))}:${pad(Number(match[4]||0))}`;
+    if(timeToMinutes(end)>timeToMinutes(start))return {start,end};
+  }
+
+  return null;
+}
+
 function parseQuickTime(text){
   const ampm=text.match(/(오전|오후)\s*(\d{1,2})(?:시|\s*:\s*(\d{2}))?/);
   if(ampm){
@@ -948,6 +978,8 @@ function quickTitle(text){
     .replace(/20\d{2}[-./년\s]\d{1,2}[-./월\s]\d{1,2}일?/g," ")
     .replace(/\d{1,2}월\s*\d{1,2}일/g," ")
     .replace(/오늘|내일|모레/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*[-~∼–—−]\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?(?=\s|$|[,.)])/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*부터\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?/g," ")
     .replace(/(오전|오후)\s*\d{1,2}(?:시|\s*:\s*\d{2})?/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3]):[0-5]\d(?:\s|$)/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])시(?:\s|$)/g," ")
@@ -967,7 +999,9 @@ async function submitQuickAdd(){
 
   const parsedDate=parseQuickDate(raw);
   const date=dateKey(parsedDate);
-  const time=parseQuickTime(raw);
+  const timeRange=parseQuickTimeRange(raw);
+  const time=timeRange?.start||parseQuickTime(raw);
+  const endTime=timeRange?.end||defaultEndTime(time);
   const repeat=parseQuickRepeat(raw);
   const title=quickTitle(raw);
 
@@ -985,7 +1019,7 @@ async function submitQuickAdd(){
         category:"other",
         date,
         time,
-        endTime:defaultEndTime(time),
+        endTime,
         repeat,
         memo:"",
         checklist:[],
@@ -2081,7 +2115,6 @@ async function moveEventTo(event,newDate,newTime){
 
     state.selectedDateKey=newDate;
     haptic([16,24,16]);
-    showToast(`${newDate} ${movedTime}–${movedEndTime}로 이동했습니다.`);
   }catch(error){
     state.pendingWeekScroll=null;
     console.error(error);
@@ -3461,7 +3494,26 @@ function renderSelected(){
 
       el.selectedEvents.appendChild(item);
     }});
-  el.dayProgress.textContent=`${avg}%`;el.dayBar.style.width=`${avg}%`;el.dayCaption.textContent=items.length?`${items.length}개 일정의 평균 완료율`:"등록된 일정이 없습니다.";
+  const insightHabits=activeHabitsOn(state.selectedDateKey);
+  const habitAvg=habitAverageForDate(state.selectedDateKey);
+  const checklist=items.flatMap(event=>checklistForOccurrence(event));
+  const checklistDone=checklist.filter(item=>item.status==="done").length;
+  const combinedValues=[];
+  if(items.length)combinedValues.push(avg);
+  if(insightHabits.length)combinedValues.push(habitAvg);
+  const combined=combinedValues.length
+    ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
+    :0;
+
+  el.dayProgress.textContent=`${combined}%`;
+  el.dayBar.style.width=`${combined}%`;
+  el.dayCaption.textContent=
+    items.length||insightHabits.length
+      ?`${d.getMonth()+1}월 ${d.getDate()}일의 일정 · 습관 성과`
+      :"등록된 일정과 습관이 없습니다.";
+  if(el.selectedInsightEventProgress)el.selectedInsightEventProgress.textContent=`${avg}%`;
+  if(el.selectedInsightHabitProgress)el.selectedInsightHabitProgress.textContent=`${habitAvg}%`;
+  if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${checklistDone}/${checklist.length}`;
 }
 function renderSummary(){
   const items=monthOccurrences();
@@ -4526,8 +4578,19 @@ function setupWheelTimePicker(){
   };
 
   const applyBoundary=(previous,next)=>{
-    // v6.7: 시간 휠은 시간만 변경하고 날짜는 자동 변경하지 않습니다.
-    return;
+    // 날짜는 실제 시간 휠의 끝단을 넘었을 때만 보정합니다.
+    // 23시 -> 아래쪽 00시(index 24): 다음 날
+    if(previous===23&&next===24){
+      changeDate(1);
+      return;
+    }
+    // 아래쪽 00시 -> 23시로 되돌림: 원래 날짜
+    if(previous===24&&next===23){
+      changeDate(-1);
+      return;
+    }
+    // 위쪽 00시(index 0)에서 이전 날로 넘어가는 동작은
+    // 현재 유한 휠 구조상 별도 index가 없어 자동 보정하지 않습니다.
   };
 
   const commitHour=next=>{

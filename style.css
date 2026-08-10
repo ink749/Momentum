@@ -5691,3 +5691,50 @@ body.week-four-weeks .week-event-checklist{
     height:29px!important;
   }
 }
+
+
+/* Final stabilization: drag target shows position preview only */
+.drag-over,
+.week-slot.drag-over,
+.google-week-day-column.drag-over{
+  background:transparent!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+
+/* SELECTED DAY insight */
+.selected-insight-grid{
+  grid-template-columns:1fr!important;
+}
+.selected-insight-stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin:8px 0 10px;
+}
+.selected-insight-stats>div{
+  min-width:0;
+  padding:9px 8px;
+  border-radius:10px;
+  background:var(--muted);
+  text-align:center;
+}
+.selected-insight-stats span{
+  display:block;
+  margin-bottom:3px;
+  color:var(--soft);
+  font-size:10px;
+  font-weight:800;
+}
+.selected-insight-stats strong{
+  font-size:16px;
+}
+@media(max-width:720px){
+  .selected-insight-stats{
+    grid-template-columns:repeat(4,minmax(58px,1fr));
+    gap:5px;
+  }
+  .selected-insight-stats>div{
+    padding:8px 4px;
+  }
+}
