@@ -18,8 +18,6 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-let startupWatchdog=null;
-
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
 const DEFAULT_CATEGORIES = [
   {id:"study",name:"공부",color:"#5b7cfa"},
@@ -950,66 +948,6 @@ function startOfDay(date){
   value.setHours(0,0,0,0);
   return value;
 }
-function parseQuickTimeRange(text){
-  const normalized=String(text||"")
-    .replace(/[–—−~∼]/g,"-")
-    .replace(/\s+/g," ")
-    .trim();
-
-  const to24=(ampm,hour,minute=0)=>{
-    let h=Number(hour);
-    const m=Number(minute||0);
-    if(!Number.isFinite(h)||!Number.isFinite(m)||m<0||m>59)return null;
-
-    if(ampm){
-      h=h%12;
-      if(ampm==="오후")h+=12;
-    }
-
-    if(h<0||h>23)return null;
-    return `${pad(h)}:${pad(m)}`;
-  };
-
-  // 예: 오후 7-10시 / 오후 7시-10시 / 오전 9시-오후 1시
-  let match=normalized.match(
-    /(오전|오후)\s*(\d{1,2})(?:시|:\s*(\d{1,2}))?\s*-\s*(?:(오전|오후)\s*)?(\d{1,2})(?:시|:\s*(\d{1,2}))?/
-  );
-  if(match){
-    const start=to24(match[1],match[2],match[3]||0);
-    const endAmpm=match[4]||match[1];
-    const end=to24(endAmpm,match[5],match[6]||0);
-    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
-      return {start,end};
-    }
-  }
-
-  // 예: 19-22시 / 19-22 / 19:00-22:30 / 19시-22시
-  match=normalized.match(
-    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*-\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?(?=\s|에|부터|까지|$|[,.)])/
-  );
-  if(match){
-    const start=to24(null,match[1],match[2]||0);
-    const end=to24(null,match[3],match[4]||0);
-    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
-      return {start,end};
-    }
-  }
-
-  // 예: 19시부터 22시 / 19:00부터 22:00
-  match=normalized.match(
-    /(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|시)?\s*부터\s*([01]?\d|2[0-3])(?::([0-5]\d)|시)?/
-  );
-  if(match){
-    const start=to24(null,match[1],match[2]||0);
-    const end=to24(null,match[3],match[4]||0);
-    if(start&&end&&timeToMinutes(end)>timeToMinutes(start)){
-      return {start,end};
-    }
-  }
-
-  return null;
-}
-
 function parseQuickTime(text){
   const normalized=String(text||"").replace(/\s+/g," ").trim();
 
@@ -1061,10 +999,6 @@ function quickTitle(text){
     .replace(/20\d{2}[-./년\s]\d{1,2}[-./월\s]\d{1,2}일?/g," ")
     .replace(/\d{1,2}월\s*\d{1,2}일/g," ")
     .replace(/오늘|내일|모레/g," ")
-    // 시간 범위: 19-22시, 19:00-22:30, 19시부터 22시
-    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*[-~∼–—−]\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?(?=\s|에|부터|까지|$|[,.)])/g," ")
-    .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*부터\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?/g," ")
-    .replace(/(오전|오후)\s*\d{1,2}(?:시|:\s*\d{1,2})?\s*[-~∼–—−]\s*(?:(오전|오후)\s*)?\d{1,2}(?:시|:\s*\d{1,2})?/g," ")
     .replace(/(오전|오후)\s*\d{1,2}(?:시|\s*:\s*\d{1,2})?(?:\s*\d{1,2}분)?/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])\s*:\s*[0-5]\d(?=\s|에|부터|까지|$|[,.)])/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])시(?:\s*[0-5]?\d분)?(?=\s|에|부터|까지|$|[,.)])/g," ")
@@ -1084,9 +1018,7 @@ async function submitQuickAdd(){
 
   const parsedDate=parseQuickDate(raw);
   const date=dateKey(parsedDate);
-  const timeRange=parseQuickTimeRange(raw);
-  const time=timeRange?.start||parseQuickTime(raw);
-  const endTime=timeRange?.end||defaultEndTime(time);
+  const time=parseQuickTime(raw);
   const repeat=parseQuickRepeat(raw);
   const title=quickTitle(raw);
 
@@ -1104,7 +1036,7 @@ async function submitQuickAdd(){
         category:"other",
         date,
         time,
-        endTime,
+        endTime:defaultEndTime(time),
         repeat,
         memo:"",
         checklist:[],
@@ -1776,40 +1708,8 @@ function listenHabits(user){
 
 async function login(){
   el.loginError.textContent="";
-  try{
-    const result=await signInWithPopup(auth,provider);
-    const user=result?.user||auth.currentUser;
-
-    // v7.11: 로그인 성공 후 onAuthStateChanged만 기다리지 않고
-    // 반환된 사용자 정보로 즉시 앱 화면을 엽니다.
-    if(user){
-      if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
-      state.user=user;
-      el.loading.hidden=true;
-      el.login.hidden=true;
-      el.app.hidden=false;
-      fillUser(user);
-
-      if(!history.state?.momentum){
-        syncHistoryState({replace:true});
-      }
-
-      renderAll();
-
-      try{
-        await saveProfile(user);
-        listenCategories(user);
-        listen(user);
-        listenHabits(user);
-      }catch(error){
-        console.error("로그인 후 데이터 연결 실패",error);
-        el.loginError.textContent="로그인은 완료됐지만 데이터를 불러오지 못했습니다.";
-      }
-    }
-  }catch(error){
-    console.error(error);
-    el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`;
-  }
+  try{await signInWithPopup(auth,provider)}
+  catch(error){console.error(error);el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`}
 }
 async function logout(){await signOut(auth);closeSheet()}
 async function saveProfile(user){
@@ -5557,26 +5457,9 @@ setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 
-startupWatchdog=setTimeout(()=>{
-  if(el.loading&&!el.loading.hidden){
-    el.loading.hidden=true;
-    if(el.app)el.app.hidden=true;
-    if(el.login)el.login.hidden=false;
-    if(el.loginError){
-      el.loginError.textContent="자동 로그인 확인이 지연되고 있습니다. 아래 Google 버튼으로 로그인해 주세요.";
-    }
-  }
-},10000);
 
-// v7.10 startup hardening
-try{
-  await setPersistence(auth,browserLocalPersistence);
-}catch(error){
-  console.warn("Auth persistence 설정 실패 — 세션 인증으로 계속합니다.",error);
-}
-
+await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
-  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
@@ -5603,15 +5486,6 @@ onAuthStateChanged(auth,async user=>{
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");
-  }
-},error=>{
-  if(startupWatchdog){clearTimeout(startupWatchdog);startupWatchdog=null;}
-  console.error("Auth 상태 확인 실패",error);
-  el.loading.hidden=true;
-  el.app.hidden=true;
-  el.login.hidden=false;
-  if(el.loginError){
-    el.loginError.textContent="로그인 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.";
   }
 });
 setProgress(0);
