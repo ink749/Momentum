@@ -32,7 +32,7 @@ const state = {
   selectedDateKey:dateKey(new Date()), selectedProgress:0, unsubscribe:null,
   weekZoom:100, weekFit:true,
   activePage:"calendar",
-  statsDate:dateKey(new Date()),
+  statsDate:dateKey(new Date()), statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
@@ -77,6 +77,10 @@ const el = {
   selectedInsightEventProgress:$("selectedInsightEventProgress"),
   selectedInsightHabitProgress:$("selectedInsightHabitProgress"),
   selectedInsightChecklist:$("selectedInsightChecklist"),
+  selectedInsightCombinedBar:$("selectedInsightCombinedBar"),
+  selectedInsightEventBar:$("selectedInsightEventBar"),
+  selectedInsightHabitBar:$("selectedInsightHabitBar"),
+  selectedInsightChecklistBar:$("selectedInsightChecklistBar"),
   monthCount:$("monthEventCount"), monthAverage:$("monthAverageProgress"), summaryHabitNames:$("summaryHabitNames"),
   modal:$("eventModal"), form:$("eventForm"),
   eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), category:$("eventCategory"),
@@ -133,6 +137,7 @@ const el = {
   dayViewNext:$("dayViewNext"), dayViewClose:$("dayViewClose"),
   eventContextMenu:$("eventContextMenu"),
   categoryFilterButtons:$("categoryFilterButtons"), openCategoryManagerButton:$("openCategoryManagerButton"),
+  weekCategoryManagerButton:$("weekCategoryManagerButton"),
   categoryManagerModal:$("categoryManagerModal"), categoryManagerList:$("categoryManagerList"),
   categoryManagerError:$("categoryManagerError"), saveCategoriesButton:$("saveCategoriesButton")
 };
@@ -1074,6 +1079,7 @@ function navigateToPage(page,{push=true}={}){
   if(!["calendar","habit","stats","search"].includes(page))page="calendar";
 
   state.activePage=page;
+  if(page==="stats")state.statsInsightDate=null;
 
   if(push){
     history.pushState(currentHistoryState(),"",location.href);
@@ -1869,6 +1875,10 @@ function renderAll(){
       ||window.matchMedia("(max-width:720px)").matches;
   }
 
+  if(el.weekCategoryManagerButton){
+    el.weekCategoryManagerButton.hidden=state.currentView!=="week";
+  }
+
   const quickAddBar=document.querySelector(".quick-add-bar");
   if(quickAddBar){
     quickAddBar.hidden=state.currentView!=="selected";
@@ -2109,15 +2119,34 @@ async function moveEventTo(event,newDate,newTime){
         endTime:movedEndTime
       });
     }else{
+      state.skipEventSnapshotRenders+=1;
+
       await updateDoc(
         doc(db,"users",state.user.uid,"events",event.id),
         {
           date:newDate,
+          endDate:newDate,
           time:movedTime,
           endTime:movedEndTime,
           updatedAt:serverTimestamp()
         }
       );
+
+      const localIndex=state.events.findIndex(item=>item.id===event.id);
+      if(localIndex>=0){
+        state.events[localIndex]={
+          ...state.events[localIndex],
+          date:newDate,
+          endDate:newDate,
+          time:movedTime,
+          endTime:movedEndTime
+        };
+      }
+
+      // 주간 캘린더만 다시 그려 화면 깜박임을 줄입니다.
+      if(state.currentView==="week"){
+        renderWeek();
+      }
 
       pushUndo("일정 이동",async()=>{
         await updateDoc(
@@ -2133,7 +2162,6 @@ async function moveEventTo(event,newDate,newTime){
       });
     }
 
-    state.selectedDateKey=newDate;
     haptic([16,24,16]);
   }catch(error){
     state.pendingWeekScroll=null;
@@ -2242,7 +2270,7 @@ function renderMonth(){
     cell.dataset.date=key;
     if(d.getMonth()!==m)cell.classList.add("outside");
     if(key===today)cell.classList.add("today");
-    if(key===state.statsDate)cell.classList.add("selected");
+    if(key===state.statsInsightDate)cell.classList.add("selected");
 
     const top=document.createElement("div");
     top.className="day-topline";
@@ -2264,6 +2292,7 @@ function renderMonth(){
       e.stopPropagation();
 
       state.statsDate=key;
+      state.statsInsightDate=key;
       if(d.getMonth()!==m){
         state.currentMonth=startOfMonth(d);
       }
@@ -2283,12 +2312,14 @@ function renderMonthDayInsightPopover(){
 
   monthView.querySelector(".month-day-insight-popover")?.remove();
 
+  if(!state.statsInsightDate)return;
+
   const selected=grid.querySelector(
-    `.day-cell[data-date="${state.statsDate}"]`
+    `.day-cell[data-date="${state.statsInsightDate}"]`
   );
   if(!selected)return;
 
-  const key=state.statsDate;
+  const key=state.statsInsightDate;
   const date=parseDateKey(key);
   const combined=combinedProgressForDate(key);
   const dayEvents=allEventsForDate(key);
@@ -2349,6 +2380,7 @@ function renderMonthDayInsightPopover(){
     e.stopPropagation();
     popover.remove();
     selected.classList.remove("selected");
+    state.statsInsightDate=null;
   };
 }
 function weekZoomMinimum(){
@@ -3404,26 +3436,55 @@ function bindEventResize(block,event,column){
 async function setEventProgressFromCard(event,value){
   if(!state.user)return;
 
+  const numericValue=Number(value);
+
   try{
     if((event.repeat||"none")==="none"){
+      state.skipEventSnapshotRenders+=1;
+
+      const localIndex=state.events.findIndex(item=>item.id===event.id);
+      if(localIndex>=0){
+        state.events[localIndex]={
+          ...state.events[localIndex],
+          progress:numericValue
+        };
+      }
+
+      // 화면 전체를 재생성하지 않고 SELECTED DAY만 즉시 갱신합니다.
+      renderSelected();
+
       await updateDoc(
         doc(db,"users",state.user.uid,"events",event.id),
-        {progress:Number(value),updatedAt:serverTimestamp()}
+        {progress:numericValue,updatedAt:serverTimestamp()}
       );
     }else{
       const occurrenceDate=event.occurrenceDate||event.date;
+      const key=eventLogKey(event.id,occurrenceDate);
+
+      state.skipEventSnapshotRenders+=1;
+      state.eventLogs[key]={
+        ...(state.eventLogs[key]||{}),
+        id:key,
+        eventId:event.id,
+        date:occurrenceDate,
+        progress:numericValue
+      };
+
+      renderSelected();
+
       await setDoc(
-        doc(db,"users",state.user.uid,"eventLogs",eventLogKey(event.id,occurrenceDate)),
+        doc(db,"users",state.user.uid,"eventLogs",key),
         {
           eventId:event.id,
           date:occurrenceDate,
-          progress:Number(value),
+          progress:numericValue,
           updatedAt:serverTimestamp()
         },
         {merge:true}
       );
     }
   }catch(error){
+    state.skipEventSnapshotRenders=Math.max(0,state.skipEventSnapshotRenders-1);
     console.error(error);
     alert("완료율을 저장하지 못했습니다.");
   }
@@ -3534,6 +3595,14 @@ function renderSelected(){
   if(el.selectedInsightEventProgress)el.selectedInsightEventProgress.textContent=`${avg}%`;
   if(el.selectedInsightHabitProgress)el.selectedInsightHabitProgress.textContent=`${habitAvg}%`;
   if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${checklistDone}/${checklist.length}`;
+
+  const checklistRate=checklist.length
+    ?Math.round(checklistDone/checklist.length*100)
+    :0;
+  if(el.selectedInsightCombinedBar)el.selectedInsightCombinedBar.style.height=`${combined}%`;
+  if(el.selectedInsightEventBar)el.selectedInsightEventBar.style.height=`${avg}%`;
+  if(el.selectedInsightHabitBar)el.selectedInsightHabitBar.style.height=`${habitAvg}%`;
+  if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${checklistRate}%`;
 }
 function renderSummary(){
   const items=monthOccurrences();
@@ -5136,11 +5205,10 @@ async function saveSingleRepeatOccurrenceEdit(pending){
 }
 
 async function finishEventSave(occurrenceDate){
-  state.selectedDateKey=occurrenceDate;
+  // 일정 수정 날짜와 SELECTED DAY의 선택 날짜를 서로 독립적으로 유지합니다.
   closeRepeatEditDialog();
   closeModal();
 
-  // 모달이 닫힌 뒤 한 번만 화면을 갱신합니다.
   requestAnimationFrame(()=>{
     renderAll();
   });
@@ -5653,23 +5721,27 @@ el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 el.mobileSearchNav.onclick=()=>navigateToPage("search");
 $("statsTodayButton").onclick=()=>{
+  state.statsInsightDate=null;
   state.statsDate=dateKey(new Date());
   state.currentMonth=startOfMonth(new Date());
   renderStats();
 };
 $("statsPrevMonthButton").onclick=()=>{
+  state.statsInsightDate=null;
   const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()-1,1);
   state.currentMonth=next;
   state.statsDate=dateKey(next);
   renderStats();
 };
 $("statsThisMonthButton").onclick=()=>{
+  state.statsInsightDate=null;
   const now=new Date();
   state.currentMonth=startOfMonth(now);
   state.statsDate=dateKey(now);
   renderStats();
 };
 $("statsNextMonthButton").onclick=()=>{
+  state.statsInsightDate=null;
   const next=new Date(state.currentMonth.getFullYear(),state.currentMonth.getMonth()+1,1);
   state.currentMonth=next;
   state.statsDate=dateKey(next);
@@ -5677,6 +5749,9 @@ $("statsNextMonthButton").onclick=()=>{
 };
 
 el.openCategoryManagerButton.onclick=openCategoryManager;
+if(el.weekCategoryManagerButton){
+  el.weekCategoryManagerButton.onclick=openCategoryManager;
+}
 $("closeCategoryManagerButton").onclick=closeCategoryManager;
 $("cancelCategoryManagerButton").onclick=closeCategoryManager;
 $("addCategoryButton").onclick=addCategory;

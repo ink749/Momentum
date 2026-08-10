@@ -76,6 +76,7 @@
                 <button id="weekZoomIn" class="zoom-button" type="button" aria-label="주간 화면 확대">＋</button>
                 
               </div>
+              <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
               <button id="weekAddEventButton" class="week-add-event-button" type="button">+ 일정 추가</button>
               <div class="view-switch">
                 <button id="selectedViewButton" class="view-button active" type="button">SELECTED DAY</button>
@@ -110,13 +111,29 @@
           <div class="selected-support-grid selected-insight-grid">
             <section class="summary-card selected-day-insight-card">
               <p class="eyebrow">DAY INSIGHT</p>
-              <div class="selected-insight-stats">
-                <div><span>종합</span><strong id="dayProgressNumber">0%</strong></div>
-                <div><span>일정</span><strong id="selectedInsightEventProgress">0%</strong></div>
-                <div><span>습관</span><strong id="selectedInsightHabitProgress">0%</strong></div>
-                <div><span>체크</span><strong id="selectedInsightChecklist">0/0</strong></div>
+              <div class="selected-insight-chart">
+                <div class="selected-insight-column">
+                  <strong id="dayProgressNumber">0%</strong>
+                  <div class="selected-insight-bar"><i id="selectedInsightCombinedBar"></i></div>
+                  <span>종합</span>
+                </div>
+                <div class="selected-insight-column">
+                  <strong id="selectedInsightEventProgress">0%</strong>
+                  <div class="selected-insight-bar"><i id="selectedInsightEventBar"></i></div>
+                  <span>일정</span>
+                </div>
+                <div class="selected-insight-column">
+                  <strong id="selectedInsightHabitProgress">0%</strong>
+                  <div class="selected-insight-bar"><i id="selectedInsightHabitBar"></i></div>
+                  <span>습관</span>
+                </div>
+                <div class="selected-insight-column">
+                  <strong id="selectedInsightChecklist">0/0</strong>
+                  <div class="selected-insight-bar"><i id="selectedInsightChecklistBar"></i></div>
+                  <span>체크</span>
+                </div>
               </div>
-              <div class="progress-track"><div id="dayProgressBar" class="progress-fill"></div></div>
+              <div class="progress-track" hidden><div id="dayProgressBar" class="progress-fill"></div></div>
               <p id="dayProgressCaption" class="muted">등록된 일정이 없습니다.</p>
             </section>
           </div>
