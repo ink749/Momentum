@@ -926,6 +926,9 @@ function startOfDay(date){
 function parseQuickTimeRange(text){
   const normalized=String(text||"")
     .replace(/[–—−~∼]/g,"-")
+    .replace(/([01]?\d|2[0-3])시\s*반/g,"$1:30")
+    .replace(/([01]?\d|2[0-3])시\s*([0-5]?\d)분?/g,(_,h,m)=>`${h}:${pad(Number(m))}`)
+    .replace(/([01]?\d|2[0-3])시/g,"$1:00")
     .replace(/\s+/g," ")
     .trim();
 
@@ -951,18 +954,33 @@ function parseQuickTimeRange(text){
 }
 
 function parseQuickTime(text){
-  const ampm=text.match(/(오전|오후)\s*(\d{1,2})(?:시|\s*:\s*(\d{2}))?/);
-  if(ampm){
-    let hour=Number(ampm[2])%12;
-    if(ampm[1]==="오후")hour+=12;
-    return `${pad(hour)}:${pad(Number(ampm[3]||0))}`;
+  const normalized=String(text||"")
+    .replace(/\s+/g," ")
+    .trim();
+
+  // 18시 반 / 00시 반
+  let match=normalized.match(/(?:^|\s)([01]?\d|2[0-3])시\s*반(?=\s|$|[,.)])/);
+  if(match){
+    return `${pad(Number(match[1]))}:30`;
   }
 
-  const clock=text.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?:\s|$)/);
-  if(clock)return `${pad(Number(clock[1]))}:${clock[2]}`;
+  // 18시 30분 / 18시30분 / 00시 30분
+  match=normalized.match(/(?:^|\s)([01]?\d|2[0-3])시\s*([0-5]?\d)분?(?=\s|$|[,.)])/);
+  if(match){
+    return `${pad(Number(match[1]))}:${pad(Number(match[2]))}`;
+  }
 
-  const hourOnly=text.match(/(?:^|\s)([01]?\d|2[0-3])시(?:\s|$)/);
-  if(hourOnly)return `${pad(Number(hourOnly[1]))}:00`;
+  // 18:30
+  match=normalized.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?=\s|$|[,.)])/);
+  if(match){
+    return `${pad(Number(match[1]))}:${pad(Number(match[2]))}`;
+  }
+
+  // 18시
+  match=normalized.match(/(?:^|\s)([01]?\d|2[0-3])시(?=\s|$|[,.)])/);
+  if(match){
+    return `${pad(Number(match[1]))}:00`;
+  }
 
   return "09:00";
 }
@@ -980,6 +998,8 @@ function quickTitle(text){
     .replace(/오늘|내일|모레/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*[-~∼–—−]\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?(?=\s|$|[,.)])/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])(?::[0-5]\d|시)?\s*부터\s*([01]?\d|2[0-3])(?::[0-5]\d|시)?/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])시\s*반(?=\s|$|[,.)])/g," ")
+    .replace(/(?:^|\s)([01]?\d|2[0-3])시\s*[0-5]?\d분?(?=\s|$|[,.)])/g," ")
     .replace(/(오전|오후)\s*\d{1,2}(?:시|\s*:\s*\d{2})?/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3]):[0-5]\d(?:\s|$)/g," ")
     .replace(/(?:^|\s)([01]?\d|2[0-3])시(?:\s|$)/g," ")
@@ -4644,23 +4664,52 @@ function setupWheelTimePicker(){
     commitMinute(Number(item.dataset.value));
   });
 
+  const close=()=>{
+    backdrop.hidden=true;
+    document.body.style.overflow="";
+    active=null;
+    clearTimeout(scrollTimer);
+  };
+
   const open=target=>{
     active=target;
 
     const value=target.input.value||(
       target.type==="start"?"09:00":"10:00"
     );
-    const [hour,minute]=value.split(":").map(Number);
+    const [hourRaw,minuteRaw]=value.split(":").map(Number);
+    const hour=Number.isFinite(hourRaw)?Math.max(0,Math.min(23,hourRaw)):9;
+    const minute=Number.isFinite(minuteRaw)&&minuteRaw>=30?30:0;
 
-const chosenHour=
-      selectedIndex===24
-        ?0
-        :selectedIndex;
+    selectedIndex=hour;
+    committedIndex=hour;
+    initialHourIndex=hour;
+    selectedMinute=minute;
+    boundaryShift=0;
 
-    const chosenTime=
-      `${pad(chosenHour)}:${pad(selectedMinute)}`;
+    baseDateAtOpen=target.dateInput.value||dateKey(new Date());
+    temporaryDate=baseDateAtOpen;
 
-    active.dateInput.value=temporaryDate;
+    title.textContent=target.title;
+    renderDatePreview();
+    highlight();
+
+    backdrop.hidden=false;
+    document.body.style.overflow="hidden";
+
+    requestAnimationFrame(()=>{
+      setColumnPosition(hoursColumn,selectedIndex);
+      setColumnPosition(minutesColumn,selectedMinute);
+    });
+  };
+
+  const confirm=()=>{
+    if(!active)return;
+
+    const chosenHour=selectedIndex===24?0:selectedIndex;
+    const chosenTime=`${pad(chosenHour)}:${pad(selectedMinute)}`;
+
+    active.dateInput.value=temporaryDate||baseDateAtOpen;
     active.dateInput.dispatchEvent(
       new Event("change",{bubbles:true})
     );
@@ -4672,6 +4721,11 @@ const chosenHour=
     syncHiddenTimes();
     close();
   };
+
+  backdrop.querySelector("[data-wheel-cancel]")
+    .addEventListener("click",close);
+  backdrop.querySelector("[data-wheel-confirm]")
+    .addEventListener("click",confirm);
 
   backdrop.addEventListener("click",event=>{
     if(event.target===backdrop)close();
