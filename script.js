@@ -1177,13 +1177,21 @@ function renderHabitList(){
   }
   active.forEach(habit=>{
     const progress=habitProgress(habit.id,state.selectedHabitDateKey);
-    const item=document.createElement("article");item.className="habit-item";
+    const item=document.createElement("article");
+    item.className="habit-item";
+    item.dataset.habitId=habit.id;
     const streak=habitStreak(habit);
     item.innerHTML=`<div class="habit-item-top"><div class="habit-item-title"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일</small></div><button class="habit-edit-button" type="button">수정</button></div>`;
     item.querySelector(".habit-edit-button").onclick=()=>openHabitEdit(habit);
     const picker=document.createElement("div");picker.className="habit-progress-picker";
     [0,25,50,75,100].forEach(value=>{
-      const button=document.createElement("button");button.type="button";button.className="habit-progress-button";button.textContent=`${value}%`;button.style.background=COLORS[value];button.style.color=value<=25?"#557066":"#fff";
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="habit-progress-button";
+      button.dataset.progressValue=String(value);
+      button.textContent=`${value}%`;
+      button.style.background=COLORS[value];
+      button.style.color=value<=25?"#557066":"#fff";
       if(progress===value)button.classList.add("selected");
       button.onclick=()=>{
         picker.querySelectorAll(".habit-progress-button").forEach(candidate=>{
@@ -1613,12 +1621,34 @@ async function deleteHabit(){
   catch(error){console.error(error);el.habitFormError.textContent="습관을 삭제하지 못했습니다."}
 }
 function updateHabitProgressDom(habitId,key,progress){
+  const numericProgress=Number(progress);
+
+  // HEATMAP의 같은 습관/날짜 셀 갱신
   document.querySelectorAll(
     `[data-habit-id="${CSS.escape(habitId)}"][data-date="${CSS.escape(key)}"]`
   ).forEach(cell=>{
-    cell.style.background=COLORS[progress];
-    cell.dataset.progress=String(progress);
+    cell.style.background=COLORS[numericProgress];
+    cell.dataset.progress=String(numericProgress);
+    cell.title=cell.title.replace(/·\s*\d+%$/u,`· ${numericProgress}%`);
+    cell.setAttribute("aria-label",cell.title);
   });
+
+  // HEATMAP에서 바꾼 날짜가 TODAY가 보고 있는 날짜라면
+  // TODAY의 0/25/50/75/100 선택 상태도 즉시 동기화.
+  if(key===state.selectedHabitDateKey){
+    const card=el.habitList.querySelector(
+      `.habit-item[data-habit-id="${CSS.escape(habitId)}"]`
+    );
+
+    if(card){
+      card.querySelectorAll(".habit-progress-button").forEach(button=>{
+        button.classList.toggle(
+          "selected",
+          Number(button.dataset.progressValue)===numericProgress
+        );
+      });
+    }
+  }
 }
 async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
   if(!state.user)return;
