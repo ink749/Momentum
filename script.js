@@ -126,7 +126,7 @@ const el = {
   statsChecklistTotal:$("statsChecklistTotal"), statsChecklistDone:$("statsChecklistDone"), statsChecklistFailed:$("statsChecklistFailed"),
   statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
   categoryAchievement:$("categoryAchievement"), habitRanking:$("habitRanking"),
-  searchPage:$("searchPage"), searchNav:$("searchNavButton"), mobileSearchNav:$("mobileSearchNavButton"),
+  searchModal:$("searchModal"), openSearchButton:$("openSearchButton"),
   globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
   searchSummary:$("searchSummary"), searchResults:$("searchResults"),
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
@@ -794,15 +794,32 @@ function highlightSearchText(value,query){
   );
 }
 function eventSearchText(event){
-  return normalizeSearchText([
-    event.title,
-    event.memo,
-    repeatLabel(event.repeat),
-    categoryLabel(eventCategory(event))
-  ].join(" "));
+  return normalizeSearchText(event.title);
+}
+function todoSearchText(todo){
+  return normalizeSearchText(todo.text);
 }
 function habitSearchText(habit){
   return normalizeSearchText(habit.name);
+}
+function openSearchModal(){
+  state.searchQuery="";
+  state.searchFilter="all";
+  renderSearch();
+  el.searchModal.classList.add("show");
+  document.body.style.overflow="hidden";
+  pushModalHistory("search");
+  requestAnimationFrame(()=>el.globalSearchInput.focus());
+}
+function closeSearchModal(){
+  el.searchModal.classList.remove("show");
+  document.body.style.overflow="";
+  clearModalHistory("search");
+}
+function closeSearchModalFromHistory(){
+  el.searchModal.classList.remove("show");
+  document.body.style.overflow="";
+  state.modalHistoryType=null;
 }
 function renderSearch(){
   const queryText=state.searchQuery.trim();
@@ -817,7 +834,7 @@ function renderSearch(){
 
   if(!normalizedQuery){
     el.searchSummary.textContent="검색어를 입력하세요.";
-    el.searchResults.innerHTML='<div class="search-empty">일정 제목, 메모 또는 습관 이름을 검색할 수 있습니다.</div>';
+    el.searchResults.innerHTML='<div class="search-empty">일정 제목, 할 일 제목, 습관 이름을 검색할 수 있습니다.</div>';
     return;
   }
 
@@ -830,6 +847,18 @@ function renderSearch(){
           type:"event",
           sortDate:event.date,
           data:event
+        });
+      }
+    });
+  }
+
+  if(state.searchFilter==="all"||state.searchFilter==="todos"){
+    state.todos.forEach(todo=>{
+      if(todoSearchText(todo).includes(normalizedQuery)){
+        results.push({
+          type:"todo",
+          sortDate:todo.date,
+          data:todo
         });
       }
     });
@@ -862,15 +891,12 @@ function renderSearch(){
 
     if(result.type==="event"){
       const event=result.data;
-      const memoOrChecklist=event.memo||"메모 없음";
-
       button.innerHTML=`
         <div class="search-result-top">
           <span class="search-result-type">일정</span>
           <span class="search-result-date">${escapeHtml(event.date)} ${escapeHtml(event.time)}</span>
         </div>
         <strong>${highlightSearchText(event.title,queryText)}</strong>
-        <p>${highlightSearchText(memoOrChecklist,queryText)}</p>
         <div class="search-result-meta">
           <span class="search-result-category"><i class="category-dot ${eventCategory(event)}"></i>${categoryLabel(eventCategory(event))}</span>
           <span>${event.repeat&&event.repeat!=="none"?`반복 · ${repeatLabel(event.repeat)}`:"일회성 일정"}</span>
@@ -882,9 +908,33 @@ function renderSearch(){
         state.selectedDateKey=event.date;
         state.currentMonth=startOfMonth(parseDateKey(event.date));
         state.currentWeek=startOfWeek(parseDateKey(event.date));
+        closeSearchModal();
         navigateToPage("calendar");
         renderAll();
         openEdit({...event,occurrenceDate:event.date,progress:eventOccurrenceProgress(event,event.date)});
+      });
+    }else if(result.type==="todo"){
+      const todo=result.data;
+      const d=parseDateKey(todo.date);
+      const weekday=["일","월","화","수","목","금","토"][d.getDay()];
+      button.innerHTML=`
+        <div class="search-result-top">
+          <span class="search-result-type">할 일</span>
+          <span class="search-result-date">${escapeHtml(todo.date)} (${weekday})</span>
+        </div>
+        <strong>${highlightSearchText(todo.text,queryText)}</strong>
+        <div class="search-result-meta">
+          <span>${todo.repeat&&todo.repeat!=="none"?`반복 · ${repeatLabel(todo.repeat)}`:"일회성 할 일"}</span>
+          <span>${todoStatusIcon(todo.status||"pending")} 상태</span>
+        </div>
+      `;
+
+      button.addEventListener("click",()=>{
+        state.selectedDateKey=todo.date;
+        closeSearchModal();
+        navigateToPage("calendar");
+        renderAll();
+        openTodoEdit({...todo,occurrenceDate:todo.date});
       });
     }else{
       const habit=result.data;
@@ -900,6 +950,7 @@ function renderSearch(){
       button.addEventListener("click",()=>{
         state.selectedHabitDateKey=dateKey(new Date());
         state.habitMonth=startOfMonth(new Date());
+        closeSearchModal();
         navigateToPage("habit");
         openHabitEdit(habit);
       });
@@ -1086,7 +1137,7 @@ function currentHistoryState(){
   };
 }
 function navigateToPage(page,{push=true}={}){
-  if(!["calendar","habit","stats","search"].includes(page))page="calendar";
+  if(!["calendar","habit","stats"].includes(page))page="calendar";
 
   state.activePage=page;
   if(page==="stats")state.statsInsightDate=null;
@@ -1104,7 +1155,7 @@ function syncHistoryState({replace=false}={}){
 
 
 function animateVisiblePage(){
-  const page=[el.calendarPage,el.habitPage,el.statsPage,el.searchPage].find(item=>!item.hidden);
+  const page=[el.calendarPage,el.habitPage,el.statsPage].find(item=>!item.hidden);
   if(!page)return;
   page.classList.remove("page-enter");
   void page.offsetWidth;
@@ -1125,26 +1176,21 @@ function renderPage(){
   const calendarMode=state.activePage==="calendar";
   const habitMode=state.activePage==="habit";
   const statsMode=state.activePage==="stats";
-  const searchMode=state.activePage==="search";
 
   el.calendarPage.hidden=!calendarMode;
   el.habitPage.hidden=!habitMode;
   el.statsPage.hidden=!statsMode;
-  el.searchPage.hidden=!searchMode;
 
   el.calendarNav.classList.toggle("active",calendarMode);
   el.habitNav.classList.toggle("active",habitMode);
   el.statsNav.classList.toggle("active",statsMode);
-  el.searchNav.classList.toggle("active",searchMode);
 
   el.mobileCalendarNav.classList.toggle("active",calendarMode);
   el.mobileHabitNav.classList.toggle("active",habitMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
-  el.mobileSearchNav.classList.toggle("active",searchMode);
 
   el.mobileAdd.hidden=
     statsMode
-    ||searchMode
     ||(calendarMode&&state.currentView==="week");
   el.mobileAdd.classList.toggle("habit-mode",habitMode);
 
@@ -1167,10 +1213,6 @@ function renderPage(){
   if(habitMode)renderHabits();
   if(statsMode)renderStats();
   animateVisiblePage();
-  if(searchMode){
-    renderSearch();
-    requestAnimationFrame(()=>el.globalSearchInput.focus());
-  }
 }
 function renderHabits(){
   renderHabitList();
@@ -6298,8 +6340,7 @@ function setupPageSwipeNavigation(){
     {page:"calendar",view:"selected"},
     {page:"calendar",view:"week"},
     {page:"habit"},
-    {page:"stats"},
-    {page:"search"}
+    {page:"stats"}
   ];
 
   let startX=0;
@@ -6311,8 +6352,7 @@ function setupPageSwipeNavigation(){
       return state.currentView==="selected"?0:1;
     }
     if(state.activePage==="habit")return 2;
-    if(state.activePage==="stats")return 3;
-    return 4;
+    return 3;
   };
 
   const showScreen=index=>{
@@ -6331,8 +6371,7 @@ function setupPageSwipeNavigation(){
     const visible=[
       el.calendarPage,
       el.habitPage,
-      el.statsPage,
-      el.searchPage
+      el.statsPage
     ].find(page=>!page.hidden);
 
     if(visible){
@@ -6503,11 +6542,10 @@ el.mobileUser.onclick=openSheet;el.closeSheet.onclick=closeSheet;el.accountSheet
 el.calendarNav.onclick=()=>navigateToPage("calendar");
 el.habitNav.onclick=()=>navigateToPage("habit");
 el.statsNav.onclick=()=>navigateToPage("stats");
-el.searchNav.onclick=()=>navigateToPage("search");
+el.openSearchButton.onclick=openSearchModal;
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
-el.mobileSearchNav.onclick=()=>navigateToPage("search");
 $("statsTodayButton").onclick=()=>{
   state.statsInsightDate=null;
   state.statsDate=dateKey(new Date());
@@ -6667,6 +6705,11 @@ el.quickAddInput.addEventListener("keydown",event=>{
   }
 });
 
+$("closeSearchModal").onclick=closeSearchModal;
+el.searchModal.onclick=event=>{
+  if(event.target===el.searchModal)closeSearchModal();
+};
+
 el.globalSearchInput.addEventListener("input",()=>{
   state.searchQuery=el.globalSearchInput.value;
   renderSearch();
@@ -6720,6 +6763,11 @@ document.addEventListener("keydown",event=>{
     return;
   }
 
+  if(el.searchModal.classList.contains("show")){
+    closeSearchModal();
+    return;
+  }
+
   if(el.todoOverviewModal.classList.contains("show")){
     closeTodoOverview();
     return;
@@ -6764,6 +6812,10 @@ window.addEventListener("popstate",event=>{
     el.categoryManagerModal.classList.contains("show")
   ){
     closeCategoryManagerFromHistory();
+  }else if(
+    el.searchModal.classList.contains("show")
+  ){
+    closeSearchModalFromHistory();
   }else if(
     el.todoOverviewModal.classList.contains("show")
   ){

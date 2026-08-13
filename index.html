@@ -34,7 +34,6 @@
         <button id="calendarNavButton" class="nav-item active" type="button">▦ 캘린더</button>
         <button id="habitNavButton" class="nav-item" type="button">◫ 습관</button>
         <button id="statsNavButton" class="nav-item" type="button">◈ 통계</button>
-        <button id="searchNavButton" class="nav-item" type="button">⌕ 검색</button>
       </nav>
       <div class="account-panel">
         <img id="userPhoto" alt="" />
@@ -237,6 +236,7 @@
             <p class="sync-status">일정과 습관의 진행 상황을 한눈에 확인하세요.</p>
           </div>
           <div class="top-actions">
+            <button id="openSearchButton" class="stats-search-button" type="button" aria-label="검색" title="검색">⌕</button>
             <button id="statsTodayButton" class="secondary-button" type="button">오늘 보기</button>
           </div>
         </header>
@@ -337,34 +337,6 @@
         </section>
       </section>
 
-      <section id="searchPage" hidden>
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">MOMENTUM SEARCH</p>
-            <h1>검색</h1>
-            <p class="sync-status">일정 제목, 메모, 체크리스트, 습관 이름을 찾습니다.</p>
-          </div>
-        </header>
-
-        <section class="search-dashboard">
-          <section class="search-card">
-            <label class="search-input-label" for="globalSearchInput">검색어</label>
-            <div class="search-input-wrap">
-              <input id="globalSearchInput" type="search" placeholder="예: 소방, 운동, 기출문제" autocomplete="off" />
-              <button id="clearSearchButton" class="secondary-button" type="button">지우기</button>
-            </div>
-
-            <div class="search-filter-row" aria-label="검색 필터">
-              <button class="search-filter-button active" data-filter="all" type="button">전체</button>
-              <button class="search-filter-button" data-filter="events" type="button">일정</button>
-              <button class="search-filter-button" data-filter="habits" type="button">습관</button>
-            </div>
-
-            <p id="searchSummary" class="search-summary">검색어를 입력하세요.</p>
-            <div id="searchResults" class="search-results"></div>
-          </section>
-        </section>
-      </section>
     <div hidden aria-hidden="true">
 <span id="statsChecklistLabel"></span><strong id="statsChecklistProgress">0%</strong>
 <small id="statsChecklistCount"></small><strong id="statsChecklistTotal">0개</strong>
@@ -385,13 +357,39 @@
         <span class="mobile-nav-icon">◈</span>
         <span>통계</span>
       </button>
-      <button id="mobileSearchNavButton" class="mobile-nav-button" type="button">
-        <span class="mobile-nav-icon">⌕</span>
-        <span>검색</span>
-      </button>
     </nav>
 
     <button id="mobileAddButton" class="floating-add" type="button" aria-label="추가">+</button>
+  </div>
+
+
+  <div id="searchModal" class="modal-backdrop search-modal-backdrop" aria-hidden="true">
+    <div class="modal search-modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">MOMENTUM SEARCH</p>
+          <h2>검색</h2>
+        </div>
+        <button id="closeSearchModal" class="close-button" type="button">×</button>
+      </div>
+
+      <section class="search-card search-modal-card">
+        <div class="search-input-wrap">
+          <input id="globalSearchInput" type="search" placeholder="일정 제목, 할 일 제목, 습관 이름 검색" autocomplete="off" />
+          <button id="clearSearchButton" class="secondary-button" type="button">지우기</button>
+        </div>
+
+        <div class="search-filter-row" aria-label="검색 필터">
+          <button class="search-filter-button active" data-filter="all" type="button">전체</button>
+          <button class="search-filter-button" data-filter="events" type="button">일정</button>
+          <button class="search-filter-button" data-filter="todos" type="button">할 일</button>
+          <button class="search-filter-button" data-filter="habits" type="button">습관</button>
+        </div>
+
+        <p id="searchSummary" class="search-summary">검색어를 입력하세요.</p>
+        <div id="searchResults" class="search-results"></div>
+      </section>
+    </div>
   </div>
 
   <div id="eventModal" class="modal-backdrop" aria-hidden="true">

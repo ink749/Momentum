@@ -6423,3 +6423,63 @@ body.week-four-weeks .week-event-checklist{
   line-height:1!important;
   box-shadow:none!important;
 }
+
+
+/* Momentum v7.31 — Search lives inside Stats */
+.stats-search-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:38px;
+  height:38px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  color:var(--green-dark);
+  font-size:20px;
+  line-height:1;
+  cursor:pointer;
+}
+.stats-search-button:hover{
+  background:var(--muted);
+}
+.search-modal{
+  width:min(720px,calc(100vw - 24px));
+  max-height:min(86vh,820px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.search-modal-card{
+  min-height:0;
+  overflow:hidden;
+  padding:0!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+.search-modal .search-results{
+  max-height:58vh;
+  overflow:auto;
+}
+.search-modal .search-input-wrap{
+  margin-top:2px;
+}
+.mobile-bottom-nav{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+@media(max-width:720px){
+  .stats-search-button{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    font-size:18px;
+  }
+  .search-modal{
+    width:calc(100vw - 16px);
+    max-height:88vh;
+  }
+  .search-modal .search-results{
+    max-height:60vh;
+  }
+}
