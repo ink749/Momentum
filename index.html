@@ -111,8 +111,15 @@
 
           <section class="summary-card selected-todo-card" aria-label="할 일 목록">
             <div class="selected-todo-heading">
-              <div><p class="eyebrow">TO DO</p><h3>할 일 목록</h3></div>
-              <span id="todoDayCount" class="todo-day-count">0개</span>
+              <div>
+                <p class="eyebrow">TO DO</p>
+                <h3 id="todoSelectedDateLabel">할 일 목록</h3>
+              </div>
+              <div class="todo-date-nav">
+                <button id="todoPrevDateButton" class="round-button todo-date-button" type="button" aria-label="이전 날짜">‹</button>
+                <span id="todoDayCount" class="todo-day-count">0개</span>
+                <button id="todoNextDateButton" class="round-button todo-date-button" type="button" aria-label="다음 날짜">›</button>
+              </div>
             </div>
             <div class="todo-add-row">
               <input id="todoInput" type="text" maxlength="120" placeholder="할 일 추가" />
@@ -143,7 +150,7 @@
                 <div class="selected-insight-column">
                   <strong id="selectedInsightChecklist">0/0</strong>
                   <div class="selected-insight-bar"><i id="selectedInsightChecklistBar"></i></div>
-                  <span>체크</span>
+                  <span>할 일</span>
                 </div>
               </div>
               <div class="progress-track" hidden><div id="dayProgressBar" class="progress-fill"></div></div>
@@ -302,9 +309,7 @@
                 <div><span>활성 습관</span><strong id="statsMonthHabitCount">0개</strong></div>
                 <div><span>습관 평균 완료율</span><strong id="statsMonthHabitProgress">0%</strong></div>
                 <strong id="statsMonthPerfectHabitDays" hidden>0회</strong>
-                <div><span>할 일 전체 항목</span><strong id="statsTodoTotal">0개</strong></div>
-                <div><span>할 일 완료</span><strong id="statsTodoDone">0개</strong></div>
-                <div><span>할 일 취소</span><strong id="statsTodoCancelled">0개</strong></div>
+                <div><span>할 일 평균 완료율</span><strong id="statsTodoAverage">0%</strong></div>
               </div>
             </section>
           </div>
@@ -392,7 +397,7 @@
     <div class="modal">
       <div class="modal-mode-switch" aria-label="추가 종류 선택">
         <button id="eventModeTab" class="modal-mode-tab active" type="button">일정</button>
-        <button id="habitModeFromEventTab" class="modal-mode-tab" type="button">습관</button>
+        <button id="todoModeFromEventTab" class="modal-mode-tab" type="button">할 일</button>
       </div>
       <div class="modal-header">
         <div><p id="eventModalEyebrow" class="eyebrow">NEW EVENT</p><h2 id="eventModalTitle">일정 추가</h2></div>
@@ -401,7 +406,12 @@
       <form id="eventForm">
         <input id="eventId" type="hidden" />
         <input id="eventOccurrenceDate" type="hidden" />
-        <label>일정 제목<input id="eventTitle" type="text" maxlength="50" required /></label>
+        <label>일정 제목
+  <span class="importance-input-wrap">
+    <input id="eventTitle" type="text" maxlength="50" required />
+    <button id="eventImportantButton" class="importance-toggle" type="button" aria-pressed="false" aria-label="중요 일정 표시">☆</button>
+  </span>
+</label>
         <label>카테고리
           <select id="eventCategory"></select>
         </label>
@@ -479,6 +489,65 @@
 
 
 
+
+
+  <div id="todoModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal todo-modal">
+      <div class="modal-mode-switch" aria-label="추가 종류 선택">
+        <button id="todoEventModeTab" class="modal-mode-tab" type="button">일정</button>
+        <button class="modal-mode-tab active" type="button">할 일</button>
+      </div>
+      <div class="modal-header">
+        <div>
+          <p id="todoModalEyebrow" class="eyebrow">NEW TO DO</p>
+          <h2 id="todoModalTitle">할 일 추가</h2>
+        </div>
+        <button id="closeTodoModal" class="close-button" type="button">×</button>
+      </div>
+      <form id="todoForm">
+        <input id="todoEditId" type="hidden" />
+        <input id="todoOccurrenceDate" type="hidden" />
+        <label>이름
+          <span class="importance-input-wrap">
+            <input id="todoName" type="text" maxlength="120" required />
+            <button id="todoImportantButton" class="importance-toggle" type="button" aria-pressed="false" aria-label="중요 할 일 표시">☆</button>
+          </span>
+        </label>
+        <label>날짜
+          <input id="todoDate" type="date" required />
+        </label>
+        <label>반복
+          <select id="todoRepeat">
+            <option value="none">안 함</option>
+            <option value="daily">매일</option>
+            <option value="weekdays">평일만</option>
+            <option value="weekends">주말만</option>
+            <option value="weekly">매주</option>
+            <option value="monthly">매월</option>
+          </select>
+        </label>
+        <label>메모
+          <textarea id="todoMemo" maxlength="500" rows="2" placeholder="할 일에 필요한 내용을 적어두세요."></textarea>
+        </label>
+        <section class="checklist-editor todo-checklist-editor">
+          <div class="checklist-editor-heading">
+            <div><span class="form-section-label">체크리스트</span></div>
+            <button id="addTodoChecklistItemButton" class="secondary-button compact-button" type="button">+ 항목 추가</button>
+          </div>
+          <div id="todoChecklistItems" class="checklist-items"></div>
+        </section>
+        <p id="todoFormError" class="error-message"></p>
+        <div class="modal-actions event-modal-actions">
+          <div class="event-delete-actions">
+            <button id="deleteTodoButton" class="danger-button" type="button" hidden>삭제</button>
+          </div>
+          <span></span>
+          <button id="cancelTodo" class="secondary-button" type="button">취소</button>
+          <button id="saveTodoButton" class="primary-button" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="categoryManagerModal" class="modal-backdrop" aria-hidden="true">
     <div class="modal category-manager-modal">

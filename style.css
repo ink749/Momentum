@@ -5838,3 +5838,237 @@ body.week-four-weeks .week-event-checklist{
 .todo-row.status-rolled .todo-checkbox{pointer-events:none;opacity:.55}
 .event-checklist-row.status-failed span,.day-view-checkitem.status-failed span{text-decoration:line-through;opacity:.5}
 @media(max-width:720px){.selected-todo-card{margin-top:8px}.todo-row{grid-template-columns:28px minmax(0,1fr)}.todo-meta{grid-column:2}}
+
+
+/* Momentum v7.23 — SELECTED DAY compact */
+#selectedView .summary-card{
+  padding-top:12px;
+  padding-bottom:12px;
+}
+#selectedView .selected-day-events{
+  gap:6px;
+}
+#selectedView .selected-event{
+  padding-top:7px;
+  padding-bottom:7px;
+}
+#selectedView .quick-add-bar{
+  margin-top:7px;
+  margin-bottom:7px;
+  padding-top:7px;
+  padding-bottom:7px;
+}
+#selectedView .selected-todo-card{
+  margin-top:7px;
+  padding:10px 12px;
+}
+#selectedView .selected-day-insight-card{
+  padding:10px 12px;
+}
+#selectedView .selected-insight-chart{
+  min-height:116px;
+}
+#selectedView .selected-insight-column{
+  grid-template-rows:auto 62px auto;
+}
+#selectedView .selected-insight-bar{
+  height:62px;
+}
+
+.todo-date-nav{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.todo-date-button{
+  width:28px!important;
+  height:28px!important;
+  min-width:28px!important;
+}
+.todo-name-button{
+  min-width:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+.todo-row.status-done .todo-name-button,
+.todo-row.status-cancelled .todo-name-button,
+.todo-row.status-rolled .todo-name-button{
+  text-decoration:line-through;
+  opacity:.5;
+}
+.todo-empty-button{
+  width:100%;
+  border:0;
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+}
+
+/* TO DO modal */
+.todo-modal{
+  max-width:560px;
+}
+.todo-modal textarea{
+  resize:vertical;
+}
+
+/* Weekly calendar TO DO strip */
+.week-todo-strip{
+  display:grid;
+  grid-template-columns:repeat(var(--week-visible-days,7),minmax(0,1fr));
+  margin-left:var(--week-time-width,44px);
+  border-top:1px solid var(--line);
+  border-left:1px solid var(--line);
+  background:#fff;
+}
+.week-todo-day{
+  min-width:0;
+  min-height:78px;
+  padding:5px;
+  border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+}
+.week-todo-day-heading{
+  display:flex;
+  justify-content:space-between;
+  width:100%;
+  padding:2px 1px 5px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font-size:9px;
+  cursor:pointer;
+}
+.week-todo-day-heading span{
+  color:var(--soft);
+  font-size:8px;
+}
+.week-todo-list{
+  display:grid;
+  gap:3px;
+  min-height:42px;
+}
+.week-todo-list .todo-row.compact{
+  grid-template-columns:20px minmax(0,1fr) auto;
+  min-height:24px;
+  padding:2px 3px;
+  gap:4px;
+  border:0;
+  border-radius:6px;
+  background:var(--muted);
+}
+.week-todo-list .todo-row.compact .todo-checkbox{
+  width:20px;
+  height:20px;
+  border-radius:6px;
+  font-size:10px;
+}
+.week-todo-list .todo-row.compact .todo-name-button{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+}
+.week-todo-list .todo-row.compact .todo-meta{
+  font-size:7px;
+}
+.week-todo-empty,.week-todo-more{
+  width:100%;
+  min-height:28px;
+  border:0;
+  border-radius:7px;
+  background:var(--muted);
+  color:var(--soft);
+  font-size:9px;
+  cursor:pointer;
+}
+
+@media(max-width:720px){
+  #selectedView .summary-card{
+    padding:9px 10px;
+  }
+  #selectedView .selected-insight-chart{
+    min-height:102px;
+  }
+  #selectedView .selected-insight-column{
+    grid-template-rows:auto 54px auto;
+  }
+  #selectedView .selected-insight-bar{
+    height:54px;
+  }
+
+  .week-todo-strip{
+    margin-left:var(--week-time-width,32px);
+  }
+  .week-todo-day{
+    min-height:64px;
+    padding:3px;
+  }
+  .week-todo-day-heading{
+    font-size:8px;
+  }
+  .week-todo-list .todo-row.compact{
+    grid-template-columns:18px minmax(0,1fr);
+  }
+  .week-todo-list .todo-row.compact .todo-meta{
+    display:none;
+  }
+  .week-todo-list .todo-row.compact .todo-checkbox{
+    width:18px;
+    height:18px;
+  }
+}
+
+
+/* Momentum v7.24 — 중요 표시 */
+.importance-input-wrap{
+  position:relative;
+  display:block;
+}
+.importance-input-wrap>input{
+  width:100%;
+  padding-right:46px!important;
+}
+.importance-toggle{
+  position:absolute;
+  top:50%;
+  right:7px;
+  transform:translateY(-50%);
+  width:34px;
+  height:34px;
+  padding:0;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#d8a900;
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+}
+.importance-toggle.active{
+  color:#f2b705;
+  text-shadow:0 1px 1px rgba(126,91,0,.18);
+}
+.important-star{
+  color:#f2b705;
+  font-weight:900;
+  text-shadow:0 1px 1px rgba(126,91,0,.16);
+}
+.selected-event.is-important,
+.todo-row.is-important{
+  background:rgba(255,224,102,.13)!important;
+}
+.google-week-event.is-important,
+.event-chip.is-important{
+  box-shadow:inset 0 0 0 999px rgba(255,230,120,.10);
+}
+.week-todo-list .todo-row.compact.is-important{
+  background:rgba(255,224,102,.16)!important;
+}

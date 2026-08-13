@@ -34,7 +34,8 @@ const state = {
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
-  todos:[], unsubscribeTodos:null, todoRolloverRunning:false,
+  todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false,
+  editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
   editingChecklist:[],
@@ -60,6 +61,7 @@ const state = {
   skipEventSnapshotRenders:0,
   skipHabitSnapshotRenders:0,
   preservedViewScroll:null,
+  suppressTimePickerUntil:0,
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false
@@ -84,7 +86,7 @@ const el = {
   selectedInsightChecklistBar:$("selectedInsightChecklistBar"),
   monthCount:$("monthEventCount"), monthAverage:$("monthAverageProgress"), summaryHabitNames:$("summaryHabitNames"),
   modal:$("eventModal"), form:$("eventForm"),
-  eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), category:$("eventCategory"),
+  eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), eventImportantButton:$("eventImportantButton"), category:$("eventCategory"),
   date:$("eventDate"), endDate:$("eventEndDate"),
   startClock:$("eventStartClock"), endClock:$("eventEndClock"),
   time:$("eventTime"), endTime:$("eventEndTime"),
@@ -128,8 +130,15 @@ const el = {
   searchSummary:$("searchSummary"), searchResults:$("searchResults"),
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
   todoInput:$("todoInput"), todoAddButton:$("todoAddButton"), todoList:$("todoList"), todoDayCount:$("todoDayCount"),
+  todoSelectedDateLabel:$("todoSelectedDateLabel"), todoPrevDateButton:$("todoPrevDateButton"), todoNextDateButton:$("todoNextDateButton"),
+  todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
+  todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
+  todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
+  todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
+  deleteTodoButton:$("deleteTodoButton"),
   statsTodoLabel:$("statsTodoLabel"), statsTodoProgress:$("statsTodoProgress"), statsTodoCount:$("statsTodoCount"),
   statsTodoTotal:$("statsTodoTotal"), statsTodoDone:$("statsTodoDone"), statsTodoCancelled:$("statsTodoCancelled"),
+  statsTodoAverage:$("statsTodoAverage"),
   mobileEventActionSheet:$("mobileEventActionSheet"),
   mobileEventActionTitle:$("mobileEventActionTitle"),
   mobileEventActionTime:$("mobileEventActionTime"),
@@ -674,6 +683,7 @@ function renderStats(){
   const monthHabitCountLabel=el.statsMonthCombinedProgress.nextElementSibling;
   if(monthHabitCountLabel)monthHabitCountLabel.textContent=`활성 습관 ${activeMonthHabits.length}개`;
   if(el.statsTodoProgress)el.statsTodoProgress.textContent=`${todoProgress}%`;
+  if(el.statsTodoAverage)el.statsTodoAverage.textContent=`${todoProgress}%`;
   if(el.statsTodoCount)el.statsTodoCount.textContent=`완료 ${todoDone} / 전체 ${todoTotal}`;
 
   el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
@@ -1928,6 +1938,7 @@ function renderAll(){
 
   if(state.currentView==="week"){
     renderWeek();
+    renderWeekTodoStrip();
   }
 
   renderSelected();
@@ -2282,9 +2293,10 @@ function bindDropTarget(element,date,time="09:00"){
 function createEventChip(event){
   const chip=document.createElement("div");
   chip.className="event-chip";
+  if(event.important)chip.classList.add("is-important");
   chip.style.background=COLORS[event.progress]||COLORS[0];
   chip.style.setProperty("--event-category-color",categoryColor(eventCategory(event)));
-  chip.innerHTML=`<span class="event-time">${escapeHtml(event.time)}</span><span class="event-title">${escapeHtml(event.title)}</span>${event.repeat&&event.repeat!=="none"?`<span class="repeat-badge">↻</span>`:""}`;
+  chip.innerHTML=`<span class="event-time">${escapeHtml(event.time)}</span><span class="event-title">${importanceMark(event.important)}${escapeHtml(event.title)}</span>${event.repeat&&event.repeat!=="none"?`<span class="repeat-badge">↻</span>`:""}`;
   chip.onclick=clickEvent=>{
     clickEvent.stopPropagation();
     openEdit(event);
@@ -2371,16 +2383,8 @@ function renderMonthDayInsightPopover(){
   const eventAvg=average(dayEvents);
   const habitAvg=habitAverageForDate(key);
 
-  const checklist=dayEvents.flatMap(event=>
-    checklistForOccurrence(event).map(item=>({
-      ...item,
-      autoFailed:item.status==="pending"&&isOccurrencePast(event)
-    }))
-  );
-  const done=checklist.filter(item=>item.status==="done").length;
-  const failed=checklist.filter(
-    item=>item.status==="failed"||item.autoFailed
-  ).length;
+  const dayTodoStats=todoCompletionForKeys([key]);
+  const todoRate=dayTodoStats.progress;
 
   const popover=document.createElement("aside");
   popover.className="month-day-insight-popover";
@@ -2394,7 +2398,7 @@ function renderMonthDayInsightPopover(){
       <div><span>종합</span><strong>${combined}%</strong></div>
       <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayEvents.length}개</small></div>
       <div><span>습관</span><strong>${habitAvg}%</strong><small>${dayHabits.length}개</small></div>
-      <div><span>체크</span><strong>${done}/${checklist.length}</strong><small>실패 ${failed}</small></div>
+      <div><span>할 일</span><strong>${todoRate}%</strong><small>${dayTodoStats.done}/${dayTodoStats.total} 완료</small></div>
     </div>
   `;
 
@@ -2525,6 +2529,85 @@ function resetWeekToFit(){
   renderWeek();
 }
 
+
+function renderWeekTodoStrip(){
+  if(state.currentView!=="week"||!el.weekView)return;
+
+  el.weekView.querySelector(".week-todo-strip")?.remove();
+
+  const visibleDays=
+    typeof visibleDaysForZoom==="function"
+      ?visibleDaysForZoom()
+      :7;
+
+  const strip=document.createElement("section");
+  strip.className="week-todo-strip";
+
+  for(let index=0;index<visibleDays;index++){
+    const date=addDays(state.currentWeek,index);
+    const key=dateKey(date);
+    const cell=document.createElement("div");
+    cell.className="week-todo-day";
+    cell.dataset.date=key;
+
+    const heading=document.createElement("button");
+    heading.type="button";
+    heading.className="week-todo-day-heading";
+    heading.innerHTML=`<strong>${date.getMonth()+1}/${date.getDate()}</strong><span>TO DO</span>`;
+    heading.onclick=event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      openTodoCreate(key);
+    };
+
+    const list=document.createElement("div");
+    list.className="week-todo-list";
+    const todos=todosForDate(key);
+
+    if(!todos.length){
+      const empty=document.createElement("button");
+      empty.type="button";
+      empty.className="week-todo-empty";
+      empty.textContent="+ 할 일";
+      empty.onclick=event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        openTodoCreate(key);
+      };
+      list.appendChild(empty);
+    }else{
+      todos.slice(0,4).forEach(todo=>{
+        list.appendChild(renderTodoRow(todo,{compact:true}));
+      });
+
+      if(todos.length>4){
+        const more=document.createElement("button");
+        more.type="button";
+        more.className="week-todo-more";
+        more.textContent=`+${todos.length-4}개`;
+        more.onclick=event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          state.selectedDateKey=key;
+          state.currentView="selected";
+          renderAll();
+        };
+        list.appendChild(more);
+      }
+    }
+
+    cell.append(heading,list);
+    cell.addEventListener("click",event=>{
+      if(event.target===cell||event.target===list){
+        openTodoCreate(key);
+      }
+    });
+
+    strip.appendChild(cell);
+  }
+
+  el.weekView.appendChild(strip);
+}
 function renderWeek(){
   el.weekView.hidden=false;
   el.weekView.innerHTML="";
@@ -2608,6 +2691,7 @@ function renderWeek(){
 
       const block=document.createElement("div");
       block.className="google-week-event";
+      if(event.important)block.classList.add("is-important");
       block.style.top=`calc(var(--week-row-height) * ${startMinutes/60})`;
       block.style.height=`calc(var(--week-row-height) * ${duration/60})`;
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
@@ -2635,7 +2719,7 @@ function renderWeek(){
         :"";
 
       block.innerHTML=`
-        <strong class="event-title-trigger">${escapeHtml(event.title)}</strong>
+        <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
         ${checklistHtml}
       `;
 
@@ -3535,107 +3619,561 @@ async function setEventProgressFromCard(event,value){
 }
 
 
+
 function todoStatusIcon(status){
   if(status==="done")return "✓";
   if(status==="cancelled")return "×";
   return "□";
 }
+function todoLogKey(todoId,key){
+  return `${todoId}_${String(key).replaceAll("-","")}`;
+}
+function todoOccursOn(todo,key){
+  if(!todo?.date||key<todo.date)return false;
+
+  const repeat=todo.repeat||"none";
+  if(repeat==="none")return key===todo.date;
+
+  const start=parseDateKey(todo.date);
+  const date=parseDateKey(key);
+  if(date<start)return false;
+
+  if(repeat==="daily")return true;
+  if(repeat==="weekdays")return date.getDay()>=1&&date.getDay()<=5;
+  if(repeat==="weekends")return date.getDay()===0||date.getDay()===6;
+
+  const diff=Math.floor((date-start)/86400000);
+  if(repeat==="weekly")return diff>=0&&diff%7===0;
+  if(repeat==="monthly"){
+    return date.getDate()===start.getDate();
+  }
+  return false;
+}
+function todoOccurrence(todo,key){
+  if(!todoOccursOn(todo,key))return null;
+
+  if((todo.repeat||"none")==="none"){
+    return {
+      ...todo,
+      occurrenceDate:key,
+      sourceTodoId:todo.sourceTodoId||todo.id,
+      status:todo.status||"pending"
+    };
+  }
+
+  const log=state.todoLogs[todoLogKey(todo.id,key)];
+  return {
+    ...todo,
+    occurrenceDate:key,
+    sourceTodoId:todo.id,
+    status:log?.status||"pending",
+    rolledTo:log?.rolledTo||"",
+    occurrenceLogId:log?.id||""
+  };
+}
 function todosForDate(key){
-  return state.todos.filter(t=>t.date===key).sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+  return state.todos
+    .map(todo=>todoOccurrence(todo,key))
+    .filter(Boolean)
+    .sort((a,b)=>{
+      const ac=a.createdAt?.seconds||0;
+      const bc=b.createdAt?.seconds||0;
+      return ac-bc;
+    });
 }
 function todoCompletionForKeys(keys){
-  const set=new Set(keys);
-  const items=state.todos.filter(t=>set.has(t.date)&&t.status!=="rolled");
-  const decided=items.filter(t=>t.status==="done"||t.status==="cancelled");
-  const done=items.filter(t=>t.status==="done");
-  return {total:items.length,done:done.length,cancelled:items.filter(t=>t.status==="cancelled").length,
-    progress:decided.length?Math.round(done.length/decided.length*100):0};
+  const items=keys.flatMap(key=>todosForDate(key))
+    .filter(todo=>todo.status!=="rolled");
+  const decided=items.filter(todo=>todo.status==="done"||todo.status==="cancelled");
+  const done=items.filter(todo=>todo.status==="done");
+  return {
+    total:items.length,
+    done:done.length,
+    cancelled:items.filter(todo=>todo.status==="cancelled").length,
+    progress:decided.length?Math.round(done.length/decided.length*100):0
+  };
+}
+function renderTodoChecklistEditor(){
+  if(!el.todoChecklistItems)return;
+  el.todoChecklistItems.innerHTML="";
+
+  state.editingTodoChecklist.forEach((item,index)=>{
+    const row=document.createElement("div");
+    row.className="checklist-editor-row";
+
+    const input=document.createElement("input");
+    input.type="text";
+    input.maxLength=120;
+    input.value=item.text||"";
+    input.placeholder="체크리스트 항목";
+    input.oninput=()=>{state.editingTodoChecklist[index].text=input.value};
+
+    const remove=document.createElement("button");
+    remove.type="button";
+    remove.className="checklist-remove-button";
+    remove.textContent="×";
+    remove.onclick=()=>{
+      state.editingTodoChecklist.splice(index,1);
+      renderTodoChecklistEditor();
+    };
+
+    row.append(input,remove);
+    el.todoChecklistItems.appendChild(row);
+  });
+}
+function addTodoChecklistItem(){
+  state.editingTodoChecklist.push({
+    id:crypto.randomUUID(),
+    text:"",
+    status:"pending"
+  });
+  renderTodoChecklistEditor();
+}
+function normalizedTodoChecklist(){
+  return state.editingTodoChecklist
+    .map(item=>({
+      id:item.id||crypto.randomUUID(),
+      text:String(item.text||"").trim(),
+      status:item.status||"pending"
+    }))
+    .filter(item=>item.text);
+}
+
+function setImportance(kind,value){
+  const important=Boolean(value);
+  if(kind==="event"){
+    state.eventImportant=important;
+    if(el.eventImportantButton){
+      el.eventImportantButton.textContent=important?"★":"☆";
+      el.eventImportantButton.classList.toggle("active",important);
+      el.eventImportantButton.setAttribute("aria-pressed",String(important));
+    }
+  }else{
+    state.todoImportant=important;
+    if(el.todoImportantButton){
+      el.todoImportantButton.textContent=important?"★":"☆";
+      el.todoImportantButton.classList.toggle("active",important);
+      el.todoImportantButton.setAttribute("aria-pressed",String(important));
+    }
+  }
+}
+function importanceMark(important){
+  return important?'<span class="important-star" aria-label="중요">★</span> ':"";
+}
+function resetTodoForm(date=state.selectedDateKey){
+  el.todoForm.reset();
+  el.todoEditId.value="";
+  el.todoOccurrenceDate.value="";
+  el.todoDate.value=date||dateKey(new Date());
+  el.todoRepeat.value="none";
+  el.todoMemo.value="";
+  setImportance("todo",false);
+  state.editingTodoChecklist=[];
+  el.todoFormError.textContent="";
+  renderTodoChecklistEditor();
+}
+function showTodoModal(){
+  const active=document.activeElement;
+  if(active instanceof HTMLElement)active.blur();
+
+  el.todoModal.classList.add("show");
+  document.body.style.overflow="hidden";
+  pushModalHistory("todo");
+}
+function closeTodoModal(){
+  el.todoModal.classList.remove("show");
+  document.body.style.overflow=state.dayViewOpen?"hidden":"";
+  clearModalHistory("todo");
+}
+function closeTodoModalFromHistory(){
+  el.todoModal.classList.remove("show");
+  document.body.style.overflow=state.dayViewOpen?"hidden":"";
+  state.modalHistoryType=null;
+}
+function openTodoCreate(date=state.selectedDateKey){
+  resetTodoForm(date);
+  el.todoModalEyebrow.textContent="NEW TO DO";
+  el.todoModalTitle.textContent="할 일 추가";
+  el.deleteTodoButton.hidden=true;
+  showTodoModal();
+}
+function openTodoEdit(todo){
+  if(!todo)return;
+  resetTodoForm(todo.occurrenceDate||todo.date);
+
+  el.todoEditId.value=todo.id;
+  el.todoOccurrenceDate.value=todo.occurrenceDate||todo.date;
+  el.todoName.value=todo.text||"";
+  el.todoDate.value=todo.date;
+  el.todoRepeat.value=todo.repeat||"none";
+  el.todoMemo.value=todo.memo||"";
+  setImportance("todo",Boolean(todo.important));
+  state.editingTodoChecklist=normalizeChecklist(todo.checklist).map(item=>({...item}));
+  renderTodoChecklistEditor();
+
+  el.todoModalEyebrow.textContent="EDIT TO DO";
+  el.todoModalTitle.textContent=(todo.repeat||"none")!=="none"?"반복 할 일 수정":"할 일 수정";
+  el.deleteTodoButton.hidden=false;
+  showTodoModal();
+}
+async function submitTodoForm(event){
+  event.preventDefault();
+  if(!state.user)return;
+
+  const text=el.todoName.value.trim();
+  const date=el.todoDate.value;
+  const repeat=el.todoRepeat.value||"none";
+  const memo=el.todoMemo.value.trim();
+  const important=Boolean(state.todoImportant);
+  const checklist=normalizedTodoChecklist();
+
+  if(!text||!date){
+    el.todoFormError.textContent="이름과 날짜를 입력하세요.";
+    return;
+  }
+
+  const data={
+    text,date,repeat,memo,checklist,important,
+    status:"pending",
+    rolledFrom:"",
+    rolledTo:"",
+    updatedAt:serverTimestamp()
+  };
+
+  try{
+    if(el.todoEditId.value){
+      const id=el.todoEditId.value;
+      const source=state.todos.find(todo=>todo.id===id);
+      if(!source)return;
+      await updateDoc(
+        doc(db,"users",state.user.uid,"todos",id),
+        {
+          text,date,repeat,memo,checklist,important,
+          updatedAt:serverTimestamp()
+        }
+      );
+    }else{
+      await addDoc(
+        collection(db,"users",state.user.uid,"todos"),
+        {...data,createdAt:serverTimestamp()}
+      );
+    }
+    closeTodoModal();
+  }catch(error){
+    console.error(error);
+    el.todoFormError.textContent="할 일을 저장하지 못했습니다.";
+  }
+}
+async function deleteTodo(){
+  if(!state.user||!el.todoEditId.value)return;
+  if(!confirm("이 할 일을 삭제할까요?"))return;
+
+  try{
+    await deleteDoc(
+      doc(db,"users",state.user.uid,"todos",el.todoEditId.value)
+    );
+    closeTodoModal();
+  }catch(error){
+    console.error(error);
+    el.todoFormError.textContent="할 일을 삭제하지 못했습니다.";
+  }
+}
+function renderTodoRow(todo,{compact=false,onBlank=null}={}){
+  const row=document.createElement("div");
+  row.className=`todo-row${compact?" compact":""} status-${todo.status||"pending"}`;
+  if(todo.important)row.classList.add("is-important");
+  row.dataset.todoId=todo.id;
+
+  const btn=document.createElement("button");
+  btn.type="button";
+  btn.className="todo-checkbox";
+  btn.textContent=todoStatusIcon(todo.status||"pending");
+  btn.setAttribute("aria-label",`${todo.text} 상태 변경`);
+
+  const text=document.createElement("button");
+  text.type="button";
+  text.className="todo-name-button";
+  if(todo.important){
+    const star=document.createElement("span");
+    star.className="important-star";
+    star.textContent="★";
+    text.append(star,document.createTextNode(` ${todo.text}`));
+  }else{
+    text.textContent=todo.text;
+  }
+  text.onclick=event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    openTodoEdit(todo);
+  };
+
+  const meta=document.createElement("small");
+  meta.className="todo-meta";
+  if(todo.status==="rolled")meta.textContent=`${todo.rolledTo||"다음 날"}로 이월`;
+  else if(todo.rolledFrom)meta.textContent="이월";
+  else if(todo.status==="done")meta.textContent="완료";
+  else if(todo.status==="cancelled")meta.textContent="취소";
+  else if((todo.repeat||"none")!=="none")meta.textContent="↻";
+
+  btn.onclick=event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    if(todo.status==="rolled")return;
+    const next=todo.status==="pending"?"done":todo.status==="done"?"cancelled":"pending";
+    setTodoStatus(todo,next);
+  };
+
+  row.append(btn,text,meta);
+  return row;
 }
 function renderTodos(){
   if(!el.todoList)return;
-  const items=todosForDate(state.selectedDateKey);
+  const key=state.selectedDateKey;
+  const d=parseDateKey(key);
+  const items=todosForDate(key);
+
+  if(el.todoSelectedDateLabel){
+    el.todoSelectedDateLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 할 일`;
+  }
+
   el.todoList.innerHTML="";
   if(el.todoDayCount)el.todoDayCount.textContent=`${items.length}개`;
-  if(!items.length){el.todoList.innerHTML='<div class="todo-empty">등록된 할 일이 없습니다.</div>';return;}
-  items.forEach(todo=>{
-    const row=document.createElement("div");
-    row.className=`todo-row status-${todo.status||"pending"}`;
-    const btn=document.createElement("button");
-    btn.type="button"; btn.className="todo-checkbox"; btn.textContent=todoStatusIcon(todo.status||"pending");
-    const text=document.createElement("span"); text.className="todo-text"; text.textContent=todo.text;
-    const meta=document.createElement("small"); meta.className="todo-meta";
-    if(todo.status==="rolled")meta.textContent=`${todo.rolledTo||"다음 날"}로 이월`;
-    else if(todo.rolledFrom)meta.textContent="이월된 할 일";
-    else if(todo.status==="done")meta.textContent="완료";
-    else if(todo.status==="cancelled")meta.textContent="취소";
-    btn.onclick=()=>{
-      if(todo.status==="rolled")return;
-      const next=todo.status==="pending"?"done":todo.status==="done"?"cancelled":"pending";
-      setTodoStatus(todo,next);
-    };
-    row.append(btn,text,meta); el.todoList.appendChild(row);
-  });
+
+  if(!items.length){
+    const empty=document.createElement("button");
+    empty.type="button";
+    empty.className="todo-empty todo-empty-button";
+    empty.textContent="등록된 할 일이 없습니다. 눌러서 추가";
+    empty.onclick=()=>openTodoCreate(key);
+    el.todoList.appendChild(empty);
+    return;
+  }
+
+  items.forEach(todo=>el.todoList.appendChild(renderTodoRow(todo)));
 }
 async function addTodo(){
   const text=el.todoInput?.value.trim()||"";
   if(!state.user||!text)return;
   try{
-    await addDoc(collection(db,"users",state.user.uid,"todos"),{
-      text,date:state.selectedDateKey,status:"pending",rolledFrom:"",rolledTo:"",
-      createdAt:serverTimestamp(),updatedAt:serverTimestamp()
-    });
+    await addDoc(
+      collection(db,"users",state.user.uid,"todos"),
+      {
+        text,
+        date:state.selectedDateKey,
+        repeat:"none",
+        memo:"",
+        checklist:[],
+        important:false,
+        status:"pending",
+        rolledFrom:"",
+        rolledTo:"",
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      }
+    );
     el.todoInput.value="";
-  }catch(e){console.error(e);alert("할 일을 추가하지 못했습니다.");}
+  }catch(error){
+    console.error(error);
+    alert("할 일을 추가하지 못했습니다.");
+  }
 }
 async function setTodoStatus(todo,status){
   if(!state.user||!todo)return;
-  const i=state.todos.findIndex(t=>t.id===todo.id), previous={...todo};
-  if(i>=0)state.todos[i]={...state.todos[i],status};
-  renderTodos();
+
   try{
-    await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{status,updatedAt:serverTimestamp()});
-  }catch(e){
-    console.error(e); if(i>=0)state.todos[i]=previous; renderTodos(); alert("할 일 상태를 저장하지 못했습니다.");
+    if((todo.repeat||"none")!=="none"){
+      const occurrenceDate=todo.occurrenceDate||todo.date;
+      const id=todoLogKey(todo.id,occurrenceDate);
+
+      state.todoLogs[id]={
+        ...(state.todoLogs[id]||{}),
+        id,
+        todoId:todo.id,
+        date:occurrenceDate,
+        status
+      };
+      renderTodos();
+      if(state.currentView==="week")renderWeekTodoStrip();
+
+      await setDoc(
+        doc(db,"users",state.user.uid,"todoLogs",id),
+        {
+          todoId:todo.id,
+          date:occurrenceDate,
+          status,
+          updatedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+    }else{
+      const index=state.todos.findIndex(item=>item.id===todo.id);
+      if(index>=0){
+        state.todos[index]={...state.todos[index],status};
+      }
+      renderTodos();
+      if(state.currentView==="week")renderWeekTodoStrip();
+
+      await updateDoc(
+        doc(db,"users",state.user.uid,"todos",todo.id),
+        {status,updatedAt:serverTimestamp()}
+      );
+    }
+
+    if(state.activePage==="stats")renderStats();
+  }catch(error){
+    console.error(error);
+    alert("할 일 상태를 저장하지 못했습니다.");
   }
+}
+function recurringTodoExistsOnSource(sourceTodoId,key){
+  const source=state.todos.find(todo=>todo.id===sourceTodoId);
+  return Boolean(source&&(source.repeat||"none")!=="none"&&todoOccursOn(source,key));
+}
+async function markTodoOccurrenceRolled(todo,key,nextKey){
+  if((todo.repeat||"none")!=="none"){
+    const id=todoLogKey(todo.id,key);
+    await setDoc(
+      doc(db,"users",state.user.uid,"todoLogs",id),
+      {
+        todoId:todo.id,
+        date:key,
+        status:"rolled",
+        rolledTo:nextKey,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }else{
+    await updateDoc(
+      doc(db,"users",state.user.uid,"todos",todo.id),
+      {
+        status:"rolled",
+        rolledTo:nextKey,
+        updatedAt:serverTimestamp()
+      }
+    );
+  }
+}
+async function createRolledTodo(todo,nextKey,key){
+  return addDoc(
+    collection(db,"users",state.user.uid,"todos"),
+    {
+      text:todo.text,
+      date:nextKey,
+      repeat:"none",
+      memo:todo.memo||"",
+      checklist:normalizeChecklist(todo.checklist),
+      important:Boolean(todo.important),
+      status:"pending",
+      rolledFrom:todo.id,
+      sourceTodoId:todo.sourceTodoId||todo.id,
+      sourceOccurrenceDate:key,
+      rolledTo:"",
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
 }
 async function rollPendingTodosToToday(){
   if(!state.user||state.todoRolloverRunning)return;
-  const today=dateKey(new Date()); state.todoRolloverRunning=true;
+  state.todoRolloverRunning=true;
+
+  const today=dateKey(new Date());
+
   try{
-    const pending=state.todos.filter(t=>t.date<today&&t.status==="pending"&&!t.rolledTo);
-    for(const todo of pending){
-      if(state.todos.some(t=>t.rolledFrom===todo.id&&t.date===today))continue;
-      const created=await addDoc(collection(db,"users",state.user.uid,"todos"),{
-        text:todo.text,date:today,status:"pending",rolledFrom:todo.id,rolledTo:"",
-        createdAt:serverTimestamp(),updatedAt:serverTimestamp()
-      });
-      await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{
-        status:"rolled",rolledTo:today,updatedAt:serverTimestamp()
-      });
-      state.todos.push({id:created.id,text:todo.text,date:today,status:"pending",rolledFrom:todo.id,rolledTo:""});
-      todo.status="rolled"; todo.rolledTo=today;
+    // 최대 370일 범위에서 순차 처리. 개인 플래너 사용 범위에는 충분하고,
+    // 오래된 데이터가 있어도 한 번에 과도한 쓰기가 발생하지 않게 합니다.
+    const oldest=state.todos
+      .map(todo=>todo.date)
+      .filter(Boolean)
+      .sort()[0]||today;
+
+    let cursor=parseDateKey(oldest);
+    const minDate=addDays(parseDateKey(today),-370);
+    if(cursor<minDate)cursor=minDate;
+
+    for(;dateKey(cursor)<today;cursor=addDays(cursor,1)){
+      const key=dateKey(cursor);
+      const nextKey=dateKey(addDays(cursor,1));
+      const occurrences=todosForDate(key)
+        .filter(todo=>todo.status==="pending");
+
+      for(const todo of occurrences){
+        const sourceId=todo.sourceTodoId||todo.id;
+
+        // 다음 날 반복 규칙으로 같은 원본 할 일이 자연스럽게 존재하면
+        // 원 날짜만 취소선(이월 처리)으로 남기고 중복 이월본을 만들지 않습니다.
+        const sameExistsTomorrow=recurringTodoExistsOnSource(sourceId,nextKey);
+
+        await markTodoOccurrenceRolled(todo,key,nextKey);
+
+        if(sameExistsTomorrow)continue;
+
+        const duplicate=state.todos.some(item=>
+          item.date===nextKey
+          &&item.status!=="rolled"
+          &&(
+            item.sourceTodoId===sourceId
+            ||item.rolledFrom===todo.id
+          )
+        );
+        if(!duplicate){
+          await createRolledTodo(todo,nextKey,key);
+        }
+      }
     }
-  }catch(e){console.error("할 일 이월 실패",e);}
-  finally{state.todoRolloverRunning=false;}
+  }catch(error){
+    console.error("할 일 이월 실패",error);
+  }finally{
+    state.todoRolloverRunning=false;
+  }
 }
 function listenTodos(user){
   if(state.unsubscribeTodos)state.unsubscribeTodos();
-  state.unsubscribeTodos=onSnapshot(collection(db,"users",user.uid,"todos"),snap=>{
-    state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderTodos();
-    if(state.activePage==="stats")renderStats();
-    rollPendingTodosToToday();
-  },e=>{console.error(e);alert("할 일을 불러오지 못했습니다.");});
+  if(state.unsubscribeTodoLogs)state.unsubscribeTodoLogs();
+
+  state.unsubscribeTodos=onSnapshot(
+    collection(db,"users",user.uid,"todos"),
+    snap=>{
+      state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderTodos();
+      if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.activePage==="stats")renderStats();
+      rollPendingTodosToToday();
+    },
+    error=>{
+      console.error(error);
+      alert("할 일을 불러오지 못했습니다.");
+    }
+  );
+
+  state.unsubscribeTodoLogs=onSnapshot(
+    collection(db,"users",user.uid,"todoLogs"),
+    snap=>{
+      state.todoLogs={};
+      snap.docs.forEach(d=>{
+        state.todoLogs[d.id]={id:d.id,...d.data()};
+      });
+      renderTodos();
+      if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.activePage==="stats")renderStats();
+    },
+    error=>{
+      console.error(error);
+      alert("반복 할 일 기록을 불러오지 못했습니다.");
+    }
+  );
 }
 
 function renderSelected(){
-  const d=parseDateKey(state.selectedDateKey),items=eventsForDate(state.selectedDateKey),avg=average(items),isToday=state.selectedDateKey===dateKey(new Date());
+  const key=state.selectedDateKey;
+  const d=parseDateKey(key),items=eventsForDate(key),avg=average(items),isToday=key===dateKey(new Date());
   el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
   if(!items.length){el.selectedEvents.innerHTML='<button class="empty-message secondary-button" id="emptyAdd" type="button">등록된 일정이 없습니다.<br>일정 추가하기</button>';$("emptyAdd").onclick=()=>openCreate(state.selectedDateKey)}
-  else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";item.style.borderLeft=`4px solid ${COLORS[event.progress]}`;{
+  else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");item.style.borderLeft=`4px solid ${COLORS[event.progress]}`;{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      main.innerHTML=`<strong>${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><span class="event-category-label"><i class="category-dot ${eventCategory(event)}"></i>${categoryLabel(eventCategory(event))}</span>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
+      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><span class="event-category-label"><i class="category-dot ${eventCategory(event)}"></i>${categoryLabel(eventCategory(event))}</span>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
 
       const summary=checklistSummary(event);
       if(summary){
@@ -3732,15 +4270,14 @@ function renderSelected(){
       :"등록된 일정과 습관이 없습니다.";
   if(el.selectedInsightEventProgress)el.selectedInsightEventProgress.textContent=`${avg}%`;
   if(el.selectedInsightHabitProgress)el.selectedInsightHabitProgress.textContent=`${habitAvg}%`;
-  if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${checklistDone}/${checklist.length}`;
+  const selectedTodoStats=todoCompletionForKeys([key]);
+  const todoRate=selectedTodoStats.progress;
+  if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${todoRate}%`;
 
-  const checklistRate=checklist.length
-    ?Math.round(checklistDone/checklist.length*100)
-    :0;
   if(el.selectedInsightCombinedBar)el.selectedInsightCombinedBar.style.height=`${combined}%`;
   if(el.selectedInsightEventBar)el.selectedInsightEventBar.style.height=`${avg}%`;
   if(el.selectedInsightHabitBar)el.selectedInsightHabitBar.style.height=`${habitAvg}%`;
-  if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${checklistRate}%`;
+  if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${todoRate}%`;
 }
 function renderSummary(){
   const items=monthOccurrences();
@@ -4135,6 +4672,7 @@ function resetForm(){
   el.category.value=state.categories[0]?.id||"other";
   el.repeat.value="none";
   el.memo.value="";
+  setImportance("event",false);
   state.editingChecklist=[];
   el.formError.textContent="";
   setProgress(0);
@@ -4142,6 +4680,9 @@ function resetForm(){
 }
 function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTime(time)){
   haptic(12);
+  // 빈 시간칸을 누른 동일 입력 이벤트가 모달의 시작 시간칸까지
+  // 전달되어 시간 선택창이 먼저 뜨는 것을 막습니다.
+  state.suppressTimePickerUntil=performance.now()+260;
   resetForm();
   el.date.value=key;
   el.endDate.value=key;
@@ -4190,6 +4731,7 @@ function openEdit(event){
   );
   el.repeat.value=event.repeat||"none";
   el.memo.value=event.memo||"";
+  setImportance("event",Boolean(event.important));
   state.editingChecklist=
     checklistForOccurrence(event)
       .map(item=>({...item}));
@@ -4560,7 +5102,7 @@ function renderDayView(){
       const doneChecklist=checklist.filter(item=>item.status==="done").length;
 
       block.innerHTML=`
-        <strong class="event-title-trigger">${escapeHtml(event.title)}</strong>
+        <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
         ${
           checklist.length
             ?(
@@ -4939,7 +5481,12 @@ function setupWheelTimePicker(){
   });
 
   targets.forEach(target=>{
-    target.input.addEventListener("click",()=>{
+    target.input.addEventListener("click",event=>{
+      if(performance.now()<(state.suppressTimePickerUntil||0)){
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       open(target);
     });
 
@@ -5150,6 +5697,10 @@ function showModal(){
   requestAnimationFrame(()=>{
     resetEventModalScroll();
     autoResizeMemo();
+
+    setTimeout(()=>{
+      state.suppressTimePickerUntil=0;
+    },280);
 
     // 메모 자동 높이 조절 이후 레이아웃이 바뀌어도 다시 맨 위 유지
     requestAnimationFrame(resetEventModalScroll);
@@ -5385,6 +5936,7 @@ async function submit(event){
   const endTime=el.endTime.value;
   const repeat=el.repeat.value;
   const memo=el.memo.value.trim();
+  const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
   const eventId=el.eventId.value;
   const occurrenceDate=el.eventOccurrenceDate.value||date;
@@ -5416,6 +5968,7 @@ async function submit(event){
         repeat,
         memo,
         checklist,
+        important,
         updatedAt:serverTimestamp()
       };
 
@@ -5469,6 +6022,7 @@ async function submit(event){
         repeat,
         memo,
         checklist,
+        important,
         progress:repeat==="none"?state.selectedProgress:0,
         createdAt:serverTimestamp(),
         updatedAt:serverTimestamp()
@@ -5605,14 +6159,10 @@ async function removeEvent(){
 
 
 function switchCreateModal(target){
-  if(target!=="habit"||el.eventId.value)return;
+  if(target!=="todo"||el.eventId.value)return;
 
   closeEventModalFromHistory();
-  resetHabitForm();
-  el.habitModalEyebrow.textContent="NEW HABIT";
-  el.habitModalTitle.textContent="습관 추가";
-  el.deleteHabitButton.hidden=true;
-  showHabitModal();
+  openTodoCreate(state.selectedDateKey);
 }
 function addHorizontalSwipe(element,onLeft,onRight){
   let startX=0;
@@ -5818,8 +6368,12 @@ $("weekAddEventButton").onclick=()=>openCreate(
   state.selectedDateKey||dateKey(new Date())
 );
 $("eventModeTab").onclick=()=>{};
-$("habitModeFromEventTab").onclick=()=>switchCreateModal("habit");
-addHorizontalSwipe(el.modal,()=>switchCreateModal("habit"),()=>{});
+$("todoEventModeTab").onclick=()=>{
+  closeTodoModalFromHistory();
+  openCreate(state.selectedDateKey);
+};
+$("todoModeFromEventTab").onclick=()=>switchCreateModal("todo");
+addHorizontalSwipe(el.modal,()=>switchCreateModal("todo"),()=>{});
 el.mobileAdd.onclick=()=>{
   if(state.activePage==="habit"){
     openHabitCreate();
@@ -5966,6 +6520,24 @@ el.mobileEndTime.addEventListener("change",syncHiddenTimes);
 });
 el.quickAddButton.onclick=submitQuickAdd;
 if(el.todoAddButton)el.todoAddButton.onclick=addTodo;
+if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>{
+  state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
+  renderAll();
+};
+if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>{
+  state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),1));
+  renderAll();
+};
+el.todoForm.onsubmit=submitTodoForm;
+if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("event",!state.eventImportant);
+if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
+el.addTodoChecklistItemButton.onclick=addTodoChecklistItem;
+el.deleteTodoButton.onclick=deleteTodo;
+$("closeTodoModal").onclick=closeTodoModal;
+$("cancelTodo").onclick=closeTodoModal;
+el.todoModal.onclick=event=>{
+  if(event.target===el.todoModal)closeTodoModal();
+};
 if(el.todoInput)el.todoInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
 el.quickAddInput.addEventListener("keydown",event=>{
   if(event.key==="Enter"){
@@ -6027,6 +6599,11 @@ document.addEventListener("keydown",event=>{
     return;
   }
 
+  if(el.todoModal.classList.contains("show")){
+    closeTodoModal();
+    return;
+  }
+
   if(el.modal.classList.contains("show")){
     closeModal();
     return;
@@ -6061,6 +6638,10 @@ window.addEventListener("popstate",event=>{
     el.categoryManagerModal.classList.contains("show")
   ){
     closeCategoryManagerFromHistory();
+  }else if(
+    el.todoModal.classList.contains("show")
+  ){
+    closeTodoModalFromHistory();
   }else if(
     el.habitModal.classList.contains("show")
   ){
@@ -6109,6 +6690,7 @@ onAuthStateChanged(auth,async user=>{
     if(state.unsubscribeHabits){state.unsubscribeHabits();state.unsubscribeHabits=null}
     if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
     if(state.unsubscribeTodos){state.unsubscribeTodos();state.unsubscribeTodos=null}
+    if(state.unsubscribeTodoLogs){state.unsubscribeTodoLogs();state.unsubscribeTodoLogs=null}
     el.login.hidden=false;el.app.hidden=true;return
   }
   state.user=user;
