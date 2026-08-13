@@ -6389,3 +6389,37 @@ body.week-four-weeks .week-event-checklist{
     padding:9px;
   }
 }
+
+
+/* Momentum v7.28 — mobile TO DO checkbox tap fix */
+.todo-checkbox{
+  position:relative;
+  z-index:2;
+  pointer-events:auto!important;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.todo-name-button{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* 전체 보기 버튼도 Momentum 스타일로 정리 */
+.todo-overview-button{
+  appearance:none;
+  -webkit-appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:58px;
+  height:28px!important;
+  padding:0 9px!important;
+  border:0!important;
+  border-radius:9px!important;
+  background:var(--muted)!important;
+  color:var(--green-dark)!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  line-height:1!important;
+  box-shadow:none!important;
+}

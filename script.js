@@ -3949,18 +3949,13 @@ async function setTodoStatus(todo,status){
   if(!state.user||!todo)return;
 
   const wasRolled=todo.status==="rolled";
+  const occurrenceDate=todo.occurrenceDate||todo.date;
 
   try{
-    // 과거 미완료를 나중에 직접 완료/취소/미완료로 바꾸면
-    // 그 미완료 때문에 생성됐던 이후 이월본은 함께 제거합니다.
-    if(wasRolled&&status!=="rolled"){
-      await removeTodoRolloverDescendants(todo);
-    }
-
     if((todo.repeat||"none")!=="none"){
-      const occurrenceDate=todo.occurrenceDate||todo.date;
       const id=todoLogKey(todo.id,occurrenceDate);
 
+      // 모바일에서도 누른 즉시 상태가 바뀌어 보이도록 먼저 로컬 반영.
       state.todoLogs[id]={
         ...(state.todoLogs[id]||{}),
         id,
@@ -3970,7 +3965,11 @@ async function setTodoStatus(todo,status){
         rolledTo:""
       };
       renderTodos();
+      if(el.todoOverviewModal?.classList.contains("show")){
+        renderTodoOverview();
+      }
 
+      // 원 날짜의 상태를 먼저 저장한다.
       await setDoc(
         doc(db,"users",state.user.uid,"todoLogs",id),
         {
@@ -3984,6 +3983,8 @@ async function setTodoStatus(todo,status){
       );
     }else{
       const index=state.todos.findIndex(item=>item.id===todo.id);
+
+      // 모바일에서도 누른 즉시 체크 상태가 보이도록 로컬 반영.
       if(index>=0){
         state.todos[index]={
           ...state.todos[index],
@@ -3992,11 +3993,26 @@ async function setTodoStatus(todo,status){
         };
       }
       renderTodos();
+      if(el.todoOverviewModal?.classList.contains("show")){
+        renderTodoOverview();
+      }
 
+      // 이월본을 지우기 전에 원 날짜 상태부터 저장해
+      // 이월 처리 로직과 경합하지 않게 한다.
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",todo.id),
-        {status,rolledTo:"",updatedAt:serverTimestamp()}
+        {
+          status,
+          rolledTo:"",
+          updatedAt:serverTimestamp()
+        }
       );
+    }
+
+    // 과거 미완료 때문에 생성된 이후 이월본은
+    // 원 날짜 상태 저장이 끝난 다음 제거한다.
+    if(wasRolled&&status!=="rolled"){
+      await removeTodoRolloverDescendants(todo);
     }
 
     if(el.todoOverviewModal?.classList.contains("show")){
