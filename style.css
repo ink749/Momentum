@@ -6697,3 +6697,58 @@ body.week-four-weeks .week-event-checklist{
     white-space:nowrap!important;
   }
 }
+
+
+/* Momentum v7.38 — keep progress + % inside square cell */
+@media(max-width:720px){
+  #statsMonthGrid .month-day-insight{
+    width:100%!important;
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:4px auto!important;
+    align-items:center!important;
+    justify-items:stretch!important;
+    gap:2px!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  #statsMonthGrid .month-day-progress-track{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:4px!important;
+    min-height:4px!important;
+    margin:0!important;
+    border-radius:999px!important;
+    overflow:hidden!important;
+    background:var(--muted)!important;
+  }
+
+  #statsMonthGrid .month-day-progress-track > span{
+    display:block!important;
+    height:100%!important;
+    min-height:4px!important;
+    max-width:100%!important;
+    border-radius:999px!important;
+    overflow:hidden!important;
+  }
+
+  #statsMonthGrid .month-day-insight > strong{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    text-overflow:clip!important;
+    white-space:nowrap!important;
+    text-align:center!important;
+    font-size:7px!important;
+    line-height:1!important;
+  }
+}
