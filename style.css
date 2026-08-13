@@ -6072,3 +6072,184 @@ body.week-four-weeks .week-event-checklist{
 .week-todo-list .todo-row.compact.is-important{
   background:rgba(255,224,102,.16)!important;
 }
+
+
+/* Momentum v7.25 — compact layout + TO DO fixes */
+
+/* Quick TO DO input: exact same height */
+#selectedView .todo-add-row{
+  align-items:stretch;
+}
+#selectedView .todo-add-row input,
+#selectedView .todo-add-button{
+  box-sizing:border-box;
+  height:34px!important;
+  min-height:34px!important;
+  margin:0!important;
+}
+
+/* Status is expressed by icon/strike only; no secondary status caption */
+.todo-meta:empty{
+  display:none!important;
+}
+.todo-row{
+  grid-template-columns:28px minmax(0,1fr) auto;
+}
+.todo-row:has(.todo-meta:empty){
+  grid-template-columns:28px minmax(0,1fr);
+}
+
+/* Weekly TO DO always gets visible space below the timetable */
+@media(max-width:720px){
+  #weekView:not([hidden]){
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  #weekView:not([hidden]) .google-week-shell{
+    flex:1 1 auto!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  #weekView:not([hidden]) .week-todo-strip{
+    flex:0 0 auto;
+    max-height:112px;
+    overflow-y:auto;
+    background:#fff;
+  }
+}
+
+/* Day-view TO DO */
+.day-view-todo-strip{
+  margin:0 12px 18px 64px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+}
+.day-view-todo-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  margin:0 0 7px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  cursor:pointer;
+}
+.day-view-todo-heading strong{
+  color:var(--green);
+  font-size:11px;
+  letter-spacing:.12em;
+}
+.day-view-todo-heading span{
+  color:var(--soft);
+  font-size:10px;
+}
+.day-view-todo-list{
+  display:grid;
+  gap:4px;
+}
+.day-view-todo-list .todo-row.compact{
+  min-height:30px;
+  padding:3px 5px;
+}
+@media(max-width:720px){
+  .day-view-todo-strip{
+    margin:0 8px 12px 44px;
+    padding:8px;
+  }
+}
+
+/* Compact everything except Search. Preserve tap usability, reduce vertical padding/gaps. */
+#calendarPage .calendar-toolbar{
+  padding-top:10px;
+  padding-bottom:10px;
+}
+#calendarPage .summary-card{
+  padding-top:10px;
+  padding-bottom:10px;
+}
+#calendarPage .selected-day-events{
+  margin-top:8px;
+  gap:5px;
+}
+#calendarPage .selected-event{
+  padding-top:6px;
+  padding-bottom:6px;
+}
+#calendarPage .selected-todo-heading{
+  margin-bottom:7px;
+}
+#calendarPage .todo-list{
+  gap:4px;
+}
+#calendarPage .todo-row{
+  min-height:34px;
+  padding-top:3px;
+  padding-bottom:3px;
+}
+#calendarPage .selected-insight-chart{
+  min-height:92px!important;
+}
+#calendarPage .selected-insight-column{
+  grid-template-rows:auto 48px auto!important;
+}
+#calendarPage .selected-insight-bar{
+  height:48px!important;
+}
+
+#habitPage .habit-card,
+#habitPage .summary-card,
+#habitPage .heatmap-card{
+  padding-top:12px;
+  padding-bottom:12px;
+}
+#habitPage .habit-list{
+  gap:8px;
+}
+
+#statsPage .stats-metric-card{
+  padding:14px;
+}
+#statsPage .stats-metric-card strong{
+  margin:5px 0 2px;
+  font-size:30px;
+}
+#statsPage .stats-card{
+  padding:16px;
+}
+#statsPage .stats-card-heading{
+  margin-bottom:12px;
+}
+
+@media(max-width:720px){
+  .main-area{
+    padding-top:12px;
+  }
+  #calendarPage .calendar-toolbar{
+    padding:8px 8px;
+  }
+  #calendarPage .summary-card{
+    padding:8px 10px!important;
+  }
+  #calendarPage .selected-todo-card{
+    margin-top:5px!important;
+  }
+  #calendarPage .todo-row{
+    min-height:32px;
+  }
+  #statsPage .stats-metric-card{
+    padding:12px;
+  }
+  #statsPage .stats-card{
+    padding:13px;
+  }
+  #habitPage .habit-card,
+  #habitPage .summary-card,
+  #habitPage .heatmap-card{
+    padding-top:9px;
+    padding-bottom:9px;
+  }
+}

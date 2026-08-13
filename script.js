@@ -131,7 +131,7 @@ const el = {
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
   todoInput:$("todoInput"), todoAddButton:$("todoAddButton"), todoList:$("todoList"), todoDayCount:$("todoDayCount"),
   todoSelectedDateLabel:$("todoSelectedDateLabel"), todoPrevDateButton:$("todoPrevDateButton"), todoNextDateButton:$("todoNextDateButton"),
-  todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
+  todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"), todoModeSwitch:$("todoModeSwitch"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
@@ -3682,15 +3682,13 @@ function todosForDate(key){
     });
 }
 function todoCompletionForKeys(keys){
-  const items=keys.flatMap(key=>todosForDate(key))
-    .filter(todo=>todo.status!=="rolled");
-  const decided=items.filter(todo=>todo.status==="done"||todo.status==="cancelled");
+  const items=keys.flatMap(key=>todosForDate(key));
   const done=items.filter(todo=>todo.status==="done");
   return {
     total:items.length,
     done:done.length,
-    cancelled:items.filter(todo=>todo.status==="cancelled").length,
-    progress:decided.length?Math.round(done.length/decided.length*100):0
+    cancelled:items.filter(todo=>todo.status==="cancelled"||todo.status==="rolled").length,
+    progress:items.length?Math.round(done.length/items.length*100):0
   };
 }
 function renderTodoChecklistEditor(){
@@ -3794,6 +3792,7 @@ function openTodoCreate(date=state.selectedDateKey){
   resetTodoForm(date);
   el.todoModalEyebrow.textContent="NEW TO DO";
   el.todoModalTitle.textContent="할 일 추가";
+  if(el.todoModeSwitch)el.todoModeSwitch.hidden=false;
   el.deleteTodoButton.hidden=true;
   showTodoModal();
 }
@@ -3813,6 +3812,7 @@ function openTodoEdit(todo){
 
   el.todoModalEyebrow.textContent="EDIT TO DO";
   el.todoModalTitle.textContent=(todo.repeat||"none")!=="none"?"반복 할 일 수정":"할 일 수정";
+  if(el.todoModeSwitch)el.todoModeSwitch.hidden=true;
   el.deleteTodoButton.hidden=false;
   showTodoModal();
 }
@@ -3909,11 +3909,7 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
 
   const meta=document.createElement("small");
   meta.className="todo-meta";
-  if(todo.status==="rolled")meta.textContent=`${todo.rolledTo||"다음 날"}로 이월`;
-  else if(todo.rolledFrom)meta.textContent="이월";
-  else if(todo.status==="done")meta.textContent="완료";
-  else if(todo.status==="cancelled")meta.textContent="취소";
-  else if((todo.repeat||"none")!=="none")meta.textContent="↻";
+  if((todo.repeat||"none")!=="none")meta.textContent="↻";
 
   btn.onclick=event=>{
     event.preventDefault();
@@ -3994,6 +3990,7 @@ async function setTodoStatus(todo,status){
       };
       renderTodos();
       if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.dayViewOpen)renderDayViewTodos();
 
       await setDoc(
         doc(db,"users",state.user.uid,"todoLogs",id),
@@ -4012,6 +4009,7 @@ async function setTodoStatus(todo,status){
       }
       renderTodos();
       if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.dayViewOpen)renderDayViewTodos();
 
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",todo.id),
@@ -4138,6 +4136,7 @@ function listenTodos(user){
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
       renderTodos();
       if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.dayViewOpen)renderDayViewTodos();
       if(state.activePage==="stats")renderStats();
       rollPendingTodosToToday();
     },
@@ -4156,6 +4155,7 @@ function listenTodos(user){
       });
       renderTodos();
       if(state.currentView==="week")renderWeekTodoStrip();
+      if(state.dayViewOpen)renderDayViewTodos();
       if(state.activePage==="stats")renderStats();
     },
     error=>{
@@ -4994,6 +4994,37 @@ function openDayChecklistPopover(event){
   });
   document.body.appendChild(backdrop);
 }
+function renderDayViewTodos(){
+  if(!state.dayViewDate||!el.dayViewScroll)return;
+  el.dayViewScroll.querySelector(".day-view-todo-strip")?.remove();
+
+  const section=document.createElement("section");
+  section.className="day-view-todo-strip";
+
+  const heading=document.createElement("button");
+  heading.type="button";
+  heading.className="day-view-todo-heading";
+  heading.innerHTML=`<strong>TO DO</strong><span>+ 할 일 추가</span>`;
+  heading.onclick=()=>openTodoCreate(state.dayViewDate);
+
+  const list=document.createElement("div");
+  list.className="day-view-todo-list";
+  const todos=todosForDate(state.dayViewDate);
+
+  if(!todos.length){
+    const empty=document.createElement("button");
+    empty.type="button";
+    empty.className="week-todo-empty";
+    empty.textContent="등록된 할 일이 없습니다. 눌러서 추가";
+    empty.onclick=()=>openTodoCreate(state.dayViewDate);
+    list.appendChild(empty);
+  }else{
+    todos.forEach(todo=>list.appendChild(renderTodoRow(todo,{compact:true})));
+  }
+
+  section.append(heading,list);
+  el.dayViewScroll.appendChild(section);
+}
 function renderDayView(){
   if(!state.dayViewDate)return;
 
@@ -5161,6 +5192,7 @@ function renderDayView(){
     });
 
   el.dayViewGrid.append(timeColumn,column);
+  renderDayViewTodos();
 
   requestAnimationFrame(()=>{
     if(!el.modal.classList.contains("show")){
