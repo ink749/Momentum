@@ -108,6 +108,19 @@
           </section>
             <div id="selectedDayEvents" class="selected-day-events"></div>
           </section>
+
+          <section class="summary-card selected-todo-card" aria-label="할 일 목록">
+            <div class="selected-todo-heading">
+              <div><p class="eyebrow">TO DO</p><h3>할 일 목록</h3></div>
+              <span id="todoDayCount" class="todo-day-count">0개</span>
+            </div>
+            <div class="todo-add-row">
+              <input id="todoInput" type="text" maxlength="120" placeholder="할 일 추가" />
+              <button id="todoAddButton" type="button" class="todo-add-button">추가</button>
+            </div>
+            <div id="todoList" class="todo-list"></div>
+          </section>
+
           <div class="selected-support-grid selected-insight-grid">
             <section class="summary-card selected-day-insight-card">
               <p class="eyebrow">DAY INSIGHT</p>
@@ -238,9 +251,9 @@
               <small>일정과 습관 평균</small>
             </article>
             <article class="stats-metric-card">
-              <span id="statsChecklistLabel">이번 달 체크리스트 완료율</span>
-              <strong id="statsChecklistProgress">0%</strong>
-              <small id="statsChecklistCount">완료 0 / 전체 0</small>
+              <span id="statsTodoLabel">이번 달 할 일 완료율</span>
+              <strong id="statsTodoProgress">0%</strong>
+              <small id="statsTodoCount">완료 0 / 전체 0</small>
             </article>
           </div>
 
@@ -289,9 +302,9 @@
                 <div><span>활성 습관</span><strong id="statsMonthHabitCount">0개</strong></div>
                 <div><span>습관 평균 완료율</span><strong id="statsMonthHabitProgress">0%</strong></div>
                 <strong id="statsMonthPerfectHabitDays" hidden>0회</strong>
-                <div><span>체크리스트 전체 항목</span><strong id="statsChecklistTotal">0개</strong></div>
-                <div><span>체크리스트 완료</span><strong id="statsChecklistDone">0개</strong></div>
-                <div><span>체크리스트 실패</span><strong id="statsChecklistFailed">0개</strong></div>
+                <div><span>할 일 전체 항목</span><strong id="statsTodoTotal">0개</strong></div>
+                <div><span>할 일 완료</span><strong id="statsTodoDone">0개</strong></div>
+                <div><span>할 일 취소</span><strong id="statsTodoCancelled">0개</strong></div>
               </div>
             </section>
           </div>
@@ -346,7 +359,12 @@
           </section>
         </section>
       </section>
-    </main>
+    <div hidden aria-hidden="true">
+<span id="statsChecklistLabel"></span><strong id="statsChecklistProgress">0%</strong>
+<small id="statsChecklistCount"></small><strong id="statsChecklistTotal">0개</strong>
+<strong id="statsChecklistDone">0개</strong><strong id="statsChecklistFailed">0개</strong>
+</div>
+</main>
 
     <nav class="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
       <button id="mobileCalendarNavButton" class="mobile-nav-button active" type="button">

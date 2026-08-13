@@ -34,6 +34,7 @@ const state = {
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
+  todos:[], unsubscribeTodos:null, todoRolloverRunning:false,
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
   editingChecklist:[],
@@ -126,6 +127,9 @@ const el = {
   globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
   searchSummary:$("searchSummary"), searchResults:$("searchResults"),
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
+  todoInput:$("todoInput"), todoAddButton:$("todoAddButton"), todoList:$("todoList"), todoDayCount:$("todoDayCount"),
+  statsTodoLabel:$("statsTodoLabel"), statsTodoProgress:$("statsTodoProgress"), statsTodoCount:$("statsTodoCount"),
+  statsTodoTotal:$("statsTodoTotal"), statsTodoDone:$("statsTodoDone"), statsTodoCancelled:$("statsTodoCancelled"),
   mobileEventActionSheet:$("mobileEventActionSheet"),
   mobileEventActionTitle:$("mobileEventActionTitle"),
   mobileEventActionTime:$("mobileEventActionTime"),
@@ -624,20 +628,11 @@ function renderStats(){
   const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
   const monthEventAvg=average(monthEventOccurrences);
 
-  const checklistRows=monthEventOccurrences.flatMap(event=>
-    checklistForOccurrence(event).map(item=>({
-      ...item,
-      autoFailed:item.status==="pending"&&isOccurrencePast(event)
-    }))
-  );
-  const checklistTotal=checklistRows.length;
-  const checklistDone=checklistRows.filter(item=>item.status==="done").length;
-  const checklistFailed=checklistRows.filter(
-    item=>item.status==="failed"||item.autoFailed
-  ).length;
-  const checklistProgress=checklistTotal
-    ?Math.round(checklistDone/checklistTotal*100)
-    :0;
+  const monthTodos=todoCompletionForKeys(keys);
+  const todoTotal=monthTodos.total;
+  const todoDone=monthTodos.done;
+  const todoCancelled=monthTodos.cancelled;
+  const todoProgress=monthTodos.progress;
 
   const activeMonthHabits=state.habits.filter(habit=>
     keys.some(key=>habitIsActive(habit,key))
@@ -669,7 +664,7 @@ function renderStats(){
   el.statsDayEventLabel.textContent=mobileStats?`${selectedDate.getMonth()+1}월 종합`:`${monthText} 종합 완료율`;
   el.statsDayHabitLabel.textContent=mobileStats?"일정":`${monthText} 일정 완료율`;
   el.statsMonthCombinedLabel.textContent=mobileStats?"습관":`${monthText} 습관 완료율`;
-  el.statsChecklistLabel.textContent=mobileStats?"체크리스트":`${monthText} 체크리스트 완료율`;
+  if(el.statsTodoLabel)el.statsTodoLabel.textContent=mobileStats?"할 일":`${monthText} 할 일 완료율`;
 
   el.statsTodayEventProgress.textContent=`${monthCombined}%`;
   el.statsTodayEventCount.textContent="일정 + 습관";
@@ -678,8 +673,8 @@ function renderStats(){
   el.statsMonthCombinedProgress.textContent=`${monthHabitAvg}%`;
   const monthHabitCountLabel=el.statsMonthCombinedProgress.nextElementSibling;
   if(monthHabitCountLabel)monthHabitCountLabel.textContent=`활성 습관 ${activeMonthHabits.length}개`;
-  el.statsChecklistProgress.textContent=`${checklistProgress}%`;
-  el.statsChecklistCount.textContent=`완료 ${checklistDone} / 전체 ${checklistTotal}`;
+  if(el.statsTodoProgress)el.statsTodoProgress.textContent=`${todoProgress}%`;
+  if(el.statsTodoCount)el.statsTodoCount.textContent=`완료 ${todoDone} / 전체 ${todoTotal}`;
 
   el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
   el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 완료율`;
@@ -692,9 +687,9 @@ function renderStats(){
   el.statsMonthHabitCount.textContent=`${activeMonthHabits.length}개`;
   el.statsMonthHabitProgress.textContent=`${monthHabitAvg}%`;
   el.statsMonthPerfectHabitDays.textContent=`${perfectCount}회`;
-  el.statsChecklistTotal.textContent=`${checklistTotal}개`;
-  el.statsChecklistDone.textContent=`${checklistDone}개`;
-  el.statsChecklistFailed.textContent=`${checklistFailed}개`;
+  if(el.statsTodoTotal)el.statsTodoTotal.textContent=`${todoTotal}개`;
+  if(el.statsTodoDone)el.statsTodoDone.textContent=`${todoDone}개`;
+  if(el.statsTodoCancelled)el.statsTodoCancelled.textContent=`${todoCancelled}개`;
 
   renderMonth();
   renderWeeklyProgress(selectedDate);
@@ -1936,6 +1931,7 @@ function renderAll(){
   }
 
   renderSelected();
+  renderTodos();
   renderSummary();
 
   if(state.activePage==="stats"){
@@ -2199,6 +2195,24 @@ async function moveEventTo(event,newDate,newTime){
     alert("일정을 이동하지 못했습니다.");
   }
 }
+
+function setupMobileWeekSwipe(){
+  let sx=0,sy=0,tracking=false;
+  el.weekView.addEventListener("touchstart",e=>{
+    if(!window.matchMedia("(max-width:720px)").matches)return;
+    const t=e.touches?.[0]; if(!t)return;
+    tracking=true; sx=t.clientX; sy=t.clientY;
+  },{passive:true,capture:true});
+  el.weekView.addEventListener("touchend",e=>{
+    if(!tracking||!window.matchMedia("(max-width:720px)").matches)return;
+    tracking=false; const t=e.changedTouches?.[0]; if(!t)return;
+    const dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)<70||Math.abs(dx)<=Math.abs(dy)*1.25)return;
+    state.currentWeek=addDays(state.currentWeek,dx<0?7:-7);
+    state.weekInitialScrollDone=false; renderPeriodLabel(); renderWeek(); haptic(10);
+  },{passive:true,capture:true});
+}
+
 function bindDesktopDrag(element,event){
   if(!canDirectlyMoveEvent(event))return;
 
@@ -3520,6 +3534,100 @@ async function setEventProgressFromCard(event,value){
   }
 }
 
+
+function todoStatusIcon(status){
+  if(status==="done")return "✓";
+  if(status==="cancelled")return "×";
+  return "□";
+}
+function todosForDate(key){
+  return state.todos.filter(t=>t.date===key).sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+}
+function todoCompletionForKeys(keys){
+  const set=new Set(keys);
+  const items=state.todos.filter(t=>set.has(t.date)&&t.status!=="rolled");
+  const decided=items.filter(t=>t.status==="done"||t.status==="cancelled");
+  const done=items.filter(t=>t.status==="done");
+  return {total:items.length,done:done.length,cancelled:items.filter(t=>t.status==="cancelled").length,
+    progress:decided.length?Math.round(done.length/decided.length*100):0};
+}
+function renderTodos(){
+  if(!el.todoList)return;
+  const items=todosForDate(state.selectedDateKey);
+  el.todoList.innerHTML="";
+  if(el.todoDayCount)el.todoDayCount.textContent=`${items.length}개`;
+  if(!items.length){el.todoList.innerHTML='<div class="todo-empty">등록된 할 일이 없습니다.</div>';return;}
+  items.forEach(todo=>{
+    const row=document.createElement("div");
+    row.className=`todo-row status-${todo.status||"pending"}`;
+    const btn=document.createElement("button");
+    btn.type="button"; btn.className="todo-checkbox"; btn.textContent=todoStatusIcon(todo.status||"pending");
+    const text=document.createElement("span"); text.className="todo-text"; text.textContent=todo.text;
+    const meta=document.createElement("small"); meta.className="todo-meta";
+    if(todo.status==="rolled")meta.textContent=`${todo.rolledTo||"다음 날"}로 이월`;
+    else if(todo.rolledFrom)meta.textContent="이월된 할 일";
+    else if(todo.status==="done")meta.textContent="완료";
+    else if(todo.status==="cancelled")meta.textContent="취소";
+    btn.onclick=()=>{
+      if(todo.status==="rolled")return;
+      const next=todo.status==="pending"?"done":todo.status==="done"?"cancelled":"pending";
+      setTodoStatus(todo,next);
+    };
+    row.append(btn,text,meta); el.todoList.appendChild(row);
+  });
+}
+async function addTodo(){
+  const text=el.todoInput?.value.trim()||"";
+  if(!state.user||!text)return;
+  try{
+    await addDoc(collection(db,"users",state.user.uid,"todos"),{
+      text,date:state.selectedDateKey,status:"pending",rolledFrom:"",rolledTo:"",
+      createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
+    el.todoInput.value="";
+  }catch(e){console.error(e);alert("할 일을 추가하지 못했습니다.");}
+}
+async function setTodoStatus(todo,status){
+  if(!state.user||!todo)return;
+  const i=state.todos.findIndex(t=>t.id===todo.id), previous={...todo};
+  if(i>=0)state.todos[i]={...state.todos[i],status};
+  renderTodos();
+  try{
+    await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{status,updatedAt:serverTimestamp()});
+  }catch(e){
+    console.error(e); if(i>=0)state.todos[i]=previous; renderTodos(); alert("할 일 상태를 저장하지 못했습니다.");
+  }
+}
+async function rollPendingTodosToToday(){
+  if(!state.user||state.todoRolloverRunning)return;
+  const today=dateKey(new Date()); state.todoRolloverRunning=true;
+  try{
+    const pending=state.todos.filter(t=>t.date<today&&t.status==="pending"&&!t.rolledTo);
+    for(const todo of pending){
+      if(state.todos.some(t=>t.rolledFrom===todo.id&&t.date===today))continue;
+      const created=await addDoc(collection(db,"users",state.user.uid,"todos"),{
+        text:todo.text,date:today,status:"pending",rolledFrom:todo.id,rolledTo:"",
+        createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+      });
+      await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{
+        status:"rolled",rolledTo:today,updatedAt:serverTimestamp()
+      });
+      state.todos.push({id:created.id,text:todo.text,date:today,status:"pending",rolledFrom:todo.id,rolledTo:""});
+      todo.status="rolled"; todo.rolledTo=today;
+    }
+  }catch(e){console.error("할 일 이월 실패",e);}
+  finally{state.todoRolloverRunning=false;}
+}
+function listenTodos(user){
+  if(state.unsubscribeTodos)state.unsubscribeTodos();
+  state.unsubscribeTodos=onSnapshot(collection(db,"users",user.uid,"todos"),snap=>{
+    state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderTodos();
+    if(state.activePage==="stats")renderStats();
+    rollPendingTodosToToday();
+  },e=>{console.error(e);alert("할 일을 불러오지 못했습니다.");});
+}
+
 function renderSelected(){
   const d=parseDateKey(state.selectedDateKey),items=eventsForDate(state.selectedDateKey),avg=average(items),isToday=state.selectedDateKey===dateKey(new Date());
   el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
@@ -3687,7 +3795,7 @@ function createChecklistItem(text="",status="pending"){
 }
 function checklistStatusIcon(status){
   if(status==="done")return "✓";
-  if(status==="failed")return "×";
+  if(status==="failed")return "□";
   return "□";
 }
 function nextChecklistStatus(status){
@@ -5857,6 +5965,8 @@ el.mobileEndTime.addEventListener("change",syncHiddenTimes);
   });
 });
 el.quickAddButton.onclick=submitQuickAdd;
+if(el.todoAddButton)el.todoAddButton.onclick=addTodo;
+if(el.todoInput)el.todoInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
 el.quickAddInput.addEventListener("keydown",event=>{
   if(event.key==="Enter"){
     event.preventDefault();
@@ -5986,6 +6096,7 @@ window.addEventListener("popstate",event=>{
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
+setupMobileWeekSwipe();
 
 await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
@@ -5997,6 +6108,7 @@ onAuthStateChanged(auth,async user=>{
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
     if(state.unsubscribeHabits){state.unsubscribeHabits();state.unsubscribeHabits=null}
     if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
+    if(state.unsubscribeTodos){state.unsubscribeTodos();state.unsubscribeTodos=null}
     el.login.hidden=false;el.app.hidden=true;return
   }
   state.user=user;
@@ -6012,6 +6124,7 @@ onAuthStateChanged(auth,async user=>{
     listenCategories(user);
     listen(user);
     listenHabits(user);
+    listenTodos(user);
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");
