@@ -36,6 +36,7 @@ const state = {
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
+  todoOverviewMonth:startOfMonth(new Date()),
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
   editingChecklist:[],
@@ -131,6 +132,10 @@ const el = {
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
   todoInput:$("todoInput"), todoAddButton:$("todoAddButton"), todoList:$("todoList"), todoDayCount:$("todoDayCount"),
   todoSelectedDateLabel:$("todoSelectedDateLabel"), todoPrevDateButton:$("todoPrevDateButton"), todoNextDateButton:$("todoNextDateButton"),
+  todoOverviewButton:$("todoOverviewButton"), todoOverviewModal:$("todoOverviewModal"),
+  todoOverviewList:$("todoOverviewList"), todoOverviewMonthLabel:$("todoOverviewMonthLabel"),
+  todoOverviewPrevMonth:$("todoOverviewPrevMonth"), todoOverviewThisMonth:$("todoOverviewThisMonth"),
+  todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"), todoModeSwitch:$("todoModeSwitch"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
@@ -1938,7 +1943,6 @@ function renderAll(){
 
   if(state.currentView==="week"){
     renderWeek();
-    renderWeekTodoStrip();
   }
 
   renderSelected();
@@ -2531,83 +2535,9 @@ function resetWeekToFit(){
 
 
 function renderWeekTodoStrip(){
-  if(state.currentView!=="week"||!el.weekView)return;
-
-  el.weekView.querySelector(".week-todo-strip")?.remove();
-
-  const visibleDays=
-    typeof visibleDaysForZoom==="function"
-      ?visibleDaysForZoom()
-      :7;
-
-  const strip=document.createElement("section");
-  strip.className="week-todo-strip";
-
-  for(let index=0;index<visibleDays;index++){
-    const date=addDays(state.currentWeek,index);
-    const key=dateKey(date);
-    const cell=document.createElement("div");
-    cell.className="week-todo-day";
-    cell.dataset.date=key;
-
-    const heading=document.createElement("button");
-    heading.type="button";
-    heading.className="week-todo-day-heading";
-    heading.innerHTML=`<strong>${date.getMonth()+1}/${date.getDate()}</strong><span>TO DO</span>`;
-    heading.onclick=event=>{
-      event.preventDefault();
-      event.stopPropagation();
-      openTodoCreate(key);
-    };
-
-    const list=document.createElement("div");
-    list.className="week-todo-list";
-    const todos=todosForDate(key);
-
-    if(!todos.length){
-      const empty=document.createElement("button");
-      empty.type="button";
-      empty.className="week-todo-empty";
-      empty.textContent="+ 할 일";
-      empty.onclick=event=>{
-        event.preventDefault();
-        event.stopPropagation();
-        openTodoCreate(key);
-      };
-      list.appendChild(empty);
-    }else{
-      todos.slice(0,4).forEach(todo=>{
-        list.appendChild(renderTodoRow(todo,{compact:true}));
-      });
-
-      if(todos.length>4){
-        const more=document.createElement("button");
-        more.type="button";
-        more.className="week-todo-more";
-        more.textContent=`+${todos.length-4}개`;
-        more.onclick=event=>{
-          event.preventDefault();
-          event.stopPropagation();
-          state.selectedDateKey=key;
-          state.currentView="selected";
-          renderAll();
-        };
-        list.appendChild(more);
-      }
-    }
-
-    cell.append(heading,list);
-    cell.addEventListener("click",event=>{
-      if(event.target===cell||event.target===list){
-        openTodoCreate(key);
-      }
-    });
-
-    strip.appendChild(cell);
-  }
-
-  el.weekView.appendChild(strip);
+  // TO DO는 SELECTED DAY의 전체 보기에서 관리합니다.
 }
+
 function renderWeek(){
   el.weekView.hidden=false;
   el.weekView.innerHTML="";
@@ -3914,8 +3844,14 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   btn.onclick=event=>{
     event.preventDefault();
     event.stopPropagation();
-    if(todo.status==="rolled")return;
-    const next=todo.status==="pending"?"done":todo.status==="done"?"cancelled":"pending";
+
+    const next=
+      todo.status==="pending"||todo.status==="rolled"
+        ?"done"
+        :todo.status==="done"
+          ?"cancelled"
+          :"pending";
+
     setTodoStatus(todo,next);
   };
 
@@ -3973,10 +3909,54 @@ async function addTodo(){
     alert("할 일을 추가하지 못했습니다.");
   }
 }
+
+async function removeTodoRolloverDescendants(todo){
+  if(!state.user||!todo)return;
+
+  const rootId=todo.id;
+  const rootSource=todo.sourceTodoId||todo.id;
+  const rootOccurrence=todo.occurrenceDate||todo.sourceOccurrenceDate||todo.date;
+
+  const toDelete=[];
+  const queue=[rootId];
+
+  while(queue.length){
+    const parentId=queue.shift();
+    state.todos.forEach(item=>{
+      if(
+        item.rolledFrom===parentId
+        ||(
+          item.sourceTodoId===rootSource
+          &&item.sourceOccurrenceDate===rootOccurrence
+          &&item.id!==rootId
+        )
+      ){
+        if(!toDelete.some(existing=>existing.id===item.id)){
+          toDelete.push(item);
+          queue.push(item.id);
+        }
+      }
+    });
+  }
+
+  for(const item of toDelete){
+    await deleteDoc(
+      doc(db,"users",state.user.uid,"todos",item.id)
+    );
+  }
+}
 async function setTodoStatus(todo,status){
   if(!state.user||!todo)return;
 
+  const wasRolled=todo.status==="rolled";
+
   try{
+    // 과거 미완료를 나중에 직접 완료/취소/미완료로 바꾸면
+    // 그 미완료 때문에 생성됐던 이후 이월본은 함께 제거합니다.
+    if(wasRolled&&status!=="rolled"){
+      await removeTodoRolloverDescendants(todo);
+    }
+
     if((todo.repeat||"none")!=="none"){
       const occurrenceDate=todo.occurrenceDate||todo.date;
       const id=todoLogKey(todo.id,occurrenceDate);
@@ -3986,11 +3966,10 @@ async function setTodoStatus(todo,status){
         id,
         todoId:todo.id,
         date:occurrenceDate,
-        status
+        status,
+        rolledTo:""
       };
       renderTodos();
-      if(state.currentView==="week")renderWeekTodoStrip();
-      if(state.dayViewOpen)renderDayViewTodos();
 
       await setDoc(
         doc(db,"users",state.user.uid,"todoLogs",id),
@@ -3998,6 +3977,7 @@ async function setTodoStatus(todo,status){
           todoId:todo.id,
           date:occurrenceDate,
           status,
+          rolledTo:"",
           updatedAt:serverTimestamp()
         },
         {merge:true}
@@ -4005,18 +3985,23 @@ async function setTodoStatus(todo,status){
     }else{
       const index=state.todos.findIndex(item=>item.id===todo.id);
       if(index>=0){
-        state.todos[index]={...state.todos[index],status};
+        state.todos[index]={
+          ...state.todos[index],
+          status,
+          rolledTo:""
+        };
       }
       renderTodos();
-      if(state.currentView==="week")renderWeekTodoStrip();
-      if(state.dayViewOpen)renderDayViewTodos();
 
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",todo.id),
-        {status,updatedAt:serverTimestamp()}
+        {status,rolledTo:"",updatedAt:serverTimestamp()}
       );
     }
 
+    if(el.todoOverviewModal?.classList.contains("show")){
+      renderTodoOverview();
+    }
     if(state.activePage==="stats")renderStats();
   }catch(error){
     console.error(error);
@@ -4135,8 +4120,7 @@ function listenTodos(user){
     snap=>{
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
       renderTodos();
-      if(state.currentView==="week")renderWeekTodoStrip();
-      if(state.dayViewOpen)renderDayViewTodos();
+      if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
       rollPendingTodosToToday();
     },
@@ -4154,8 +4138,7 @@ function listenTodos(user){
         state.todoLogs[d.id]={id:d.id,...d.data()};
       });
       renderTodos();
-      if(state.currentView==="week")renderWeekTodoStrip();
-      if(state.dayViewOpen)renderDayViewTodos();
+      if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
     },
     error=>{
@@ -4165,6 +4148,100 @@ function listenTodos(user){
   );
 }
 
+
+function todoDayCompletion(key){
+  const items=todosForDate(key);
+  const done=items.filter(item=>item.status==="done").length;
+  return {
+    items,
+    done,
+    total:items.length,
+    progress:items.length?Math.round(done/items.length*100):0
+  };
+}
+function showTodoOverview(){
+  state.todoOverviewMonth=startOfMonth(
+    parseDateKey(state.selectedDateKey||dateKey(new Date()))
+  );
+  renderTodoOverview();
+  el.todoOverviewModal.classList.add("show");
+  document.body.style.overflow="hidden";
+  pushModalHistory("todoOverview");
+}
+function closeTodoOverview(){
+  el.todoOverviewModal.classList.remove("show");
+  document.body.style.overflow="";
+  clearModalHistory("todoOverview");
+}
+function closeTodoOverviewFromHistory(){
+  el.todoOverviewModal.classList.remove("show");
+  document.body.style.overflow="";
+  state.modalHistoryType=null;
+}
+function renderTodoOverview(){
+  if(!el.todoOverviewList)return;
+
+  const month=state.todoOverviewMonth;
+  const y=month.getFullYear();
+  const m=month.getMonth();
+  const last=new Date(y,m+1,0);
+
+  el.todoOverviewMonthLabel.textContent=`${y}년 ${m+1}월`;
+  el.todoOverviewList.innerHTML="";
+
+  let shown=0;
+
+  for(let day=1;day<=last.getDate();day++){
+    const date=new Date(y,m,day);
+    const key=dateKey(date);
+    const result=todoDayCompletion(key);
+
+    if(!result.total)continue;
+    shown+=1;
+
+    const group=document.createElement("section");
+    group.className="todo-overview-day";
+
+    const head=document.createElement("div");
+    head.className="todo-overview-day-head";
+    head.innerHTML=`
+      <div>
+        <strong>${m+1}월 ${day}일</strong>
+        <span>${["일","월","화","수","목","금","토"][date.getDay()]}요일</span>
+      </div>
+      <div class="todo-overview-score">
+        <strong>${result.progress}%</strong>
+        <span>${result.done}/${result.total}</span>
+      </div>
+    `;
+
+    const progress=document.createElement("div");
+    progress.className="todo-overview-progress";
+    progress.innerHTML=`<i style="width:${result.progress}%"></i>`;
+
+    const list=document.createElement("div");
+    list.className="todo-overview-day-list";
+    result.items.forEach(todo=>{
+      list.appendChild(renderTodoRow(todo,{compact:true}));
+    });
+
+    const add=document.createElement("button");
+    add.type="button";
+    add.className="todo-overview-add";
+    add.textContent="+ 이 날짜에 할 일 추가";
+    add.onclick=()=>openTodoCreate(key);
+
+    group.append(head,progress,list,add);
+    el.todoOverviewList.appendChild(group);
+  }
+
+  if(!shown){
+    const empty=document.createElement("div");
+    empty.className="todo-overview-empty";
+    empty.textContent="이 달에는 등록된 할 일이 없습니다.";
+    el.todoOverviewList.appendChild(empty);
+  }
+}
 function renderSelected(){
   const key=state.selectedDateKey;
   const d=parseDateKey(key),items=eventsForDate(key),avg=average(items),isToday=key===dateKey(new Date());
@@ -4995,36 +5072,9 @@ function openDayChecklistPopover(event){
   document.body.appendChild(backdrop);
 }
 function renderDayViewTodos(){
-  if(!state.dayViewDate||!el.dayViewScroll)return;
-  el.dayViewScroll.querySelector(".day-view-todo-strip")?.remove();
-
-  const section=document.createElement("section");
-  section.className="day-view-todo-strip";
-
-  const heading=document.createElement("button");
-  heading.type="button";
-  heading.className="day-view-todo-heading";
-  heading.innerHTML=`<strong>TO DO</strong><span>+ 할 일 추가</span>`;
-  heading.onclick=()=>openTodoCreate(state.dayViewDate);
-
-  const list=document.createElement("div");
-  list.className="day-view-todo-list";
-  const todos=todosForDate(state.dayViewDate);
-
-  if(!todos.length){
-    const empty=document.createElement("button");
-    empty.type="button";
-    empty.className="week-todo-empty";
-    empty.textContent="등록된 할 일이 없습니다. 눌러서 추가";
-    empty.onclick=()=>openTodoCreate(state.dayViewDate);
-    list.appendChild(empty);
-  }else{
-    todos.forEach(todo=>list.appendChild(renderTodoRow(todo,{compact:true})));
-  }
-
-  section.append(heading,list);
-  el.dayViewScroll.appendChild(section);
+  // 하루 일정에서는 TO DO를 표시하지 않습니다.
 }
+
 function renderDayView(){
   if(!state.dayViewDate)return;
 
@@ -5192,8 +5242,6 @@ function renderDayView(){
     });
 
   el.dayViewGrid.append(timeColumn,column);
-  renderDayViewTodos();
-
   requestAnimationFrame(()=>{
     if(!el.modal.classList.contains("show")){
       el.dayViewScroll.scrollTop=0;
@@ -6552,6 +6600,31 @@ el.mobileEndTime.addEventListener("change",syncHiddenTimes);
 });
 el.quickAddButton.onclick=submitQuickAdd;
 if(el.todoAddButton)el.todoAddButton.onclick=addTodo;
+if(el.todoOverviewButton)el.todoOverviewButton.onclick=showTodoOverview;
+if(el.todoOverviewPrevMonth)el.todoOverviewPrevMonth.onclick=()=>{
+  state.todoOverviewMonth=new Date(
+    state.todoOverviewMonth.getFullYear(),
+    state.todoOverviewMonth.getMonth()-1,
+    1
+  );
+  renderTodoOverview();
+};
+if(el.todoOverviewThisMonth)el.todoOverviewThisMonth.onclick=()=>{
+  state.todoOverviewMonth=startOfMonth(new Date());
+  renderTodoOverview();
+};
+if(el.todoOverviewNextMonth)el.todoOverviewNextMonth.onclick=()=>{
+  state.todoOverviewMonth=new Date(
+    state.todoOverviewMonth.getFullYear(),
+    state.todoOverviewMonth.getMonth()+1,
+    1
+  );
+  renderTodoOverview();
+};
+$("closeTodoOverviewModal").onclick=closeTodoOverview;
+el.todoOverviewModal.onclick=event=>{
+  if(event.target===el.todoOverviewModal)closeTodoOverview();
+};
 if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>{
   state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
   renderAll();
@@ -6631,6 +6704,11 @@ document.addEventListener("keydown",event=>{
     return;
   }
 
+  if(el.todoOverviewModal.classList.contains("show")){
+    closeTodoOverview();
+    return;
+  }
+
   if(el.todoModal.classList.contains("show")){
     closeTodoModal();
     return;
@@ -6670,6 +6748,10 @@ window.addEventListener("popstate",event=>{
     el.categoryManagerModal.classList.contains("show")
   ){
     closeCategoryManagerFromHistory();
+  }else if(
+    el.todoOverviewModal.classList.contains("show")
+  ){
+    closeTodoOverviewFromHistory();
   }else if(
     el.todoModal.classList.contains("show")
   ){

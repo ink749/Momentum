@@ -5835,7 +5835,7 @@ body.week-four-weeks .week-event-checklist{
 .todo-checkbox{width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--muted);color:var(--green-dark);font-weight:900}
 .todo-text{min-width:0;font-size:12px;font-weight:700}.todo-meta{color:var(--soft);font-size:9px;white-space:nowrap}
 .todo-row.status-done .todo-text,.todo-row.status-cancelled .todo-text,.todo-row.status-rolled .todo-text{text-decoration:line-through;opacity:.5}
-.todo-row.status-rolled .todo-checkbox{pointer-events:none;opacity:.55}
+.todo-row.status-rolled .todo-checkbox{opacity:.72}
 .event-checklist-row.status-failed span,.day-view-checkitem.status-failed span{text-decoration:line-through;opacity:.5}
 @media(max-width:720px){.selected-todo-card{margin-top:8px}.todo-row{grid-template-columns:28px minmax(0,1fr)}.todo-meta{grid-column:2}}
 
@@ -6251,5 +6251,141 @@ body.week-four-weeks .week-event-checklist{
   #habitPage .heatmap-card{
     padding-top:9px;
     padding-bottom:9px;
+  }
+}
+
+
+/* Momentum v7.27 — TO DO is no longer embedded in week/day calendars */
+.week-todo-strip,
+.day-view-todo-strip{
+  display:none!important;
+}
+@media(max-width:720px){
+  #weekView:not([hidden]){
+    display:block!important;
+  }
+  #weekView:not([hidden]) .google-week-shell{
+    height:100%!important;
+    min-height:100%!important;
+  }
+}
+
+/* Selected TO DO overview */
+.todo-overview-button{
+  height:28px;
+  padding:0 9px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fff;
+  color:var(--green-dark);
+  font-size:9px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.todo-overview-modal{
+  width:min(680px,calc(100vw - 24px));
+  max-height:min(88vh,820px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.todo-overview-toolbar{
+  display:grid;
+  grid-template-columns:auto 1fr auto auto;
+  align-items:center;
+  gap:8px;
+  padding:0 2px 12px;
+}
+.todo-overview-toolbar>strong{
+  text-align:center;
+  font-size:16px;
+}
+.todo-overview-list{
+  min-height:0;
+  overflow:auto;
+  display:grid;
+  gap:10px;
+  padding:2px 2px 12px;
+}
+.todo-overview-day{
+  padding:11px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+}
+.todo-overview-day-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.todo-overview-day-head>div:first-child{
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+}
+.todo-overview-day-head span{
+  color:var(--soft);
+  font-size:9px;
+}
+.todo-overview-score{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+}
+.todo-overview-score>strong{
+  font-size:16px;
+}
+.todo-overview-progress{
+  height:5px;
+  margin:8px 0;
+  overflow:hidden;
+  border-radius:999px;
+  background:var(--muted);
+}
+.todo-overview-progress>i{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:var(--green);
+}
+.todo-overview-day-list{
+  display:grid;
+  gap:4px;
+}
+.todo-overview-day-list .todo-row.compact{
+  min-height:31px;
+  padding:3px 5px;
+}
+.todo-overview-add{
+  width:100%;
+  margin-top:6px;
+  min-height:28px;
+  border:0;
+  border-radius:8px;
+  background:var(--muted);
+  color:var(--soft);
+  font-size:9px;
+}
+.todo-overview-empty{
+  padding:28px 10px;
+  color:var(--soft);
+  text-align:center;
+  font-size:11px;
+}
+@media(max-width:720px){
+  .todo-date-nav{
+    gap:4px;
+  }
+  .todo-overview-button{
+    padding:0 7px;
+    font-size:8px;
+  }
+  .todo-overview-modal{
+    width:calc(100vw - 16px);
+    max-height:90vh;
+  }
+  .todo-overview-day{
+    padding:9px;
   }
 }
