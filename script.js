@@ -2351,6 +2351,15 @@ function renderMonth(){
 
   el.statsMonthGrid.innerHTML="";
 
+  if(window.matchMedia("(max-width:720px)").matches){
+    el.statsMonthGrid.style.setProperty("grid-auto-rows","56px","important");
+    el.statsMonthGrid.style.setProperty("min-height","0","important");
+    el.statsMonthGrid.style.setProperty("height","auto","important");
+  }else{
+    el.statsMonthGrid.style.removeProperty("grid-auto-rows");
+    el.statsMonthGrid.style.removeProperty("height");
+  }
+
   for(let i=0;i<42;i++){
     const d=addDays(start,i);
     const key=dateKey(d);
@@ -2359,6 +2368,14 @@ function renderMonth(){
 
     cell.className="day-cell";
     cell.dataset.date=key;
+
+    if(window.matchMedia("(max-width:720px)").matches){
+      cell.style.setProperty("height","56px","important");
+      cell.style.setProperty("min-height","56px","important");
+      cell.style.setProperty("max-height","56px","important");
+      cell.style.setProperty("padding","4px 5px","important");
+      cell.style.setProperty("overflow","hidden","important");
+    }
     if(d.getMonth()!==m)cell.classList.add("outside");
     if(key===today)cell.classList.add("today");
     if(key===state.statsInsightDate)cell.classList.add("selected");
@@ -2565,9 +2582,6 @@ function resetWeekToFit(){
 }
 
 
-function renderWeekTodoStrip(){
-  // TO DO는 SELECTED DAY의 전체 보기에서 관리합니다.
-}
 
 function renderWeek(){
   el.weekView.hidden=false;

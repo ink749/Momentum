@@ -6530,26 +6530,6 @@ body.week-four-weeks .week-event-checklist{
   min-width:58px;
 }
 
-/* 월간 성과 날짜 칸: 기존 약 132px -> 약 66px */
-.stats-month-view .month-grid{
-  min-height:0!important;
-}
-.stats-month-view .day-cell{
-  min-height:66px!important;
-  padding:6px 7px!important;
-}
-.stats-month-view .day-topline{
-  margin-bottom:3px!important;
-}
-.stats-month-view .day-number{
-  width:24px!important;
-  height:24px!important;
-  font-size:10px!important;
-}
-.stats-month-view .month-progress-row{
-  margin-top:3px!important;
-}
-
 @media(max-width:720px){
   .search-modal input[type="search"]::-webkit-search-cancel-button{
     width:28px;
@@ -6560,44 +6540,57 @@ body.week-four-weeks .week-event-checklist{
     padding-left:12px;
     padding-right:12px;
   }
-  .stats-month-view .day-cell{
-    min-height:62px!important;
-    padding:5px!important;
   }
-}
 
 
-/* Momentum v7.33 — mobile MONTH OVERVIEW compact rows */
+
+
+
+/* Momentum v7.34 — hard mobile MONTH OVERVIEW compaction */
 @media(max-width:720px){
-  .stats-month-view .month-grid{
+  #statsMonthGrid.month-grid{
     min-height:0!important;
     height:auto!important;
-    grid-auto-rows:58px!important;
+    grid-auto-rows:56px!important;
     align-content:start!important;
   }
-  .stats-month-view .day-cell{
-    min-height:0!important;
-    height:58px!important;
-    max-height:58px!important;
+
+  #statsMonthGrid.month-grid > .day-cell,
+  #statsMonthGrid.month-grid > .day-cell.selected,
+  #statsMonthGrid.month-grid > .day-cell.with-inline-insight{
+    box-sizing:border-box!important;
+    min-height:56px!important;
+    height:56px!important;
+    max-height:56px!important;
     padding:4px 5px!important;
     overflow:hidden!important;
   }
-  .stats-month-view .day-topline{
-    min-height:20px!important;
+
+  #statsMonthGrid .day-topline{
+    min-height:18px!important;
+    height:18px!important;
     margin:0 0 1px!important;
   }
-  .stats-month-view .day-number{
-    width:22px!important;
-    height:22px!important;
-    font-size:10px!important;
+
+  #statsMonthGrid .day-number{
+    width:20px!important;
+    height:20px!important;
+    font-size:9px!important;
+    line-height:20px!important;
   }
-  .stats-month-view .day-progress{
-    padding:2px 4px!important;
-    font-size:8px!important;
+
+  #statsMonthGrid .month-day-insight{
+    margin:0!important;
+    padding-top:2px!important;
+    min-height:18px!important;
   }
-  .stats-month-view .event-list{
-    gap:1px!important;
-    max-height:20px!important;
-    overflow:hidden!important;
+
+  #statsMonthGrid .month-day-progress-track{
+    height:4px!important;
+  }
+
+  #statsMonthGrid .month-day-insight > strong{
+    font-size:9px!important;
+    line-height:1!important;
   }
 }
