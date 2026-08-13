@@ -3865,7 +3865,7 @@ function renderTodos(){
   const items=todosForDate(key);
 
   if(el.todoSelectedDateLabel){
-    el.todoSelectedDateLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 할 일`;
+    el.todoSelectedDateLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
   }
 
   el.todoList.innerHTML="";
