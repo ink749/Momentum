@@ -127,7 +127,7 @@ const el = {
   statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
   categoryAchievement:$("categoryAchievement"), habitRanking:$("habitRanking"),
   searchModal:$("searchModal"), openSearchButton:$("openSearchButton"),
-  globalSearchInput:$("globalSearchInput"), clearSearchButton:$("clearSearchButton"),
+  globalSearchInput:$("globalSearchInput"),
   searchSummary:$("searchSummary"), searchResults:$("searchResults"),
   quickAddInput:$("quickAddInput"), quickAddButton:$("quickAddButton"), quickAddMessage:$("quickAddMessage"),
   todoInput:$("todoInput"), todoAddButton:$("todoAddButton"), todoList:$("todoList"), todoDayCount:$("todoDayCount"),
@@ -809,7 +809,6 @@ function openSearchModal(){
   el.searchModal.classList.add("show");
   document.body.style.overflow="hidden";
   pushModalHistory("search");
-  requestAnimationFrame(()=>el.globalSearchInput.focus());
 }
 function closeSearchModal(){
   el.searchModal.classList.remove("show");
@@ -833,8 +832,8 @@ function renderSearch(){
   });
 
   if(!normalizedQuery){
-    el.searchSummary.textContent="검색어를 입력하세요.";
-    el.searchResults.innerHTML='<div class="search-empty">일정 제목, 할 일 제목, 습관 이름을 검색할 수 있습니다.</div>';
+    el.searchSummary.textContent="";
+    el.searchResults.innerHTML="";
     return;
   }
 
@@ -877,7 +876,7 @@ function renderSearch(){
   }
 
   results.sort((a,b)=>String(b.sortDate||"").localeCompare(String(a.sortDate||"")));
-  el.searchSummary.textContent=`검색 결과 ${results.length}개`;
+  el.searchSummary.textContent="";
 
   if(!results.length){
     el.searchResults.innerHTML='<div class="search-empty">일치하는 결과가 없습니다.</div>';
@@ -897,11 +896,6 @@ function renderSearch(){
           <span class="search-result-date">${escapeHtml(event.date)} ${escapeHtml(event.time)}</span>
         </div>
         <strong>${highlightSearchText(event.title,queryText)}</strong>
-        <div class="search-result-meta">
-          <span class="search-result-category"><i class="category-dot ${eventCategory(event)}"></i>${categoryLabel(eventCategory(event))}</span>
-          <span>${event.repeat&&event.repeat!=="none"?`반복 · ${repeatLabel(event.repeat)}`:"일회성 일정"}</span>
-          <span>완료율 ${Number(event.progress||0)}%</span>
-        </div>
       `;
 
       button.addEventListener("click",()=>{
@@ -923,10 +917,6 @@ function renderSearch(){
           <span class="search-result-date">${escapeHtml(todo.date)} (${weekday})</span>
         </div>
         <strong>${highlightSearchText(todo.text,queryText)}</strong>
-        <div class="search-result-meta">
-          <span>${todo.repeat&&todo.repeat!=="none"?`반복 · ${repeatLabel(todo.repeat)}`:"일회성 할 일"}</span>
-          <span>${todoStatusIcon(todo.status||"pending")} 상태</span>
-        </div>
       `;
 
       button.addEventListener("click",()=>{
@@ -941,10 +931,9 @@ function renderSearch(){
       button.innerHTML=`
         <div class="search-result-top">
           <span class="search-result-type">습관</span>
-          <span class="search-result-date">시작일 ${escapeHtml(habit.startDate)}</span>
+          <span class="search-result-date">${escapeHtml(habit.startDate)}</span>
         </div>
         <strong>${highlightSearchText(habit.name,queryText)}</strong>
-        <p>오늘 완료율 ${habitProgress(habit.id,dateKey(new Date()))}% · 연속 100% ${habitStreak(habit)}일</p>
       `;
 
       button.addEventListener("click",()=>{
@@ -6679,14 +6668,37 @@ $("closeTodoOverviewModal").onclick=closeTodoOverview;
 el.todoOverviewModal.onclick=event=>{
   if(event.target===el.todoOverviewModal)closeTodoOverview();
 };
-if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>{
-  state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
+function shiftSelectedTodoDate(days){
+  const card=el.todoList?.closest(".selected-todo-card");
+  const beforeTop=card?.getBoundingClientRect().top??null;
+
+  state.selectedDateKey=dateKey(
+    addDays(parseDateKey(state.selectedDateKey),days)
+  );
   renderAll();
-};
-if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>{
-  state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),1));
-  renderAll();
-};
+
+  if(beforeTop===null)return;
+
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      const refreshed=el.todoList?.closest(".selected-todo-card");
+      if(!refreshed)return;
+
+      const afterTop=refreshed.getBoundingClientRect().top;
+      const delta=afterTop-beforeTop;
+
+      if(Math.abs(delta)>1){
+        window.scrollBy({
+          top:delta,
+          left:0,
+          behavior:"instant"
+        });
+      }
+    });
+  });
+}
+if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
+if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
 el.todoForm.onsubmit=submitTodoForm;
 if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("event",!state.eventImportant);
 if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
@@ -6714,13 +6726,6 @@ el.globalSearchInput.addEventListener("input",()=>{
   state.searchQuery=el.globalSearchInput.value;
   renderSearch();
 });
-
-el.clearSearchButton.onclick=()=>{
-  state.searchQuery="";
-  el.globalSearchInput.value="";
-  renderSearch();
-  el.globalSearchInput.focus();
-};
 
 document.querySelectorAll(".search-filter-button").forEach(button=>{
   button.addEventListener("click",()=>{

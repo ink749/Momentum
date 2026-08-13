@@ -6483,3 +6483,85 @@ body.week-four-weeks .week-event-checklist{
     max-height:60vh;
   }
 }
+
+
+/* Momentum v7.32 — search compact */
+.search-modal .search-summary{
+  display:none!important;
+}
+.search-modal .search-input-wrap{
+  display:block!important;
+}
+.search-modal input[type="search"]{
+  width:100%;
+  padding-right:44px!important;
+}
+
+/* Native search X: 모바일에서 누르기 쉽게 확대 */
+.search-modal input[type="search"]::-webkit-search-cancel-button{
+  -webkit-appearance:none;
+  appearance:none;
+  width:26px;
+  height:26px;
+  margin-right:2px;
+  cursor:pointer;
+  background:
+    linear-gradient(45deg,transparent 44%,currentColor 45%,currentColor 55%,transparent 56%),
+    linear-gradient(-45deg,transparent 44%,currentColor 45%,currentColor 55%,transparent 56%);
+  color:var(--soft);
+  opacity:.85;
+}
+.search-modal .search-result-card{
+  padding-top:10px;
+  padding-bottom:10px;
+}
+.search-modal .search-result-card>strong{
+  display:block;
+  margin-top:5px;
+}
+.search-modal .search-result-meta,
+.search-modal .search-result-card>p{
+  display:none!important;
+}
+
+/* 통계 상단 버튼이 모바일에서 두 줄로 깨지지 않게 */
+#statsTodayButton{
+  white-space:nowrap;
+  min-width:58px;
+}
+
+/* 월간 성과 날짜 칸: 기존 약 132px -> 약 66px */
+.stats-month-view .month-grid{
+  min-height:0!important;
+}
+.stats-month-view .day-cell{
+  min-height:66px!important;
+  padding:6px 7px!important;
+}
+.stats-month-view .day-topline{
+  margin-bottom:3px!important;
+}
+.stats-month-view .day-number{
+  width:24px!important;
+  height:24px!important;
+  font-size:10px!important;
+}
+.stats-month-view .month-progress-row{
+  margin-top:3px!important;
+}
+
+@media(max-width:720px){
+  .search-modal input[type="search"]::-webkit-search-cancel-button{
+    width:28px;
+    height:28px;
+  }
+  #statsTodayButton{
+    min-width:54px;
+    padding-left:12px;
+    padding-right:12px;
+  }
+  .stats-month-view .day-cell{
+    min-height:62px!important;
+    padding:5px!important;
+  }
+}
