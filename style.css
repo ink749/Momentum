@@ -6651,3 +6651,49 @@ body.week-four-weeks .week-event-checklist{
     line-height:1!important;
   }
 }
+
+
+/* Momentum v7.37 — restore compact monthly progress bar */
+@media(max-width:720px){
+  #statsMonthGrid .month-day-insight{
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto!important;
+    align-items:center!important;
+    column-gap:3px!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+  }
+
+  #statsMonthGrid .month-day-progress-track{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    height:4px!important;
+    min-height:4px!important;
+    border-radius:999px!important;
+    overflow:hidden!important;
+    background:var(--muted)!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+
+  #statsMonthGrid .month-day-progress-fill{
+    display:block!important;
+    height:100%!important;
+    min-height:4px!important;
+    border-radius:999px!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+
+  #statsMonthGrid .month-day-insight > strong{
+    display:block!important;
+    flex:none!important;
+    font-size:8px!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+}
