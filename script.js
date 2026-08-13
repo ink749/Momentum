@@ -2352,9 +2352,9 @@ function renderMonth(){
   el.statsMonthGrid.innerHTML="";
 
   if(window.matchMedia("(max-width:720px)").matches){
-    el.statsMonthGrid.style.setProperty("grid-auto-rows","56px","important");
     el.statsMonthGrid.style.setProperty("min-height","0","important");
     el.statsMonthGrid.style.setProperty("height","auto","important");
+    el.statsMonthGrid.style.removeProperty("grid-auto-rows");
   }else{
     el.statsMonthGrid.style.removeProperty("grid-auto-rows");
     el.statsMonthGrid.style.removeProperty("height");
@@ -2370,10 +2370,10 @@ function renderMonth(){
     cell.dataset.date=key;
 
     if(window.matchMedia("(max-width:720px)").matches){
-      cell.style.setProperty("height","56px","important");
-      cell.style.setProperty("min-height","56px","important");
-      cell.style.setProperty("max-height","56px","important");
-      cell.style.setProperty("padding","4px 5px","important");
+      cell.style.removeProperty("height");
+      cell.style.removeProperty("min-height");
+      cell.style.removeProperty("max-height");
+      cell.style.setProperty("padding","4px","important");
       cell.style.setProperty("overflow","hidden","important");
     }
     if(d.getMonth()!==m)cell.classList.add("outside");

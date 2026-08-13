@@ -6594,3 +6594,60 @@ body.week-four-weeks .week-event-checklist{
     line-height:1!important;
   }
 }
+
+
+/* Momentum v7.36 — mobile MONTH OVERVIEW square cells */
+@media(max-width:720px){
+  #statsMonthGrid.month-grid{
+    min-height:0!important;
+    height:auto!important;
+    grid-auto-rows:auto!important;
+    align-content:start!important;
+  }
+
+  #statsMonthGrid.month-grid > .day-cell,
+  #statsMonthGrid.month-grid > .day-cell.selected,
+  #statsMonthGrid.month-grid > .day-cell.with-inline-insight{
+    aspect-ratio:1 / 1!important;
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    padding:4px!important;
+    overflow:hidden!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:space-between!important;
+  }
+
+  #statsMonthGrid .day-topline{
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+  }
+
+  #statsMonthGrid .day-number{
+    width:20px!important;
+    height:20px!important;
+    font-size:9px!important;
+    line-height:20px!important;
+  }
+
+  #statsMonthGrid .month-day-insight{
+    margin:0!important;
+    padding:0!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:2px!important;
+  }
+
+  #statsMonthGrid .month-day-progress-track{
+    height:3px!important;
+    margin:0!important;
+  }
+
+  #statsMonthGrid .month-day-insight > strong{
+    font-size:9px!important;
+    line-height:1!important;
+  }
+}
