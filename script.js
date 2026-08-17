@@ -59,6 +59,7 @@ const state = {
   dayViewOpen:false,
   pendingRepeatEdit:null,
   editingOccurrenceContext:null,
+  editingOriginalEventData:null,
   skipEventSnapshotRenders:0,
   skipHabitSnapshotRenders:0,
   preservedViewScroll:null,
@@ -94,9 +95,10 @@ const el = {
   startHour:$("eventStartHour"), startMinute:$("eventStartMinute"),
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
-  repeat:$("eventRepeat"), repeatToggle:$("eventRepeatToggle"),
-  repeatOptions:$("eventRepeatOptions"), repeatSummary:$("eventRepeatSummary"),
-  repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
+  repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
+  editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
+  editRangeFields:$("eventEditRangeFields"), editRangeStart:$("eventEditRangeStart"),
+  editRangeEnd:$("eventEditRangeEnd"),
   memo:$("eventMemo"),
   checklistItems:$("checklistItems"), addChecklistItemButton:$("addChecklistItemButton"),
   modalEyebrow:$("eventModalEyebrow"), modalTitle:$("eventModalTitle"), save:$("saveEventButton"), remove:$("deleteEventButton"),
@@ -351,6 +353,9 @@ function eventDateTime(key,time="00:00"){
   return value;
 }
 function eventDurationMs(event){
+  if(Number(event.durationMsOverride)>0){
+    return Number(event.durationMsOverride);
+  }
   const start=eventDateTime(
     event.date,
     event.time||"09:00"
@@ -403,6 +408,17 @@ function shiftedOccurrenceEndDate(event,occurrenceStartKey){
   const end=new Date(start.getTime()+eventDurationMs(event));
   return dateKey(end);
 }
+function eventWithRangeOverride(event,occurrenceKey){
+  const overrides=Array.isArray(event.rangeOverrides)
+    ?event.rangeOverrides
+    :[];
+
+  return overrides.reduce((result,override)=>{
+    if(!override?.from||occurrenceKey<override.from)return result;
+    if(override.to&&occurrenceKey>override.to)return result;
+    return {...result,...(override.changes||{})};
+  },event);
+}
 function occurrenceInstancesForDate(event,key){
   const repeat=event.repeat||"none";
 
@@ -427,7 +443,14 @@ function occurrenceInstancesForDate(event,key){
     }];
   }
 
-  const duration=eventDurationMs(event);
+  const duration=Math.max(
+    eventDurationMs(event),
+    ...(Array.isArray(event.rangeOverrides)
+      ?event.rangeOverrides.map(override=>
+        eventDurationMs({...event,...(override.changes||{})})
+      )
+      :[])
+  );
   const searchDays=Math.min(
     370,
     Math.max(1,Math.ceil(duration/86400000)+1)
@@ -444,12 +467,15 @@ function occurrenceInstancesForDate(event,key){
 
     if(!isRepeatStartOn(event,candidateKey))continue;
 
+    const effectiveEvent=eventWithRangeOverride(event,candidateKey);
+    const effectiveDuration=eventDurationMs(effectiveEvent);
+
     const occurrenceStart=eventDateTime(
       candidateKey,
-      event.time||"09:00"
+      effectiveEvent.time||"09:00"
     );
     const occurrenceEnd=new Date(
-      occurrenceStart.getTime()+duration
+      occurrenceStart.getTime()+effectiveDuration
     );
 
     if(
@@ -457,7 +483,7 @@ function occurrenceInstancesForDate(event,key){
       &&occurrenceEnd>targetStart
     ){
       instances.push({
-        ...event,
+        ...effectiveEvent,
         occurrenceDate:candidateKey,
         occurrenceStartDate:candidateKey,
         occurrenceEndDate:dateKey(occurrenceEnd),
@@ -4786,6 +4812,7 @@ function bindChecklistTaps(container,event,selector){
 
 function resetForm(){
   state.editingOccurrenceContext=null;
+  state.editingOriginalEventData=null;
   el.form.reset();
   el.eventId.value="";
   el.eventOccurrenceDate.value="";
@@ -4795,7 +4822,8 @@ function resetForm(){
   el.category.value=state.categories[0]?.id||"other";
   el.repeat.value="none";
   el.repeatEndDate.value="";
-  updateRepeatControls(false);
+  el.repeatEndWrap.hidden=true;
+  el.editScopeSection.hidden=true;
   el.memo.value="";
   setImportance("event",false);
   state.editingChecklist=[];
@@ -4857,13 +4885,22 @@ function openEdit(event){
   );
   el.repeat.value=event.repeat||"none";
   el.repeatEndDate.value=event.repeatEndDate||"";
-  updateRepeatControls((event.repeat||"none")!=="none");
+  el.repeatEndWrap.hidden=(event.repeat||"none")==="none";
   el.memo.value=event.memo||"";
   setImportance("event",Boolean(event.important));
   state.editingChecklist=
     checklistForOccurrence(event)
       .map(item=>({...item}));
   renderChecklistEditor();
+
+  state.editingOriginalEventData=currentEventFormData();
+  if(recurring){
+    el.editScopeSection.hidden=false;
+    el.editScope.value="range";
+    el.editRangeStart.value=occurrenceStart;
+    el.editRangeEnd.value=occurrenceStart;
+    updateEditScopeControls();
+  }
 
   el.modalEyebrow.textContent="EDIT EVENT";
   el.modalTitle.textContent=recurring
@@ -5631,7 +5668,10 @@ function setupWheelTimePicker(){
 }
 
 function setupMondayFirstDatePicker(){
-  const inputs=[el.date,el.endDate,el.repeatEndDate,el.todoDate].filter(Boolean);
+  const inputs=[
+    el.date,el.endDate,el.repeatEndDate,el.todoDate,
+    el.editRangeStart,el.editRangeEnd
+  ].filter(Boolean);
   let activeInput=null;
   let viewMonth=startOfMonth(new Date());
 
@@ -5651,6 +5691,7 @@ function setupMondayFirstDatePicker(){
       </div>
       <div class="monday-date-grid"></div>
       <footer>
+        <button type="button" data-picker-clear>선택 해제</button>
         <button type="button" data-picker-today>오늘</button>
         <button type="button" data-picker-close>닫기</button>
       </footer>
@@ -5660,6 +5701,7 @@ function setupMondayFirstDatePicker(){
 
   const title=backdrop.querySelector("[data-picker-title]");
   const grid=backdrop.querySelector(".monday-date-grid");
+  const clearButton=backdrop.querySelector("[data-picker-clear]");
 
   const render=()=>{
     title.textContent=
@@ -5704,6 +5746,7 @@ function setupMondayFirstDatePicker(){
       input.value?parseDateKey(input.value):new Date()
     );
     backdrop.hidden=false;
+    clearButton.hidden=input!==el.repeatEndDate;
     render();
   };
   const close=()=>{
@@ -5735,6 +5778,12 @@ function setupMondayFirstDatePicker(){
     );
     close();
   };
+  clearButton.onclick=()=>{
+    if(!activeInput)return;
+    activeInput.value="";
+    activeInput.dispatchEvent(new Event("change",{bubbles:true}));
+    close();
+  };
   backdrop.querySelector("[data-picker-close]").onclick=close;
   backdrop.addEventListener("click",event=>{
     if(event.target===backdrop)close();
@@ -5760,19 +5809,37 @@ function setupMondayFirstDatePicker(){
   });
 }
 
-function updateRepeatControls(forceOpen){
-  const repeat=el.repeat.value||"none";
-  const enabled=repeat!=="none";
-  const open=typeof forceOpen==="boolean"
-    ?forceOpen
-    :el.repeatToggle.getAttribute("aria-expanded")==="true";
-
-  el.repeatToggle.setAttribute("aria-expanded",String(open));
-  el.repeatOptions.hidden=!open;
-  el.repeatEndWrap.hidden=!enabled;
-  el.repeatSummary.textContent=enabled
-    ?`${repeatLabel(repeat)}${el.repeatEndDate.value?` · ${el.repeatEndDate.value}까지`:" · 계속"}`
-    :"반복 안 함";
+function updateRepeatControls(){
+  el.repeatEndWrap.hidden=(el.repeat.value||"none")==="none";
+}
+function updateEditScopeControls(){
+  if(!el.editScope)return;
+  const scope=el.editScope.value;
+  el.editRangeFields.hidden=scope!=="range";
+}
+function currentEventFormData(){
+  return {
+    title:el.title.value.trim(),
+    category:el.category.value,
+    date:el.date.value,
+    endDate:el.endDate.value||el.date.value,
+    time:el.time.value,
+    endTime:el.endTime.value,
+    repeat:el.repeat.value||"none",
+    repeatEndDate:el.repeat.value==="none"?"":el.repeatEndDate.value,
+    memo:el.memo.value.trim(),
+    checklist:normalizeChecklist(state.editingChecklist),
+    important:Boolean(state.eventImportant)
+  };
+}
+function changedEventFields(current,original){
+  const changes={};
+  Object.keys(current).forEach(key=>{
+    if(JSON.stringify(current[key])!==JSON.stringify(original?.[key])){
+      changes[key]=current[key];
+    }
+  });
+  return changes;
 }
 
 function pushModalHistory(type){
@@ -6110,6 +6177,86 @@ async function applyPendingRepeatEdit(scope){
   }
 }
 
+async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef}){
+  const scope=el.editScope.value||"range";
+  const original=state.editingOriginalEventData||{};
+  const changes=changedEventFields(current,original);
+
+  if(scope==="all"){
+    if(!Object.keys(changes).length)return;
+    if(
+      Object.prototype.hasOwnProperty.call(changes,"date")
+      ||Object.prototype.hasOwnProperty.call(changes,"endDate")
+    ){
+      const occurrenceStart=state.editingOccurrenceContext?.occurrenceStart
+        ||occurrenceDate;
+      const dayShift=Math.round(
+        (parseDateKey(current.date)-parseDateKey(occurrenceStart))/86400000
+      );
+      const shiftedSeriesStart=dateKey(
+        addDays(parseDateKey(source.date),dayShift)
+      );
+      const spanDays=Math.max(0,Math.round(
+        (parseDateKey(current.endDate)-parseDateKey(current.date))/86400000
+      ));
+      changes.date=shiftedSeriesStart;
+      changes.endDate=dateKey(addDays(parseDateKey(shiftedSeriesStart),spanDays));
+    }
+    await updateDoc(doc(eventsRef,source.id),{
+      ...changes,
+      updatedAt:serverTimestamp()
+    });
+    return;
+  }
+
+  let from=occurrenceDate;
+  let to=occurrenceDate;
+  if(scope==="range"){
+    from=el.editRangeStart.value;
+    to=el.editRangeEnd.value;
+    if(!from||!to||to<from){
+      throw new Error("수정 기간을 올바르게 선택하세요.");
+    }
+  }else if(scope==="future"){
+    to="";
+  }
+
+  // 기간별 수정은 반복 규칙 자체를 자르지 않고, 실제로 바뀐 내용만
+  // 해당 발생일에 덮어씁니다. 날짜 길이 변경은 상대 duration으로 저장합니다.
+  const rangeChanges={...changes};
+  const dateTimeChanged=["date","endDate","time","endTime"]
+    .some(key=>Object.prototype.hasOwnProperty.call(rangeChanges,key));
+  if(dateTimeChanged){
+    rangeChanges.durationMsOverride=Math.max(
+      30*60000,
+      eventDateTime(current.endDate,current.endTime)
+        -eventDateTime(current.date,current.time)
+    );
+  }
+  delete rangeChanges.date;
+  delete rangeChanges.endDate;
+  delete rangeChanges.repeat;
+  delete rangeChanges.repeatEndDate;
+
+  if(!Object.keys(rangeChanges).length)return;
+
+  const rangeOverrides=[
+    ...(Array.isArray(source.rangeOverrides)?source.rangeOverrides:[]),
+    {
+      id:crypto.randomUUID(),
+      from,
+      to,
+      changes:rangeChanges,
+      createdAt:Date.now()
+    }
+  ];
+
+  await updateDoc(doc(eventsRef,source.id),{
+    rangeOverrides,
+    updatedAt:serverTimestamp()
+  });
+}
+
 async function submit(event){
   event.preventDefault();
   if(!state.user)return;
@@ -6171,14 +6318,13 @@ async function submit(event){
       }
 
       if(sourceIsRecurring){
-        state.pendingRepeatEdit={
-          eventId,
+        await saveRecurringEventEdit({
+          source,
+          current:currentEventFormData(),
           occurrenceDate,
-          baseData,
-          selectedProgress:state.selectedProgress,
-          occurrenceContext:state.editingOccurrenceContext
-        };
-        showRepeatEditDialog();
+          eventsRef
+        });
+        await finishEventSave(occurrenceDate);
         return;
       }
 
@@ -6255,7 +6401,7 @@ async function submit(event){
       state.skipEventSnapshotRenders-1
     );
     console.error(error);
-    el.formError.textContent="저장하지 못했습니다.";
+    el.formError.textContent=error?.message||"저장하지 못했습니다.";
   }
 }
 
@@ -6687,12 +6833,13 @@ el.endDate.addEventListener("change",()=>{
     el.endDate.value=el.date.value;
   }
 });
-el.repeatToggle.addEventListener("click",()=>{
-  const open=el.repeatToggle.getAttribute("aria-expanded")!=="true";
-  updateRepeatControls(open);
+el.repeat.addEventListener("change",updateRepeatControls);
+el.editScope.addEventListener("change",updateEditScopeControls);
+el.editRangeStart.addEventListener("change",()=>{
+  if(!el.editRangeEnd.value||el.editRangeEnd.value<el.editRangeStart.value){
+    el.editRangeEnd.value=el.editRangeStart.value;
+  }
 });
-el.repeat.addEventListener("change",()=>updateRepeatControls(true));
-el.repeatEndDate.addEventListener("change",()=>updateRepeatControls(true));
 
 el.mobileStartTime.addEventListener("change",()=>{
   const start=el.mobileStartTime.value;

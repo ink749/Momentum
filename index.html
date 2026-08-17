@@ -438,26 +438,42 @@
         </div>
         <input id="eventTime" type="hidden" />
         <input id="eventEndTime" type="hidden" />
-        <section class="event-repeat-section">
-          <button id="eventRepeatToggle" class="event-repeat-toggle" type="button" aria-expanded="false">
-            <span class="repeat-symbol" aria-hidden="true">↻</span>
-            <span><strong>반복</strong><small id="eventRepeatSummary">반복 안 함</small></span>
-            <span class="repeat-chevron" aria-hidden="true">⌄</span>
-          </button>
-          <div id="eventRepeatOptions" class="event-repeat-options" hidden>
-            <label>반복 주기
-              <select id="eventRepeat">
-                <option value="none">안 함</option>
-                <option value="daily">매일</option>
-                <option value="weekdays">평일만</option>
-                <option value="weekends">주말만</option>
-                <option value="weekly">매주</option>
-                <option value="monthly">매월</option>
-              </select>
+        <div class="event-repeat-row">
+          <label>반복
+            <select id="eventRepeat">
+              <option value="none">안 함</option>
+              <option value="daily">매일</option>
+              <option value="weekdays">평일만</option>
+              <option value="weekends">주말만</option>
+              <option value="weekly">매주</option>
+              <option value="monthly">매월</option>
+            </select>
+          </label>
+          <label id="eventRepeatEndWrap">반복 종료
+            <input id="eventRepeatEndDate" type="date" />
+            <small class="field-help">비워두면 계속 반복</small>
+          </label>
+        </div>
+
+        <section id="eventEditScopeSection" class="event-edit-scope" hidden>
+          <div class="event-edit-scope-heading">
+            <strong>수정할 반복 일정 범위</strong>
+            <small>변경한 내용만 선택한 범위에 적용됩니다.</small>
+          </div>
+          <label>적용 범위
+            <select id="eventEditScope">
+              <option value="range">기간 지정</option>
+              <option value="single">선택한 날짜만</option>
+              <option value="future">선택한 날짜 이후</option>
+              <option value="all">전체 반복 일정</option>
+            </select>
+          </label>
+          <div id="eventEditRangeFields" class="event-edit-range-fields">
+            <label>시작일
+              <input id="eventEditRangeStart" type="date" />
             </label>
-            <label id="eventRepeatEndWrap">반복 종료일
-              <input id="eventRepeatEndDate" type="date" />
-              <small class="field-help">비워두면 계속 반복됩니다.</small>
+            <label>종료일
+              <input id="eventEditRangeEnd" type="date" />
             </label>
           </div>
         </section>

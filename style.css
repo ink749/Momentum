@@ -6811,3 +6811,108 @@ body.week-four-weeks .week-event-checklist{
   .event-repeat-options label+label{padding-top:0}
   .week-zoom-controls{flex-shrink:0}
 }
+
+/* Momentum v7.40 — 밝은 테마 / 범위 수정 / 모바일 정렬 */
+:root{
+  --bg:#f7faf8;
+  --surface:#ffffff;
+  --muted:#f3f7f5;
+  --line:#e2ebe6;
+  --text:#20332b;
+  --soft:#718078;
+  --green:#239665;
+  --green-dark:#17734d;
+  --green-soft:#eaf7f0;
+  --shadow:0 12px 34px rgba(45,88,67,.07);
+}
+body{
+  background:
+    radial-gradient(circle at 8% 0%,rgba(114,206,159,.14),transparent 26%),
+    radial-gradient(circle at 92% 4%,rgba(132,179,255,.10),transparent 22%),
+    var(--bg);
+}
+.sidebar{background:rgba(255,255,255,.96)}
+.calendar-card,.summary-card,.stats-card,.habit-card,.heatmap-card{
+  border-color:rgba(220,232,225,.9)!important;
+  background:rgba(255,255,255,.98)!important;
+  box-shadow:var(--shadow)!important;
+}
+.calendar-card{box-shadow:0 18px 48px rgba(45,88,67,.075)!important}
+.calendar-toolbar{background:rgba(255,255,255,.94)}
+.round-button,.today-chip,.view-switch{background:#f5f9f7}
+.primary-button,.quick-register-button,.todo-add-button,.week-add-event-button{
+  background:linear-gradient(135deg,#2ca873,#1c8258)!important;
+  box-shadow:0 7px 18px rgba(35,150,101,.18);
+}
+.calendar-controls{
+  flex:1 1 auto;
+  justify-content:flex-end;
+}
+.calendar-controls .view-switch{
+  margin-left:auto;
+  order:99;
+}
+.event-repeat-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:11px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:#fbfdfc;
+}
+.event-repeat-row label{min-width:0}
+.event-edit-scope{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:11px;
+  padding:14px;
+  border:1px solid #cfe8da;
+  border-radius:16px;
+  background:linear-gradient(145deg,#f4fbf7,#fbfefd);
+}
+.event-edit-scope-heading strong,.event-edit-scope-heading small{display:block}
+.event-edit-scope-heading strong{font-size:13px;color:var(--text)}
+.event-edit-scope-heading small{margin-top:4px;color:var(--soft);font-size:10px}
+.event-edit-range-fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.event-edit-range-fields[hidden]{display:none!important}
+.todo-row{
+  grid-template-columns:28px minmax(0,1fr) 20px!important;
+}
+.todo-name-button{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:left;
+}
+.todo-meta{
+  grid-column:3!important;
+  grid-row:1!important;
+  justify-self:center;
+  align-self:center;
+  color:var(--green)!important;
+  font-size:13px!important;
+  line-height:1;
+}
+.todo-row:has(.todo-meta:empty){grid-template-columns:28px minmax(0,1fr)!important}
+
+@media(max-width:900px){
+  .calendar-toolbar{align-items:stretch;flex-direction:column;gap:10px}
+  .calendar-controls{width:100%;justify-content:flex-end}
+  .calendar-controls .view-switch{margin-left:auto}
+}
+@media(max-width:720px){
+  .event-repeat-row,.event-edit-range-fields{grid-template-columns:1fr 1fr}
+  .calendar-controls{display:flex!important;flex-wrap:wrap;align-items:center}
+  .calendar-controls .view-switch{margin-left:auto;order:99}
+  .todo-row{
+    grid-template-columns:28px minmax(0,1fr) 18px!important;
+    min-height:32px!important;
+  }
+  .todo-meta{grid-column:3!important;grid-row:1!important}
+}
