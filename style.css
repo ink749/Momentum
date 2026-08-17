@@ -6752,3 +6752,62 @@ body.week-four-weeks .week-event-checklist{
     line-height:1!important;
   }
 }
+
+/* Momentum v7.39 — 일정 입력, 반복, 범위 보기 정리 */
+.event-repeat-section{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:linear-gradient(180deg,#fff,#f8fbf9);
+}
+.event-repeat-toggle{
+  width:100%;
+  display:grid;
+  grid-template-columns:36px 1fr auto;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+}
+.repeat-symbol{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:var(--green-soft);
+  color:var(--green-dark);
+  font-size:20px;
+  font-weight:900;
+}
+.event-repeat-toggle strong,.event-repeat-toggle small{display:block}
+.event-repeat-toggle strong{font-size:12px}
+.event-repeat-toggle small{margin-top:2px;color:var(--soft);font-size:10px}
+.repeat-chevron{color:var(--soft);font-size:18px;transition:transform .18s ease}
+.event-repeat-toggle[aria-expanded="true"] .repeat-chevron{transform:rotate(180deg)}
+.event-repeat-options{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  padding:0 14px 14px;
+  border-top:1px solid var(--line);
+}
+.event-repeat-options[hidden]{display:none}
+.event-repeat-options label{padding-top:12px}
+.field-help{display:block;margin-top:5px;color:var(--soft);font-size:9px;font-weight:500}
+.week-zoom-controls{
+  border:1px solid var(--line);
+  box-shadow:0 4px 14px rgba(28,64,46,.06);
+}
+.zoom-value{min-width:54px;font-variant-numeric:tabular-nums}
+.choice-dialog-actions{gap:9px}
+.choice-action{min-height:48px}
+
+@media(max-width:720px){
+  .event-repeat-options{grid-template-columns:1fr}
+  .event-repeat-options label+label{padding-top:0}
+  .week-zoom-controls{flex-shrink:0}
+}

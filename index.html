@@ -70,9 +70,9 @@
             </div>
             <div class="calendar-controls">
               <div id="weekZoomControls" class="week-zoom-controls" hidden>
-                <button id="weekZoomOut" class="zoom-button" type="button" aria-label="주간 화면 축소">−</button>
-                <button id="weekZoomValue" class="zoom-value" type="button" title="기본 배율로 되돌리기">100%</button>
-                <button id="weekZoomIn" class="zoom-button" type="button" aria-label="주간 화면 확대">＋</button>
+                <button id="weekZoomOut" class="zoom-button" type="button" aria-label="더 많은 날짜 보기">−</button>
+                <button id="weekZoomValue" class="zoom-value" type="button" title="7일 보기로 되돌리기">7일</button>
+                <button id="weekZoomIn" class="zoom-button" type="button" aria-label="더 적은 날짜 보기">＋</button>
                 
               </div>
               <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
@@ -438,16 +438,29 @@
         </div>
         <input id="eventTime" type="hidden" />
         <input id="eventEndTime" type="hidden" />
-        <label>반복
-          <select id="eventRepeat">
-            <option value="none">안 함</option>
-            <option value="daily">매일</option>
-            <option value="weekdays">평일만</option>
-            <option value="weekends">주말만</option>
-            <option value="weekly">매주</option>
-            <option value="monthly">매월</option>
-          </select>
-        </label>
+        <section class="event-repeat-section">
+          <button id="eventRepeatToggle" class="event-repeat-toggle" type="button" aria-expanded="false">
+            <span class="repeat-symbol" aria-hidden="true">↻</span>
+            <span><strong>반복</strong><small id="eventRepeatSummary">반복 안 함</small></span>
+            <span class="repeat-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="eventRepeatOptions" class="event-repeat-options" hidden>
+            <label>반복 주기
+              <select id="eventRepeat">
+                <option value="none">안 함</option>
+                <option value="daily">매일</option>
+                <option value="weekdays">평일만</option>
+                <option value="weekends">주말만</option>
+                <option value="weekly">매주</option>
+                <option value="monthly">매월</option>
+              </select>
+            </label>
+            <label id="eventRepeatEndWrap">반복 종료일
+              <input id="eventRepeatEndDate" type="date" />
+              <small class="field-help">비워두면 계속 반복됩니다.</small>
+            </label>
+          </div>
+        </section>
         <label>메모
           <textarea id="eventMemo" maxlength="500" rows="1" placeholder="일정에 필요한 내용을 적어두세요."></textarea>
         </label>
@@ -603,6 +616,10 @@
 <div class="choice-dialog-actions">
         <button id="editOnlyThisDateButton" class="secondary-button choice-action" type="button">
           <strong>이 일정만 수정</strong>
+</button>
+
+        <button id="editFromThisDateButton" class="secondary-button choice-action" type="button">
+          <strong>이 날짜부터 수정</strong>
 </button>
 
         <button id="editAllRepeatsButton" class="primary-button choice-action" type="button">

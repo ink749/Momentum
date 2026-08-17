@@ -30,7 +30,7 @@ const state = {
   user:null, events:[], currentView:"selected",
   currentMonth:startOfMonth(new Date()), currentWeek:startOfWeek(new Date()),
   selectedDateKey:dateKey(new Date()), selectedProgress:0, unsubscribe:null,
-  weekZoom:100, weekFit:true,
+  weekZoom:100, weekFit:false, weekVisibleDays:7,
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
@@ -94,13 +94,16 @@ const el = {
   startHour:$("eventStartHour"), startMinute:$("eventStartMinute"),
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
-  repeat:$("eventRepeat"),
+  repeat:$("eventRepeat"), repeatToggle:$("eventRepeatToggle"),
+  repeatOptions:$("eventRepeatOptions"), repeatSummary:$("eventRepeatSummary"),
+  repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
   memo:$("eventMemo"),
   checklistItems:$("checklistItems"), addChecklistItemButton:$("addChecklistItemButton"),
   modalEyebrow:$("eventModalEyebrow"), modalTitle:$("eventModalTitle"), save:$("saveEventButton"), remove:$("deleteEventButton"),
   formError:$("formError"),
   repeatEditDialog:$("repeatEditDialog"),
   editOnlyThisDateButton:$("editOnlyThisDateButton"),
+  editFromThisDateButton:$("editFromThisDateButton"),
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
@@ -364,6 +367,7 @@ function isRepeatStartOn(event,key){
   const start=parseDateKey(event.date);
 
   if(target<start)return false;
+  if(event.repeatEndDate&&target>parseDateKey(event.repeatEndDate))return false;
   if(
     Array.isArray(event.exceptionDates)
     &&event.exceptionDates.includes(key)
@@ -405,6 +409,13 @@ function occurrenceInstancesForDate(event,key){
   if(repeat==="none"){
     const endKey=event.endDate||event.date;
     if(key<event.date||key>endKey)return [];
+    // 자정에 정확히 끝나는 일정은 종료일의 00:00 이후 구간을
+    // 차지하지 않습니다. 0분 구간이 최소 30분 카드로 보이는 것을 방지합니다.
+    if(
+      key===endKey
+      &&endKey!==event.date
+      &&(event.endTime||"")==="00:00"
+    )return [];
 
     return [{
       ...event,
@@ -2254,7 +2265,10 @@ function setupMobileWeekSwipe(){
     tracking=false; const t=e.changedTouches?.[0]; if(!t)return;
     const dx=t.clientX-sx,dy=t.clientY-sy;
     if(Math.abs(dx)<70||Math.abs(dx)<=Math.abs(dy)*1.25)return;
-    state.currentWeek=addDays(state.currentWeek,dx<0?7:-7);
+    state.currentWeek=addDays(
+      state.currentWeek,
+      (dx<0?1:-1)*visibleDaysForZoom()
+    );
     state.weekInitialScrollDone=false; renderPeriodLabel(); renderWeek(); haptic(10);
   },{passive:true,capture:true});
 }
@@ -2483,40 +2497,11 @@ function renderMonthDayInsightPopover(){
     state.statsInsightDate=null;
   };
 }
-function weekZoomMinimum(){
-  return window.matchMedia("(max-width:720px)").matches?30:10;
-}
+const WEEK_VIEW_OPTIONS=[14,10,7,3];
 function visibleDaysForZoom(){
-  if(state.weekFit)return 7;
-
-  const mobile=window.matchMedia("(max-width:720px)").matches;
-  const zoom=state.weekZoom;
-
-  if(mobile){
-    if(zoom>=120)return 5;
-    if(zoom>=110)return 6;
-    if(zoom>=100)return 7;
-    if(zoom>=90)return 8;
-    if(zoom>=80)return 9;
-    if(zoom>=70)return 10;
-    if(zoom>=60)return 11;
-    if(zoom>=50)return 12;
-    if(zoom>=40)return 13;
-    return 14;
-  }
-
-  if(zoom>=120)return 5;
-  if(zoom>=110)return 6;
-  if(zoom>=100)return 7;
-  if(zoom>=90)return 8;
-  if(zoom>=80)return 9;
-  if(zoom>=70)return 10;
-  if(zoom>=60)return 11;
-  if(zoom>=50)return 12;
-  if(zoom>=40)return 13;
-  if(zoom>=30)return 14;
-  if(zoom>=20)return 21;
-  return 28;
+  return WEEK_VIEW_OPTIONS.includes(state.weekVisibleDays)
+    ?state.weekVisibleDays
+    :7;
 }
 function isCompactWeekZoom(){
   return visibleDaysForZoom()>=14;
@@ -2538,7 +2523,7 @@ function applyWeekZoom(){
     String(visibleDays)
   );
 
-  const zoom=state.weekFit?100:state.weekZoom;
+  const zoom=visibleDays<=3?125:visibleDays<=7?100:visibleDays<=10?75:55;
   const rowHeight=state.weekFit
     ?(mobile?36:40)
     :Math.max(mobile?21:20,Math.round((mobile?36:40)*(0.54+0.46*zoom/100)));
@@ -2552,32 +2537,29 @@ function applyWeekZoom(){
     `${rowHeight}px`
   );
 
-  el.weekZoomValue.textContent=state.weekFit
-    ?"기본"
-    :`${state.weekZoom}% · ${visibleDays}일`;
-
-  el.weekZoomOut.disabled=state.weekZoom<=weekZoomMinimum()&&!state.weekFit;
-  el.weekZoomIn.disabled=!state.weekFit&&state.weekZoom>=125;
+  el.weekZoomValue.textContent=`${visibleDays}일`;
+  const index=WEEK_VIEW_OPTIONS.indexOf(visibleDays);
+  el.weekZoomOut.disabled=index===0;
+  el.weekZoomIn.disabled=index===WEEK_VIEW_OPTIONS.length-1;
 }
 function changeWeekZoom(amount){
-  if(state.weekFit){
-    state.weekFit=false;
-    state.weekZoom=100;
-  }
-
-  const minimum=weekZoomMinimum();
-  state.weekZoom=Math.min(
-    125,
-    Math.max(minimum,state.weekZoom+amount)
-  );
+  const index=WEEK_VIEW_OPTIONS.indexOf(visibleDaysForZoom());
+  const direction=amount>0?1:-1;
+  state.weekVisibleDays=WEEK_VIEW_OPTIONS[
+    Math.max(0,Math.min(WEEK_VIEW_OPTIONS.length-1,index+direction))
+  ];
+  state.weekFit=false;
 
   applyWeekZoom();
+  renderPeriodLabel();
   renderWeek();
 }
 function resetWeekToFit(){
-  state.weekFit=true;
+  state.weekFit=false;
+  state.weekVisibleDays=7;
   state.weekZoom=100;
   applyWeekZoom();
+  renderPeriodLabel();
   renderWeek();
 }
 
@@ -2854,7 +2836,10 @@ function setupWeekPagingGesture(scrollElement){
       pageY:window.scrollY
     };
 
-    state.currentWeek=addDays(state.currentWeek,dx<0?7:-7);
+    state.currentWeek=addDays(
+      state.currentWeek,
+      (dx<0?1:-1)*visibleDaysForZoom()
+    );
     state.selectedDateKey=dateKey(state.currentWeek);
     renderAll();
   },{passive:true});
@@ -4809,6 +4794,8 @@ function resetForm(){
   el.endDate.value=dateKey(new Date());
   el.category.value=state.categories[0]?.id||"other";
   el.repeat.value="none";
+  el.repeatEndDate.value="";
+  updateRepeatControls(false);
   el.memo.value="";
   setImportance("event",false);
   state.editingChecklist=[];
@@ -4821,6 +4808,7 @@ function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTim
   // 빈 시간칸을 누른 동일 입력 이벤트가 모달의 시작 시간칸까지
   // 전달되어 시간 선택창이 먼저 뜨는 것을 막습니다.
   state.suppressTimePickerUntil=performance.now()+260;
+  state.suppressDatePickerUntil=performance.now()+260;
   resetForm();
   el.date.value=key;
   el.endDate.value=key;
@@ -4868,6 +4856,8 @@ function openEdit(event){
     event.endTime||defaultEndTime(event.time)
   );
   el.repeat.value=event.repeat||"none";
+  el.repeatEndDate.value=event.repeatEndDate||"";
+  updateRepeatControls((event.repeat||"none")!=="none");
   el.memo.value=event.memo||"";
   setImportance("event",Boolean(event.important));
   state.editingChecklist=
@@ -5641,7 +5631,7 @@ function setupWheelTimePicker(){
 }
 
 function setupMondayFirstDatePicker(){
-  const inputs=[el.date,el.endDate];
+  const inputs=[el.date,el.endDate,el.repeatEndDate,el.todoDate].filter(Boolean);
   let activeInput=null;
   let viewMonth=startOfMonth(new Date());
 
@@ -5753,6 +5743,11 @@ function setupMondayFirstDatePicker(){
   inputs.forEach(input=>{
     input.readOnly=true;
     input.addEventListener("click",event=>{
+      if(performance.now()<(state.suppressDatePickerUntil||0)){
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       event.preventDefault();
       open(input);
     });
@@ -5763,6 +5758,21 @@ function setupMondayFirstDatePicker(){
       }
     });
   });
+}
+
+function updateRepeatControls(forceOpen){
+  const repeat=el.repeat.value||"none";
+  const enabled=repeat!=="none";
+  const open=typeof forceOpen==="boolean"
+    ?forceOpen
+    :el.repeatToggle.getAttribute("aria-expanded")==="true";
+
+  el.repeatToggle.setAttribute("aria-expanded",String(open));
+  el.repeatOptions.hidden=!open;
+  el.repeatEndWrap.hidden=!enabled;
+  el.repeatSummary.textContent=enabled
+    ?`${repeatLabel(repeat)}${el.repeatEndDate.value?` · ${el.repeatEndDate.value}까지`:" · 계속"}`
+    :"반복 안 함";
 }
 
 function pushModalHistory(type){
@@ -6034,6 +6044,41 @@ async function saveSingleRepeatOccurrenceEdit(pending){
   }
 }
 
+async function saveFromRepeatOccurrenceEdit(pending){
+  const {eventId,occurrenceDate,baseData,selectedProgress}=pending;
+  const source=state.events.find(item=>item.id===eventId);
+  if(!source)throw new Error("반복 일정 원본을 찾지 못했습니다.");
+
+  const previousDate=dateKey(addDays(parseDateKey(occurrenceDate),-1));
+  await updateDoc(
+    doc(db,"users",state.user.uid,"events",eventId),
+    {repeatEndDate:previousDate,updatedAt:serverTimestamp()}
+  );
+
+  const newStart=baseData.date||occurrenceDate;
+  const spanDays=Math.max(0,Math.round(
+    (parseDateKey(baseData.endDate)-parseDateKey(baseData.date))/86400000
+  ));
+  const created=await addDoc(
+    collection(db,"users",state.user.uid,"events"),
+    {
+      ...baseData,
+      date:newStart,
+      endDate:dateKey(addDays(parseDateKey(newStart),spanDays)),
+      progress:0,
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  if(selectedProgress>0){
+    await setDoc(
+      doc(db,"users",state.user.uid,"eventLogs",eventLogKey(created.id,newStart)),
+      {eventId:created.id,date:newStart,progress:selectedProgress,updatedAt:serverTimestamp()}
+    );
+  }
+}
+
 async function finishEventSave(occurrenceDate){
   // 일정 수정 날짜와 SELECTED DAY의 선택 날짜를 서로 독립적으로 유지합니다.
   closeRepeatEditDialog();
@@ -6051,6 +6096,8 @@ async function applyPendingRepeatEdit(scope){
   try{
     if(scope==="single"){
       await saveSingleRepeatOccurrenceEdit(pending);
+    }else if(scope==="future"){
+      await saveFromRepeatOccurrenceEdit(pending);
     }else{
       await saveWholeRepeatEdit(pending);
     }
@@ -6076,6 +6123,7 @@ async function submit(event){
   const time=el.time.value;
   const endTime=el.endTime.value;
   const repeat=el.repeat.value;
+  const repeatEndDate=repeat==="none"?"":el.repeatEndDate.value;
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
@@ -6089,6 +6137,10 @@ async function submit(event){
 
   if(endStamp<=startStamp){
     el.formError.textContent="종료 날짜와 시간은 시작보다 늦어야 합니다.";
+    return;
+  }
+  if(repeatEndDate&&repeatEndDate<date){
+    el.formError.textContent="반복 종료일은 시작 날짜보다 빠를 수 없습니다.";
     return;
   }
 
@@ -6107,6 +6159,7 @@ async function submit(event){
         time,
         endTime,
         repeat,
+        repeatEndDate,
         memo,
         checklist,
         important,
@@ -6161,6 +6214,7 @@ async function submit(event){
         time,
         endTime,
         repeat,
+        repeatEndDate,
         memo,
         checklist,
         important,
@@ -6333,7 +6387,10 @@ function shiftCalendarPeriod(direction){
       addDays(parseDateKey(state.selectedDateKey),direction)
     );
   }else{
-    state.currentWeek=addDays(state.currentWeek,7*direction);
+    state.currentWeek=addDays(
+      state.currentWeek,
+      visibleDaysForZoom()*direction
+    );
   }
 
   renderAll();
@@ -6438,7 +6495,7 @@ $("prevPeriod").onclick=()=>{
   if(state.currentView==="selected"){
     state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
   }else{
-    state.currentWeek=addDays(state.currentWeek,-7);
+    state.currentWeek=addDays(state.currentWeek,-visibleDaysForZoom());
   }
   renderAll();
 };
@@ -6446,7 +6503,7 @@ $("nextPeriod").onclick=()=>{
   if(state.currentView==="selected"){
     state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),1));
   }else{
-    state.currentWeek=addDays(state.currentWeek,7);
+    state.currentWeek=addDays(state.currentWeek,visibleDaysForZoom());
   }
   renderAll();
 };
@@ -6464,7 +6521,7 @@ el.selectedBtn.onclick=()=>{
 el.weekBtn.onclick=()=>{
   state.currentView="week";
   state.currentWeek=startOfWeek(parseDateKey(state.selectedDateKey));
-  state.weekFit=true;
+  state.weekFit=false;
   renderAll();
   requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
 };
@@ -6525,6 +6582,7 @@ el.mobileAdd.onclick=()=>{
 $("closeEventModal").onclick=closeModal;$("cancelEvent").onclick=closeModal;el.form.onsubmit=submit;
 el.remove.onclick=removeEvent;
 el.editOnlyThisDateButton.onclick=()=>applyPendingRepeatEdit("single");
+el.editFromThisDateButton.onclick=()=>applyPendingRepeatEdit("future");
 el.editAllRepeatsButton.onclick=()=>applyPendingRepeatEdit("all");
 $("closeRepeatEditDialog").onclick=closeRepeatEditDialog;
 $("cancelRepeatEditButton").onclick=closeRepeatEditDialog;
@@ -6629,6 +6687,12 @@ el.endDate.addEventListener("change",()=>{
     el.endDate.value=el.date.value;
   }
 });
+el.repeatToggle.addEventListener("click",()=>{
+  const open=el.repeatToggle.getAttribute("aria-expanded")!=="true";
+  updateRepeatControls(open);
+});
+el.repeat.addEventListener("change",()=>updateRepeatControls(true));
+el.repeatEndDate.addEventListener("change",()=>updateRepeatControls(true));
 
 el.mobileStartTime.addEventListener("change",()=>{
   const start=el.mobileStartTime.value;
