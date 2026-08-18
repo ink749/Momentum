@@ -86,6 +86,9 @@ const el = {
   selectedInsightEventBar:$("selectedInsightEventBar"),
   selectedInsightHabitBar:$("selectedInsightHabitBar"),
   selectedInsightChecklistBar:$("selectedInsightChecklistBar"),
+  selectedHabitPreview:$("selectedHabitPreview"), selectedHabitMoreButton:$("selectedHabitMoreButton"),
+  selectedCompletionRing:$("selectedCompletionRing"), selectedCompletionValue:$("selectedCompletionValue"),
+  selectedCompletionDetail:$("selectedCompletionDetail"),
   monthCount:$("monthEventCount"), monthAverage:$("monthAverageProgress"), summaryHabitNames:$("summaryHabitNames"),
   modal:$("eventModal"), form:$("eventForm"),
   eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), eventImportantButton:$("eventImportantButton"), category:$("eventCategory"),
@@ -2523,7 +2526,7 @@ function renderMonthDayInsightPopover(){
     state.statsInsightDate=null;
   };
 }
-const WEEK_VIEW_OPTIONS=[14,10,7,3];
+const WEEK_VIEW_OPTIONS=[14,10,7,3,1];
 function visibleDaysForZoom(){
   return WEEK_VIEW_OPTIONS.includes(state.weekVisibleDays)
     ?state.weekVisibleDays
@@ -2640,21 +2643,6 @@ function renderWeek(){
     if(key===dateKey(new Date()))header.classList.add("today");
     header.innerHTML=
       `${["일","월","화","수","목","금","토"][date.getDay()]}<br>${date.getMonth()+1}/${date.getDate()}`;
-    let lastHeaderTap=0;
-    header.addEventListener("dblclick",()=>{
-      openDayView(key);
-    });
-    header.addEventListener("touchend",touchEvent=>{
-      const now=Date.now();
-      if(now-lastHeaderTap<320){
-        touchEvent.preventDefault();
-        openDayView(key);
-        lastHeaderTap=0;
-      }else{
-        lastHeaderTap=now;
-      }
-    },{passive:false});
-
     headerTrack.appendChild(header);
 
     const column=document.createElement("div");
@@ -4427,6 +4415,48 @@ function renderSelected(){
   if(el.selectedInsightEventBar)el.selectedInsightEventBar.style.height=`${avg}%`;
   if(el.selectedInsightHabitBar)el.selectedInsightHabitBar.style.height=`${habitAvg}%`;
   if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${todoRate}%`;
+  renderSelectedHabitPreview(key,insightHabits);
+  if(el.selectedCompletionRing){
+    el.selectedCompletionRing.style.setProperty("--completion",`${combined*3.6}deg`);
+  }
+  if(el.selectedCompletionValue)el.selectedCompletionValue.textContent=`${combined}%`;
+  if(el.selectedCompletionDetail){
+    el.selectedCompletionDetail.textContent=
+      items.length||selectedTodoStats.total||insightHabits.length
+        ?`일정 ${items.length} · 할 일 ${selectedTodoStats.total} · 습관 ${insightHabits.length}`
+        :"오늘의 기록을 시작해보세요.";
+  }
+}
+function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
+  if(!el.selectedHabitPreview)return;
+  el.selectedHabitPreview.innerHTML="";
+
+  if(!habits.length){
+    el.selectedHabitPreview.innerHTML='<div class="selected-preview-empty">등록된 습관이 없습니다.</div>';
+    return;
+  }
+
+  habits.slice(0,4).forEach((habit,index)=>{
+    const progress=habitProgress(habit.id,key);
+    const row=document.createElement("button");
+    row.type="button";
+    row.className="selected-habit-row";
+    row.innerHTML=`
+      <span class="selected-habit-icon tone-${index%3}">${["●","◆","✦"][index%3]}</span>
+      <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${repeatLabel(habit.repeat||"daily")||"매일"}</small></span>
+      <span class="selected-habit-progress">${progress}%</span>
+    `;
+    row.onclick=()=>{
+      setHabitProgress(
+        habit.id,
+        key,
+        nextHabitProgressValue(progress),
+        {optimistic:true}
+      );
+      requestAnimationFrame(renderAll);
+    };
+    el.selectedHabitPreview.appendChild(row);
+  });
 }
 function renderSummary(){
   const items=monthOccurrences();
@@ -6671,6 +6701,7 @@ el.weekBtn.onclick=()=>{
   renderAll();
   requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
 };
+el.selectedHabitMoreButton.onclick=()=>navigateToPage("habit");
 el.weekZoomOut.onclick=()=>changeWeekZoom(-10);
 el.weekZoomIn.onclick=()=>changeWeekZoom(10);
 el.weekZoomValue.onclick=resetWeekToFit;

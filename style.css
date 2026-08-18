@@ -6916,3 +6916,267 @@ body{
   }
   .todo-meta{grid-column:3!important;grid-row:1!important}
 }
+
+/* Momentum v7.41 — approved TODAY concept */
+#calendarPage .topbar{
+  align-items:center;
+  margin-bottom:18px;
+}
+#calendarPage .topbar h1{
+  color:#123d2d;
+  letter-spacing:-.045em;
+}
+#selectedView{
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:18px!important;
+  padding:18px!important;
+  background:#f8fbf9;
+}
+#selectedView>.summary-card:first-child,
+#selectedView>.selected-todo-card,
+#selectedView>.selected-support-grid{
+  grid-column:1/-1;
+}
+#selectedView .summary-card{
+  border:1px solid #e6ece8!important;
+  border-radius:20px!important;
+  background:#fff!important;
+  box-shadow:0 8px 24px rgba(35,72,55,.055)!important;
+}
+#selectedView>.summary-card:first-child{
+  padding:20px 22px!important;
+}
+#selectedView .selected-day-heading{
+  align-items:center;
+  margin-bottom:10px;
+}
+#selectedView .selected-day-heading-line{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+#selectedView .selected-day-heading-line .eyebrow{
+  margin:0;
+  color:#106a46;
+  font-size:13px;
+  letter-spacing:.09em;
+}
+#selectedView .selected-day-heading-line #selectedDateLabel{
+  color:#7a8780;
+  font-size:12px;
+}
+#selectedView .selected-day-events{
+  margin-top:12px;
+  gap:0;
+}
+#selectedView .selected-event{
+  min-height:62px;
+  padding:11px 8px!important;
+  border:0!important;
+  border-bottom:1px solid #edf1ef!important;
+  border-left:0!important;
+  border-radius:0!important;
+  background:#fff!important;
+  grid-template-columns:82px minmax(0,1fr) auto;
+  align-items:center;
+}
+#selectedView .selected-event:last-child{border-bottom:0!important}
+#selectedView .selected-event-time{
+  padding-right:12px;
+  border-right:1px solid #e3e9e5;
+  color:#293a33!important;
+  font-variant-numeric:tabular-nums;
+}
+#selectedView .selected-event-time span:first-child{
+  color:#172d24!important;
+  font-size:13px!important;
+  font-weight:800;
+}
+#selectedView .selected-event-main>strong{
+  color:#1d2e27;
+  font-size:14px;
+}
+#selectedView .event-category-label{
+  display:inline-flex!important;
+  width:max-content;
+  margin-top:5px;
+  padding:3px 8px;
+  border-radius:7px;
+  background:#eaf4ff;
+  color:#2670a8!important;
+}
+#selectedView .event-category-label .category-dot{display:none}
+#selectedView .quick-add-bar{
+  margin:8px 0 4px!important;
+  border:0!important;
+  background:#f5faf7!important;
+}
+#selectedView .selected-todo-card{
+  margin:0!important;
+  padding:18px 22px!important;
+}
+#selectedView .selected-todo-heading h3{
+  font-size:17px;
+  color:#123d2d;
+}
+#selectedView .todo-row{
+  min-height:48px!important;
+  padding:7px 4px!important;
+  border:0!important;
+  border-bottom:1px solid #edf1ef!important;
+  border-radius:0!important;
+}
+#selectedView .todo-row:last-child{border-bottom:0!important}
+#selectedView .todo-checkbox{
+  width:30px;
+  height:30px;
+  border-radius:8px;
+  background:#fff;
+}
+#selectedView .todo-name-button{font-size:14px}
+#selectedView .selected-support-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(240px,.65fr)!important;
+  gap:18px;
+}
+.selected-habit-preview-card,
+.selected-day-insight-card{
+  padding:20px 22px!important;
+}
+.selected-preview-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.selected-preview-heading h3,.selected-day-insight-card h3{
+  margin:2px 0 0;
+  color:#123d2d;
+  font-size:17px;
+}
+.text-action-button{
+  padding:5px 0;
+  border:0;
+  background:transparent;
+  color:var(--green);
+  font-size:11px;
+  font-weight:800;
+}
+.selected-habit-preview{display:grid;gap:2px}
+.selected-habit-row{
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  min-height:50px;
+  padding:6px 2px;
+  border:0;
+  border-bottom:1px solid #edf1ef;
+  background:#fff;
+  text-align:left;
+}
+.selected-habit-row:last-child{border-bottom:0}
+.selected-habit-icon{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#179660;
+  background:#e5f6ed;
+}
+.selected-habit-icon.tone-1{color:#2c7fc6;background:#e9f3ff}
+.selected-habit-icon.tone-2{color:#7559d6;background:#f0ecff}
+.selected-habit-name strong,.selected-habit-name small{display:block}
+.selected-habit-name strong{font-size:13px;color:#25372f}
+.selected-habit-name small{margin-top:2px;color:#87928c;font-size:9px}
+.selected-habit-progress{color:#15915d;font-size:12px;font-weight:800}
+.selected-preview-empty{padding:24px 4px;color:var(--soft);font-size:11px}
+.selected-day-insight-card{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+.selected-day-insight-card>.eyebrow,
+.selected-day-insight-card>h3{align-self:flex-start;text-align:left}
+.selected-completion-ring{
+  --completion:0deg;
+  position:relative;
+  width:142px;
+  aspect-ratio:1;
+  margin:20px auto 14px;
+  display:grid;
+  place-content:center;
+  border-radius:50%;
+  background:conic-gradient(#18a86b var(--completion),#e4f4eb 0);
+}
+.selected-completion-ring::after{
+  content:"";
+  position:absolute;
+  inset:14px;
+  border-radius:50%;
+  background:#fff;
+}
+.selected-completion-ring strong,.selected-completion-ring span{
+  position:relative;
+  z-index:1;
+  display:block;
+}
+.selected-completion-ring strong{color:#0e9b5d;font-size:32px;line-height:1}
+.selected-completion-ring span{margin-top:5px;color:#38614f;font-size:11px;font-weight:700}
+.selected-completion-detail{margin:0;color:#44705d;font-size:11px;font-weight:700}
+.selected-day-insight-card .selected-insight-chart,
+.selected-day-insight-card #dayProgressCaption{display:none!important}
+
+@media(max-width:720px){
+  #calendarPage .topbar{margin-bottom:10px}
+  #calendarPage .topbar .eyebrow{display:none}
+  #calendarPage .topbar h1{font-size:27px}
+  #selectedView{padding:10px!important;gap:10px!important}
+  #selectedView>.summary-card:first-child,
+  #selectedView .selected-todo-card,
+  .selected-habit-preview-card,
+  .selected-day-insight-card{padding:14px!important}
+  #selectedView .selected-event{
+    grid-template-columns:64px minmax(0,1fr) auto;
+    min-height:54px;
+    padding:8px 2px!important;
+  }
+  #selectedView .selected-event-time{padding-right:7px}
+  #selectedView .selected-support-grid{
+    grid-template-columns:minmax(0,1.1fr) minmax(138px,.9fr)!important;
+    gap:10px;
+  }
+  .selected-habit-row{grid-template-columns:31px minmax(0,1fr) auto;gap:7px}
+  .selected-habit-icon{width:30px;height:30px}
+  .selected-habit-name strong{font-size:11px}
+  .selected-habit-progress{font-size:10px}
+  .selected-completion-ring{width:108px;margin:14px auto 10px}
+  .selected-completion-ring::after{inset:11px}
+  .selected-completion-ring strong{font-size:25px}
+  .selected-completion-detail{font-size:9px}
+  .mobile-bottom-nav{
+    left:0;
+    right:0;
+    bottom:0;
+    grid-template-columns:repeat(3,1fr)!important;
+    gap:0;
+    padding:5px 8px calc(5px + env(safe-area-inset-bottom));
+    border:0;
+    border-top:1px solid #e5ece8;
+    border-radius:0;
+    box-shadow:0 -5px 20px rgba(40,72,57,.07);
+  }
+  .mobile-nav-button{
+    min-height:48px;
+    flex-direction:column;
+    gap:2px;
+    border-radius:12px;
+    font-size:9px;
+  }
+  .mobile-nav-button.active{background:transparent;color:#13955d}
+  .mobile-nav-icon{font-size:20px}
+  .floating-add{bottom:calc(72px + env(safe-area-inset-bottom))}
+}

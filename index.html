@@ -51,8 +51,8 @@
       <section id="calendarPage">
       <header class="topbar">
         <div>
-          <p class="eyebrow">MOMENTUM CALENDAR</p>
-          <h1>캘린더</h1>
+          <p class="eyebrow">YOUR DAILY MOMENTUM</p>
+          <h1>Momentum</h1>
         </div>
         <div class="top-actions">
           <button id="openEventModal" class="primary-button desktop-add" type="button">+ 일정 추가</button>
@@ -78,7 +78,7 @@
               <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
               <button id="weekAddEventButton" class="week-add-event-button" type="button">+ 일정 추가</button>
               <div class="view-switch">
-                <button id="selectedViewButton" class="view-button active" type="button">SELECTED DAY</button>
+                <button id="selectedViewButton" class="view-button active" type="button">TODAY</button>
                 <button id="weekViewButton" class="view-button" type="button">주간</button>
               </div>
             </div>
@@ -89,7 +89,7 @@
           <section class="summary-card">
             <div class="summary-heading selected-day-heading">
               <div class="selected-day-heading-line">
-                <p class="eyebrow">SELECTED DAY</p>
+                <p class="eyebrow">TODAY</p>
                 <span id="selectedDateLabel"></span>
               </div>
               <h3 id="selectedDateTitle" class="visually-hidden">오늘 일정</h3>
@@ -129,8 +129,21 @@
           </section>
 
           <div class="selected-support-grid selected-insight-grid">
+            <section class="summary-card selected-habit-preview-card">
+              <div class="selected-preview-heading">
+                <div><p class="eyebrow">HABITS</p><h3>습관</h3></div>
+                <button id="selectedHabitMoreButton" class="text-action-button" type="button">모든 습관 보기</button>
+              </div>
+              <div id="selectedHabitPreview" class="selected-habit-preview"></div>
+            </section>
             <section class="summary-card selected-day-insight-card">
-              <p class="eyebrow">DAY INSIGHT</p>
+              <p class="eyebrow">TODAY PROGRESS</p>
+              <h3>오늘 완료율</h3>
+              <div class="selected-completion-ring" id="selectedCompletionRing">
+                <strong id="selectedCompletionValue">0%</strong>
+                <span>완료</span>
+              </div>
+              <p id="selectedCompletionDetail" class="selected-completion-detail">오늘의 기록을 시작해보세요.</p>
               <div class="selected-insight-chart">
                 <div class="selected-insight-column">
                   <strong id="dayProgressNumber">0%</strong>
@@ -346,8 +359,8 @@
 
     <nav class="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
       <button id="mobileCalendarNavButton" class="mobile-nav-button active" type="button">
-        <span class="mobile-nav-icon">▦</span>
-        <span>캘린더</span>
+        <span class="mobile-nav-icon">⌂</span>
+        <span>홈</span>
       </button>
       <button id="mobileHabitNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">◫</span>
