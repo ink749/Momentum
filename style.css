@@ -7549,3 +7549,98 @@ html body #selectedView,html body #habitPage,html body #statsPage{
   }
   .date-picker-modal{width:100%!important}
 }
+
+/* Momentum v7.43 — corrected day action and habit completion */
+.selected-habit-row{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:12px!important;
+  padding:7px 2px!important;
+}
+.selected-habit-icon{
+  display:none!important;
+}
+.selected-habit-progress,.habit-progress-cycle{
+  width:48px!important;
+  height:48px!important;
+  display:grid!important;
+  place-items:center!important;
+  flex:0 0 48px;
+  padding:0!important;
+  border:1px solid #bfe3d0!important;
+  border-radius:14px!important;
+  background:conic-gradient(var(--green) var(--habit-progress),#e8f5ee 0)!important;
+  color:var(--green-dark)!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  isolation:isolate;
+}
+.selected-habit-progress{
+  position:relative;
+}
+.selected-habit-progress::before,.habit-progress-cycle::before{
+  content:"";
+  position:absolute;
+  inset:3px!important;
+  z-index:-1;
+  border-radius:10px!important;
+  background:#f8fcfa!important;
+}
+
+/* 주간 화면은 DAY 화면의 한 줄 압축 배치를 사용하지 않습니다. */
+body.week-fullscreen #calendarPage .calendar-toolbar{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:7px!important;
+  padding:8px!important;
+}
+body.week-fullscreen #calendarPage .period-navigation{
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+}
+body.week-fullscreen #calendarPage .period-label-button{
+  flex:1 1 auto!important;
+  width:auto!important;
+  max-width:none!important;
+}
+body.week-fullscreen #calendarPage .calendar-controls{
+  width:100%!important;
+  display:flex!important;
+  justify-content:flex-end!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+}
+body.week-fullscreen #calendarPage .week-zoom-controls{
+  margin-right:auto!important;
+  flex:0 0 auto!important;
+}
+
+@media(max-width:720px){
+  .selected-habit-row{
+    grid-template-columns:minmax(0,1fr) 44px!important;
+    gap:8px!important;
+  }
+  .selected-habit-progress,.habit-progress-cycle{
+    width:44px!important;
+    height:44px!important;
+    flex-basis:44px;
+    border-radius:13px!important;
+    font-size:10px!important;
+  }
+  body.week-fullscreen #calendarPage .calendar-toolbar{
+    padding:6px!important;
+  }
+  body.week-fullscreen #calendarPage .period-navigation{
+    min-width:0!important;
+  }
+  body.week-fullscreen #calendarPage .period-navigation .round-button{
+    flex:0 0 30px!important;
+  }
+  body.week-fullscreen #calendarPage .period-label-button{
+    min-width:0!important;
+    font-size:12px!important;
+  }
+}

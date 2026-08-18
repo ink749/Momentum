@@ -2005,8 +2005,10 @@ function renderAll(){
   el.weekBtn.classList.toggle("active",state.currentView==="week");
   el.selectedBtn.textContent=
     state.currentView==="selected"&&state.selectedDateKey===dateKey(new Date())
-      ?"TODAY"
-      :"DAY";
+      ?"DAY"
+      :state.currentView==="selected"
+        ?"TODAY"
+        :"DAY";
 
   renderPage();
   applyWeekZoom();
@@ -4378,6 +4380,12 @@ function renderTodoOverview(){
 function renderSelected(){
   const key=state.selectedDateKey;
   const d=parseDateKey(key),items=eventsForDate(key),avg=average(items),isToday=key===dateKey(new Date());
+  const selectedViewEyebrow=$("selectedViewEyebrow");
+  const selectedProgressEyebrow=$("selectedProgressEyebrow");
+  const selectedProgressTitle=$("selectedProgressTitle");
+  if(selectedViewEyebrow)selectedViewEyebrow.textContent=isToday?"TODAY":"DAY";
+  if(selectedProgressEyebrow)selectedProgressEyebrow.textContent=isToday?"TODAY PROGRESS":"DAY PROGRESS";
+  if(selectedProgressTitle)selectedProgressTitle.textContent=isToday?"오늘 완료율":"이날 완료율";
   el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
   if(!items.length){el.selectedEvents.innerHTML='<button class="empty-message secondary-button" id="emptyAdd" type="button">등록된 일정이 없습니다.<br>일정 추가하기</button>';$("emptyAdd").onclick=()=>openCreate(state.selectedDateKey)}
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
@@ -4486,7 +4494,7 @@ function renderSelected(){
     el.selectedCompletionDetail.textContent=
       items.length||selectedTodoStats.total||insightHabits.length
         ?`일정 ${items.length} · 할 일 ${selectedTodoStats.total} · 습관 ${insightHabits.length}`
-        :"오늘의 기록을 시작해보세요.";
+        :(isToday?"오늘의 기록을 시작해보세요.":"이날의 기록을 시작해보세요.");
   }
 }
 function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
@@ -4498,21 +4506,20 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
     return;
   }
 
-  habits.slice(0,4).forEach((habit,index)=>{
+  habits.slice(0,4).forEach(habit=>{
     const progress=habitProgress(habit.id,key);
     const row=document.createElement("button");
     row.type="button";
     row.className="selected-habit-row";
     row.innerHTML=`
-      <span class="selected-habit-icon tone-${index%3}">${["●","◆","✦"][index%3]}</span>
       <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${repeatLabel(habit.repeat||"daily")||"매일"}</small></span>
-      <span class="selected-habit-progress">${progress}%</span>
+      <span class="selected-habit-progress" style="--habit-progress:${progress*3.6}deg">${progress}%</span>
     `;
     row.onclick=()=>{
       setHabitProgress(
         habit.id,
         key,
-        nextHabitProgressValue(progress),
+        nextHabitProgressValue(habitProgress(habit.id,key)),
         {optimistic:true}
       );
       requestAnimationFrame(renderAll);
