@@ -125,6 +125,12 @@ const el = {
   editRangeFields:$("eventEditRangeFields"), editRangeStart:$("eventEditRangeStart"),
   editRangeEnd:$("eventEditRangeEnd"),
   memo:$("eventMemo"),
+  repeatChips:$("eventRepeatChips"), repeatNoEndButton:$("repeatNoEndButton"), repeatSetEndButton:$("repeatSetEndButton"),
+  editScopeSummaryButton:$("eventEditScopeSummaryButton"), editScopeSummary:$("eventEditScopeSummary"),
+  editScopeSheet:$("eventEditScopeSheet"), closeEventScopeSheet:$("closeEventScopeSheet"), applyEventScopeButton:$("applyEventScopeButton"),
+  memoDetails:$("eventMemoDetails"), memoSummary:$("eventMemoSummary"),
+  checklistDetails:$("eventChecklistDetails"), checklistSummaryText:$("eventChecklistSummary"),
+  progressDetails:$("eventProgressDetails"), progressSummary:$("eventProgressSummary"),
   checklistItems:$("checklistItems"), addChecklistItemButton:$("addChecklistItemButton"),
   modalEyebrow:$("eventModalEyebrow"), modalTitle:$("eventModalTitle"), save:$("saveEventButton"), remove:$("deleteEventButton"),
   formError:$("formError"),
@@ -4680,7 +4686,7 @@ function renderSummary(){
   });
 }
 
-function setProgress(v){state.selectedProgress=Number(v);document.querySelectorAll("#progressOptions button").forEach(b=>{const p=Number(b.dataset.value);b.classList.toggle("selected",p===state.selectedProgress);b.style.background=COLORS[p];b.style.color=p<=25?"#557066":"#fff"})}
+function setProgress(v){state.selectedProgress=Number(v);document.querySelectorAll("#progressOptions button").forEach(b=>{const p=Number(b.dataset.value);b.classList.toggle("selected",p===state.selectedProgress);b.style.background=COLORS[p];b.style.color=p<=25?"#557066":"#fff"});if(el.progressSummary)el.progressSummary.textContent=`${state.selectedProgress}%`}
 
 function normalizeChecklist(items){
   if(!Array.isArray(items))return [];
@@ -4844,6 +4850,7 @@ function renderChecklistEditor(){
   });
 
   restoreEventDateTimeValues(preservedDateTime);
+  if(el.checklistSummaryText)el.checklistSummaryText.textContent=`${state.editingChecklist.length}개`;
 }
 function addChecklistItem(){
   state.editingChecklist.push(createChecklistItem());
@@ -5055,11 +5062,16 @@ function resetForm(){
   el.repeatEndWrap.hidden=true;
   el.editScopeSection.hidden=true;
   el.memo.value="";
+  if(el.memoDetails)el.memoDetails.open=false;
+  if(el.checklistDetails)el.checklistDetails.open=false;
+  if(el.progressDetails)el.progressDetails.open=false;
+  if(el.editScopeSheet)el.editScopeSheet.hidden=true;
   setImportance("event",false);
   state.editingChecklist=[];
   el.formError.textContent="";
   setProgress(0);
   renderChecklistEditor();
+  syncCompactEventForm();
 }
 function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTime(time)){
   haptic(12);
@@ -5143,6 +5155,7 @@ function openEdit(event){
   if(modeSwitch)modeSwitch.hidden=true;
 
   setProgress(event.progress);
+  syncCompactEventForm();
   showModal();
 }
 
@@ -6041,11 +6054,30 @@ function setupMondayFirstDatePicker(){
 
 function updateRepeatControls(){
   el.repeatEndWrap.hidden=(el.repeat.value||"none")==="none";
+  syncCompactEventForm();
 }
 function updateEditScopeControls(){
   if(!el.editScope)return;
   const scope=el.editScope.value;
   el.editRangeFields.hidden=scope!=="range";
+  syncCompactEventForm();
+}
+function syncCompactEventForm(){
+  if(el.repeatChips){
+    el.repeatChips.querySelectorAll("[data-repeat]").forEach(button=>{
+      button.classList.toggle("active",button.dataset.repeat===(el.repeat.value||"none"));
+    });
+  }
+  if(el.repeatNoEndButton&&el.repeatSetEndButton){
+    const hasEnd=Boolean(el.repeatEndDate.value);
+    el.repeatNoEndButton.classList.toggle("active",!hasEnd);
+    el.repeatSetEndButton.classList.toggle("active",hasEnd);
+    el.repeatEndDate.classList.toggle("has-value",hasEnd);
+  }
+  const scopeLabels={range:"기간 지정",single:"선택한 날짜만",future:"이 날짜부터",all:"전체 반복 일정"};
+  if(el.editScopeSummary)el.editScopeSummary.textContent=scopeLabels[el.editScope?.value]||"기간 지정";
+  if(el.memoSummary)el.memoSummary.textContent=el.memo.value.trim()?"작성됨":"추가";
+  if(el.checklistSummaryText)el.checklistSummaryText.textContent=`${state.editingChecklist.length}개`;
 }
 function currentEventFormData(){
   return {
@@ -7085,7 +7117,26 @@ document.addEventListener("click",event=>{
   });
 });
 
-el.memo.addEventListener("input",autoResizeMemo);
+el.memo.addEventListener("input",()=>{autoResizeMemo();syncCompactEventForm()});
+
+el.repeatChips?.addEventListener("click",event=>{
+  const button=event.target.closest("[data-repeat]");
+  if(!button)return;
+  el.repeat.value=button.dataset.repeat;
+  el.repeat.dispatchEvent(new Event("change",{bubbles:true}));
+});
+el.repeatNoEndButton?.addEventListener("click",()=>{
+  el.repeatEndDate.value="";
+  el.repeatEndDate.dispatchEvent(new Event("change",{bubbles:true}));
+});
+el.repeatSetEndButton?.addEventListener("click",()=>el.repeatEndDate.click());
+el.repeatEndDate.addEventListener("change",syncCompactEventForm);
+
+function closeEventScopeSheet(){if(el.editScopeSheet)el.editScopeSheet.hidden=true}
+el.editScopeSummaryButton?.addEventListener("click",()=>{el.editScopeSheet.hidden=false});
+el.closeEventScopeSheet?.addEventListener("click",closeEventScopeSheet);
+el.applyEventScopeButton?.addEventListener("click",closeEventScopeSheet);
+el.editScopeSheet?.addEventListener("click",event=>{if(event.target===el.editScopeSheet)closeEventScopeSheet()});
 
 [el.startClock,el.endClock].forEach(control=>{
   control.addEventListener("change",()=>{
@@ -7109,7 +7160,9 @@ el.editRangeStart.addEventListener("change",()=>{
   if(!el.editRangeEnd.value||el.editRangeEnd.value<el.editRangeStart.value){
     el.editRangeEnd.value=el.editRangeStart.value;
   }
+  syncCompactEventForm();
 });
+el.editRangeEnd.addEventListener("change",syncCompactEventForm);
 
 el.mobileStartTime.addEventListener("change",()=>{
   const start=el.mobileStartTime.value;
