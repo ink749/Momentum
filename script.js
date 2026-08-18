@@ -63,6 +63,8 @@ const state = {
   editingOriginalEventData:null,
   skipEventSnapshotRenders:0,
   skipHabitSnapshotRenders:0,
+  skipTodoSnapshotRenders:0,
+  snapshotSkipTimers:{},
   preservedViewScroll:null,
   suppressTimePickerUntil:0,
   ignoreNextPopstate:false,
@@ -71,6 +73,15 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+function skipSnapshotRenders(kind,count=2){
+  const key=`skip${kind}SnapshotRenders`;
+  state[key]=Math.max(Number(state[key]||0),count);
+  clearTimeout(state.snapshotSkipTimers[kind]);
+  state.snapshotSkipTimers[kind]=setTimeout(()=>{
+    state[key]=0;
+    delete state.snapshotSkipTimers[kind];
+  },2500);
+}
 const el = {
   loading:$("loadingScreen"), login:$("loginScreen"), app:$("app"), loginButton:$("googleLoginButton"), loginError:$("loginError"),
   logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
@@ -1180,6 +1191,7 @@ function currentHistoryState(){
 function navigateToPage(page,{push=true}={}){
   if(!["calendar","habit","stats"].includes(page))page="calendar";
 
+  const previousPage=state.activePage;
   state.activePage=page;
   if(page==="stats")state.statsInsightDate=null;
 
@@ -1188,6 +1200,7 @@ function navigateToPage(page,{push=true}={}){
   }
 
   renderPage();
+  if(previousPage!==page)animateVisiblePage();
 }
 function syncHistoryState({replace=false}={}){
   const method=replace?"replaceState":"pushState";
@@ -1253,7 +1266,6 @@ function renderPage(){
 
   if(habitMode)renderHabits();
   if(statsMode)renderStats();
-  animateVisiblePage();
 }
 function renderHabits(){
   renderHabitList();
@@ -1766,7 +1778,7 @@ async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
     updateHabitProgressDom(habitId,key,Number(progress));
   }
 
-  state.skipHabitSnapshotRenders+=2;
+  skipSnapshotRenders("Habit",2);
 
   const ref=doc(
     db,
@@ -2324,7 +2336,7 @@ async function moveEventTo(event,newDate,newTime){
         endTime:movedEndTime
       });
     }else{
-      state.skipEventSnapshotRenders+=1;
+      skipSnapshotRenders("Event",2);
 
       await updateDoc(
         doc(db,"users",state.user.uid,"events",event.id),
@@ -3642,7 +3654,7 @@ async function setEventProgressFromCard(event,value,button=null){
 
   try{
     if((event.repeat||"none")==="none"){
-      state.skipEventSnapshotRenders+=1;
+      skipSnapshotRenders("Event",2);
 
       const localIndex=state.events.findIndex(item=>item.id===event.id);
       if(localIndex>=0){
@@ -3663,7 +3675,7 @@ async function setEventProgressFromCard(event,value,button=null){
       const occurrenceDate=event.occurrenceDate||event.date;
       const key=eventLogKey(event.id,occurrenceDate);
 
-      state.skipEventSnapshotRenders+=1;
+      skipSnapshotRenders("Event",2);
       state.eventLogs[key]={
         ...(state.eventLogs[key]||{}),
         id:key,
@@ -4004,6 +4016,16 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   row.append(btn,text,meta);
   return row;
 }
+function updateTodoStatusDom(todo,status){
+  document.querySelectorAll(
+    `.todo-row[data-todo-id="${CSS.escape(todo.id)}"]`
+  ).forEach(row=>{
+    row.classList.remove("status-pending","status-done","status-cancelled","status-rolled");
+    row.classList.add(`status-${status}`);
+    const button=row.querySelector(".todo-checkbox");
+    if(button)button.textContent=todoStatusIcon(status);
+  });
+}
 function renderTodos(){
   if(!el.todoList)return;
   const key=state.selectedDateKey;
@@ -4096,6 +4118,7 @@ async function setTodoStatus(todo,status){
 
   const wasRolled=todo.status==="rolled";
   const occurrenceDate=todo.occurrenceDate||todo.date;
+  skipSnapshotRenders("Todo",2);
 
   try{
     if((todo.repeat||"none")!=="none"){
@@ -4110,7 +4133,7 @@ async function setTodoStatus(todo,status){
         status,
         rolledTo:""
       };
-      renderTodos();
+      updateTodoStatusDom(todo,status);
       updateSelectedProgressMetrics(occurrenceDate);
       if(el.todoOverviewModal?.classList.contains("show")){
         renderTodoOverview();
@@ -4139,7 +4162,7 @@ async function setTodoStatus(todo,status){
           rolledTo:""
         };
       }
-      renderTodos();
+      updateTodoStatusDom(todo,status);
       updateSelectedProgressMetrics(occurrenceDate);
       if(el.todoOverviewModal?.classList.contains("show")){
         renderTodoOverview();
@@ -4283,6 +4306,12 @@ function listenTodos(user){
     collection(db,"users",user.uid,"todos"),
     snap=>{
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(state.skipTodoSnapshotRenders>0){
+        state.skipTodoSnapshotRenders--;
+        updateSelectedProgressMetrics(state.selectedDateKey);
+        if(state.activePage==="stats")renderStats();
+        return;
+      }
       renderTodos();
       if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
@@ -4301,6 +4330,12 @@ function listenTodos(user){
       snap.docs.forEach(d=>{
         state.todoLogs[d.id]={id:d.id,...d.data()};
       });
+      if(state.skipTodoSnapshotRenders>0){
+        state.skipTodoSnapshotRenders--;
+        updateSelectedProgressMetrics(state.selectedDateKey);
+        if(state.activePage==="stats")renderStats();
+        return;
+      }
       renderTodos();
       if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
@@ -4826,7 +4861,7 @@ async function toggleChecklistItem(event,itemId,nextStatusOverride=null){
         checklistStatuses
       };
 
-      state.skipEventSnapshotRenders+=2;
+      skipSnapshotRenders("Event",2);
 
       await setDoc(
         doc(
@@ -4878,7 +4913,7 @@ async function toggleChecklistItem(event,itemId,nextStatusOverride=null){
       });
 
       source.checklist=checklist;
-      state.skipEventSnapshotRenders+=2;
+      skipSnapshotRenders("Event",2);
 
       const previousChecklist=normalizeChecklist(
         source.checklist
@@ -6466,7 +6501,7 @@ async function submit(event){
 
       // 수정 저장 직후 Firestore snapshot과 현재 저장 흐름이 동시에
       // 전체 화면을 다시 그리지 않도록 snapshot 렌더 1회를 건너뜁니다.
-      state.skipEventSnapshotRenders+=1;
+      skipSnapshotRenders("Event",2);
 
       await updateDoc(doc(eventsRef,eventId),baseData);
 
@@ -7193,6 +7228,7 @@ document.addEventListener("keydown",event=>{
 });
 
 window.addEventListener("popstate",event=>{
+  const previousPage=state.activePage;
   if(state.ignoreNextPopstate){
     state.ignoreNextPopstate=false;
     restoreViewScroll(state.preservedViewScroll);
@@ -7253,6 +7289,7 @@ window.addEventListener("popstate",event=>{
   }
 
   renderAll();
+  if(previousPage!==state.activePage)animateVisiblePage();
 
   if(state.dayViewOpen){
     requestAnimationFrame(renderDayView);
