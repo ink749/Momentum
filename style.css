@@ -149,6 +149,317 @@
   }
 }
 
+/* Momentum v7.42 — DAY/TODAY, compact white system, cyclic progress */
+:root{
+  --bg:#fff;
+  --surface:#fff;
+  --muted:#f6f8f7;
+  --line:#e6ebe8;
+  --shadow:0 7px 22px rgba(30,63,48,.055);
+}
+html,body,.app-shell,.main-area{
+  background:#fff!important;
+}
+body{
+  background-image:none!important;
+}
+.calendar-card,.summary-card,.habit-list-card,.habit-heatmap-card,
+.stats-metric-card,.stats-card{
+  background:#fff!important;
+  border-color:var(--line)!important;
+  box-shadow:var(--shadow)!important;
+}
+.calendar-card{
+  border-radius:20px!important;
+}
+.calendar-toolbar{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center!important;
+  gap:10px!important;
+  padding:10px 12px!important;
+  background:#fff!important;
+}
+.period-navigation{
+  min-width:0;
+  width:auto!important;
+  display:grid!important;
+  grid-template-columns:34px minmax(118px,1fr) 34px;
+  align-items:center;
+  gap:6px!important;
+}
+.period-navigation .round-button{
+  width:34px!important;
+  height:34px!important;
+  background:#fff!important;
+}
+.period-label-button{
+  position:relative;
+  min-width:0;
+  height:36px;
+  padding:0 24px 0 10px;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff;
+  color:var(--text);
+  font-size:15px;
+  font-weight:850;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.period-label-button::after{
+  content:"⌄";
+  position:absolute;
+  right:9px;
+  top:50%;
+  color:var(--soft);
+  font-size:14px;
+  transform:translateY(-58%);
+}
+.calendar-controls{
+  width:auto!important;
+  min-width:0;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  flex-wrap:nowrap!important;
+  gap:7px!important;
+}
+.calendar-controls .view-switch{
+  order:0!important;
+  margin-left:0!important;
+  flex-shrink:0;
+  padding:3px!important;
+  border:1px solid var(--line);
+  background:#f7f9f8!important;
+}
+.calendar-controls .view-button{
+  min-width:64px;
+  min-height:34px;
+  padding:6px 12px!important;
+}
+#selectedView{
+  background:#fff!important;
+}
+#selectedView .selected-event{
+  grid-template-columns:70px 5px minmax(0,1fr) 48px!important;
+  gap:10px!important;
+  min-height:58px!important;
+  padding:8px 3px!important;
+}
+#selectedView .selected-event-time{
+  align-self:center;
+}
+.selected-event-category-mark{
+  width:4px;
+  height:38px;
+  align-self:center;
+  border-radius:999px;
+}
+#selectedView .event-category-label{
+  display:none!important;
+}
+.event-progress-cycle,.habit-progress-cycle{
+  --event-progress:0deg;
+  --habit-progress:0deg;
+  position:relative;
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:conic-gradient(var(--green) var(--event-progress),#e9eeeb 0);
+  color:var(--green-dark)!important;
+  font-size:10px!important;
+  font-weight:900;
+  isolation:isolate;
+}
+.event-progress-cycle::before,.habit-progress-cycle::before{
+  content:"";
+  position:absolute;
+  inset:4px;
+  z-index:-1;
+  border-radius:50%;
+  background:#fff;
+}
+.habit-progress-cycle{
+  --event-progress:var(--habit-progress);
+  width:50px;
+  height:50px;
+}
+.inline-progress-control{
+  display:none!important;
+}
+.habit-item{
+  position:relative;
+  min-height:66px;
+  padding:11px 76px 11px 13px!important;
+  border-color:var(--line)!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.habit-progress-cycle{
+  position:absolute;
+  top:50%;
+  right:13px;
+  transform:translateY(-50%);
+}
+.habit-progress-picker{
+  display:none!important;
+}
+.todo-checkbox,.event-checklist-row i,.checklist-status-button{
+  background:#fff!important;
+}
+.todo-row.status-done .todo-checkbox,
+.event-checklist-row.status-done i,
+.checklist-status-button.status-done{
+  border-color:var(--green)!important;
+  background:var(--green)!important;
+  color:#fff!important;
+}
+.todo-row.status-cancelled .todo-checkbox,
+.event-checklist-row.status-failed i,
+.checklist-status-button.status-failed{
+  border-color:#e34f4f!important;
+  background:#fff1f1!important;
+  color:#d93434!important;
+}
+.google-week-day-header{
+  cursor:default!important;
+  pointer-events:none!important;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* 날짜 선택: 월요일부터 일요일, 연도/월 직접 변경 */
+.date-picker-backdrop.show{
+  display:flex;
+}
+.date-picker-modal{
+  width:min(420px,calc(100vw - 28px));
+  padding:20px;
+  border-radius:22px;
+}
+.date-picker-heading,.date-picker-navigation{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.date-picker-heading h2{
+  margin:2px 0 0;
+}
+.date-picker-navigation{
+  margin:17px 0 12px;
+}
+.date-picker-selects{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+.date-picker-selects select{
+  height:38px;
+  padding:0 28px 0 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  color:var(--text);
+  font-weight:800;
+}
+.date-picker-weekdays,.date-picker-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+}
+.date-picker-weekdays span{
+  padding:8px 0;
+  color:var(--soft);
+  text-align:center;
+  font-size:10px;
+  font-weight:800;
+}
+.date-picker-day{
+  aspect-ratio:1;
+  margin:2px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:#fff;
+  color:var(--text);
+  font-size:11px;
+  font-weight:750;
+}
+.date-picker-day.outside{color:#b8c0bc}
+.date-picker-day.today{box-shadow:inset 0 0 0 1px var(--green);color:var(--green-dark)}
+.date-picker-day.selected{background:var(--green)!important;color:#fff!important}
+
+/* 습관과 통계도 홈과 같은 밝고 간결한 화면 체계 */
+#habitPage,#statsPage,.habit-dashboard,.stats-dashboard{
+  background:#fff!important;
+}
+.habit-list-card,.habit-heatmap-card,.stats-card{
+  border-radius:18px!important;
+}
+.stats-metric-card{
+  border-radius:16px!important;
+  background:#fff!important;
+}
+.stats-content-grid{
+  gap:14px!important;
+}
+
+@media(max-width:720px){
+  .calendar-toolbar{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:6px!important;
+    padding:7px!important;
+  }
+  .period-navigation{
+    grid-template-columns:30px minmax(108px,1fr) 30px;
+    gap:4px!important;
+  }
+  .period-navigation .round-button{
+    width:30px!important;
+    height:30px!important;
+    font-size:20px!important;
+  }
+  .period-label-button{
+    height:32px;
+    padding-left:6px;
+    padding-right:19px;
+    font-size:11px;
+  }
+  .period-label-button::after{right:6px;font-size:11px}
+  .calendar-controls .view-button{
+    min-width:48px;
+    min-height:30px;
+    padding:4px 7px!important;
+    font-size:10px;
+  }
+  .calendar-controls .view-switch{gap:1px!important;padding:2px!important}
+  #selectedView .selected-event{
+    grid-template-columns:56px 4px minmax(0,1fr) 42px!important;
+    gap:7px!important;
+    min-height:52px!important;
+    padding:6px 0!important;
+  }
+  #selectedView .selected-event-time{padding-right:5px}
+  .selected-event-category-mark{width:3px;height:34px}
+  .event-progress-cycle{width:40px;height:40px;font-size:9px!important}
+  .event-progress-cycle::before{inset:3px}
+  .date-picker-backdrop{align-items:flex-end!important;padding:0!important}
+  .date-picker-modal{
+    width:100%;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius:24px 24px 0 0;
+  }
+  .habit-dashboard,.stats-dashboard{gap:10px!important}
+  .habit-list-card,.habit-heatmap-card,.stats-card{border-radius:15px!important}
+}
+
 
 /* Momentum v1.2 — 습관 */
 .habit-dashboard{
@@ -7179,4 +7490,62 @@ body{
   .mobile-nav-button.active{background:transparent;color:#13955d}
   .mobile-nav-icon{font-size:20px}
   .floating-add{bottom:calc(72px + env(safe-area-inset-bottom))}
+}
+
+/* v7.42 final cascade guard */
+html body,html body .app-shell,html body .main-area,
+html body #selectedView,html body #habitPage,html body #statsPage{
+  background:#fff!important;
+  background-image:none!important;
+}
+#calendarPage .calendar-toolbar{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  flex-direction:row!important;
+  gap:10px!important;
+  padding:10px 12px!important;
+  background:#fff!important;
+}
+#calendarPage .period-navigation{
+  width:auto!important;
+  display:grid!important;
+  grid-template-columns:34px minmax(118px,1fr) 34px!important;
+  gap:6px!important;
+}
+#calendarPage .calendar-controls{
+  width:auto!important;
+  flex-wrap:nowrap!important;
+}
+#calendarPage .calendar-controls .view-switch{
+  order:0!important;
+  margin-left:0!important;
+}
+#selectedView .selected-event{
+  grid-template-columns:70px 5px minmax(0,1fr) 48px!important;
+  min-height:58px!important;
+  gap:10px!important;
+}
+#selectedView .event-category-label{display:none!important}
+#selectedView .inline-progress-control{display:none!important}
+.date-picker-backdrop.show{display:flex!important}
+.date-picker-modal{width:min(420px,calc(100vw - 28px))!important}
+.google-week-day-header{pointer-events:none!important;cursor:default!important}
+
+@media(max-width:720px){
+  #calendarPage .calendar-toolbar{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:6px!important;
+    padding:7px!important;
+  }
+  #calendarPage .period-navigation{
+    grid-template-columns:30px minmax(108px,1fr) 30px!important;
+    gap:4px!important;
+  }
+  #selectedView .selected-event{
+    grid-template-columns:56px 4px minmax(0,1fr) 42px!important;
+    min-height:52px!important;
+    gap:7px!important;
+  }
+  .date-picker-modal{width:100%!important}
 }

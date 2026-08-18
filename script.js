@@ -57,6 +57,7 @@ const state = {
   mobileActionEvent:null,
   dayViewDate:null,
   dayViewOpen:false,
+  datePickerMonth:startOfMonth(new Date()),
   pendingRepeatEdit:null,
   editingOccurrenceContext:null,
   editingOriginalEventData:null,
@@ -78,6 +79,10 @@ const el = {
   statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
+  datePickerModal:$("datePickerModal"), datePickerGrid:$("datePickerGrid"),
+  datePickerYear:$("datePickerYear"), datePickerMonth:$("datePickerMonth"),
+  closeDatePicker:$("closeDatePicker"), datePickerPrevMonth:$("datePickerPrevMonth"),
+  datePickerNextMonth:$("datePickerNextMonth"),
   selectedEvents:$("selectedDayEvents"), dayProgress:$("dayProgressNumber"), dayBar:$("dayProgressBar"), dayCaption:$("dayProgressCaption"),
   selectedInsightEventProgress:$("selectedInsightEventProgress"),
   selectedInsightHabitProgress:$("selectedInsightHabitProgress"),
@@ -1264,30 +1269,24 @@ function renderHabitList(){
     const streak=habitStreak(habit);
     item.innerHTML=`<div class="habit-item-top"><div class="habit-item-title"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일</small></div><button class="habit-edit-button" type="button">수정</button></div>`;
     item.querySelector(".habit-edit-button").onclick=()=>openHabitEdit(habit);
-    const picker=document.createElement("div");picker.className="habit-progress-picker";
-    [0,25,50,75,100].forEach(value=>{
-      const button=document.createElement("button");
-      button.type="button";
-      button.className="habit-progress-button";
-      button.dataset.progressValue=String(value);
-      button.textContent=`${value}%`;
-      button.style.background=COLORS[value];
-      button.style.color=value<=25?"#557066":"#fff";
-      if(progress===value)button.classList.add("selected");
-      button.onclick=()=>{
-        picker.querySelectorAll(".habit-progress-button").forEach(candidate=>{
-          candidate.classList.toggle("selected",candidate===button);
-        });
-        setHabitProgress(
-          habit.id,
-          state.selectedHabitDateKey,
-          value,
-          {optimistic:true}
-        );
-      };
-      picker.appendChild(button);
-    });
-    item.appendChild(picker);el.habitList.appendChild(item);
+    const progressButton=document.createElement("button");
+    progressButton.type="button";
+    progressButton.className="habit-progress-cycle";
+    progressButton.textContent=`${progress}%`;
+    progressButton.style.setProperty("--habit-progress",`${progress*3.6}deg`);
+    progressButton.setAttribute("aria-label",`${habit.name} 완료율 ${progress}%, 눌러서 변경`);
+    progressButton.onclick=()=>{
+      const next=nextHabitProgressValue(
+        habitProgress(habit.id,state.selectedHabitDateKey)
+      );
+      setHabitProgress(
+        habit.id,
+        state.selectedHabitDateKey,
+        next,
+        {optimistic:true}
+      );
+    };
+    item.appendChild(progressButton);el.habitList.appendChild(item);
   });
 }
 function nextHabitProgressValue(value){
@@ -1714,20 +1713,18 @@ function updateHabitProgressDom(habitId,key,progress){
     cell.setAttribute("aria-label",cell.title);
   });
 
-  // HEATMAP에서 바꾼 날짜가 TODAY가 보고 있는 날짜라면
-  // TODAY의 0/25/50/75/100 선택 상태도 즉시 동기화.
+  // HEATMAP과 하루 화면의 순환 완료율을 즉시 동기화합니다.
   if(key===state.selectedHabitDateKey){
     const card=el.habitList.querySelector(
       `.habit-item[data-habit-id="${CSS.escape(habitId)}"]`
     );
 
     if(card){
-      card.querySelectorAll(".habit-progress-button").forEach(button=>{
-        button.classList.toggle(
-          "selected",
-          Number(button.dataset.progressValue)===numericProgress
-        );
-      });
+      const button=card.querySelector(".habit-progress-cycle");
+      if(button){
+        button.textContent=`${numericProgress}%`;
+        button.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`);
+      }
     }
   }
 }
@@ -2006,6 +2003,10 @@ function renderAll(){
 
   el.selectedBtn.classList.toggle("active",state.currentView==="selected");
   el.weekBtn.classList.toggle("active",state.currentView==="week");
+  el.selectedBtn.textContent=
+    state.currentView==="selected"&&state.selectedDateKey===dateKey(new Date())
+      ?"TODAY"
+      :"DAY";
 
   renderPage();
   applyWeekZoom();
@@ -2042,6 +2043,78 @@ function renderPeriodLabel(){
 
   el.periodLabel.textContent=
     `${state.currentWeek.getMonth()+1}.${state.currentWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
+}
+
+function fillDatePickerYears(selectedYear){
+  const first=selectedYear-40;
+  const last=selectedYear+40;
+  el.datePickerYear.innerHTML="";
+  for(let year=first;year<=last;year++){
+    const option=document.createElement("option");
+    option.value=String(year);
+    option.textContent=`${year}년`;
+    option.selected=year===selectedYear;
+    el.datePickerYear.appendChild(option);
+  }
+}
+function renderDatePicker(){
+  const view=startOfMonth(state.datePickerMonth);
+  const year=view.getFullYear();
+  const month=view.getMonth();
+  if(![...el.datePickerYear.options].some(option=>Number(option.value)===year)){
+    fillDatePickerYears(year);
+  }
+  el.datePickerYear.value=String(year);
+  el.datePickerMonth.value=String(month);
+  el.datePickerGrid.innerHTML="";
+
+  const mondayOffset=(view.getDay()+6)%7;
+  const gridStart=addDays(view,-mondayOffset);
+  const todayKey=dateKey(new Date());
+  const selectedKey=
+    state.currentView==="selected"
+      ?state.selectedDateKey
+      :dateKey(state.currentWeek);
+
+  for(let index=0;index<42;index++){
+    const date=addDays(gridStart,index);
+    const key=dateKey(date);
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="date-picker-day";
+    button.textContent=String(date.getDate());
+    button.setAttribute("aria-label",`${date.getFullYear()}년 ${date.getMonth()+1}월 ${date.getDate()}일`);
+    if(date.getMonth()!==month)button.classList.add("outside");
+    if(key===todayKey)button.classList.add("today");
+    if(key===selectedKey)button.classList.add("selected");
+    if(date.getDay()===0)button.classList.add("sunday");
+    if(date.getDay()===6)button.classList.add("saturday");
+    button.onclick=()=>{
+      state.selectedDateKey=key;
+      state.currentWeek=startOfWeek(date);
+      closeDatePickerModal();
+      renderAll();
+      if(state.currentView==="week"){
+        requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
+      }
+    };
+    el.datePickerGrid.appendChild(button);
+  }
+}
+function openDatePickerModal(){
+  const reference=
+    state.currentView==="selected"
+      ?parseDateKey(state.selectedDateKey)
+      :state.currentWeek;
+  state.datePickerMonth=startOfMonth(reference);
+  fillDatePickerYears(reference.getFullYear());
+  renderDatePicker();
+  el.datePickerModal.classList.add("show");
+  el.datePickerModal.setAttribute("aria-hidden","false");
+}
+function closeDatePickerModal(){
+  el.datePickerModal.classList.remove("show");
+  el.datePickerModal.setAttribute("aria-hidden","true");
 }
 
 function addLongPress(element,callback){
@@ -4307,10 +4380,10 @@ function renderSelected(){
   const d=parseDateKey(key),items=eventsForDate(key),avg=average(items),isToday=key===dateKey(new Date());
   el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
   if(!items.length){el.selectedEvents.innerHTML='<button class="empty-message secondary-button" id="emptyAdd" type="button">등록된 일정이 없습니다.<br>일정 추가하기</button>';$("emptyAdd").onclick=()=>openCreate(state.selectedDateKey)}
-  else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");item.style.borderLeft=`4px solid ${COLORS[event.progress]}`;{
+  else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><span class="event-category-label"><i class="category-dot ${eventCategory(event)}"></i>${categoryLabel(eventCategory(event))}</span>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
+      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
 
       const summary=checklistSummary(event);
       if(summary){
@@ -4346,36 +4419,25 @@ function renderSelected(){
       }
 
       item.innerHTML=`<time class="selected-event-time"><span>${escapeHtml(eventDisplayStart(event))}</span><span>${escapeHtml(eventDisplayEnd(event))}</span></time>`;
+      const categoryMark=document.createElement("i");
+      categoryMark.className="selected-event-category-mark";
+      categoryMark.style.background=categoryColor(eventCategory(event));
+      categoryMark.setAttribute("aria-label",categoryLabel(eventCategory(event)));
+      item.appendChild(categoryMark);
       item.appendChild(main);
 
-      const progress=document.createElement("span");
+      const progress=document.createElement("button");
+      progress.type="button";
+      progress.className="event-progress-cycle";
       progress.textContent=`${event.progress}%`;
-      item.appendChild(progress);
-
-      const inlineProgress=document.createElement("div");
-      inlineProgress.className="inline-progress-control";
-
-      [0,25,50,75,100].forEach(value=>{
-        const button=document.createElement("button");
-        button.type="button";
-        button.className="inline-progress-button";
-        button.textContent=`${value}%`;
-        button.style.background=COLORS[value];
-        button.style.color=value<=25?"#557066":"#fff";
-
-        if(Number(event.progress)===value){
-          button.classList.add("selected");
-        }
-
-        button.addEventListener("click",clickEvent=>{
-          clickEvent.stopPropagation();
-          setEventProgressFromCard(event,value);
-        });
-
-        inlineProgress.appendChild(button);
+      progress.style.setProperty("--event-progress",`${Number(event.progress)*3.6}deg`);
+      progress.setAttribute("aria-label",`${event.title} 완료율 ${event.progress}%, 눌러서 변경`);
+      progress.addEventListener("click",clickEvent=>{
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        setEventProgressFromCard(event,nextHabitProgressValue(event.progress));
       });
-
-      main.appendChild(inlineProgress);
+      item.appendChild(progress);
 
       const selectedTitle=main.querySelector(":scope > strong");
       selectedTitle?.classList.add("event-title-trigger");
@@ -4511,7 +4573,7 @@ function createChecklistItem(text="",status="pending"){
 }
 function checklistStatusIcon(status){
   if(status==="done")return "✓";
-  if(status==="failed")return "□";
+  if(status==="failed")return "×";
   return "□";
 }
 function nextChecklistStatus(status){
@@ -6683,15 +6745,17 @@ $("nextPeriod").onclick=()=>{
   }
   renderAll();
 };
-$("todayButton").onclick=()=>{
-  const t=new Date();
-  state.currentMonth=startOfMonth(t);
-  state.currentWeek=startOfWeek(t);
-  state.selectedDateKey=dateKey(t);
-  renderAll();
-};
 el.selectedBtn.onclick=()=>{
-  state.currentView="selected";
+  if(state.currentView==="selected"){
+    const today=new Date();
+    if(state.selectedDateKey!==dateKey(today)){
+      state.selectedDateKey=dateKey(today);
+      state.currentMonth=startOfMonth(today);
+      state.currentWeek=startOfWeek(today);
+    }
+  }else{
+    state.currentView="selected";
+  }
   renderAll();
 };
 el.weekBtn.onclick=()=>{
@@ -6705,6 +6769,43 @@ el.selectedHabitMoreButton.onclick=()=>navigateToPage("habit");
 el.weekZoomOut.onclick=()=>changeWeekZoom(-10);
 el.weekZoomIn.onclick=()=>changeWeekZoom(10);
 el.weekZoomValue.onclick=resetWeekToFit;
+el.periodLabel.onclick=openDatePickerModal;
+el.closeDatePicker.onclick=closeDatePickerModal;
+el.datePickerModal.addEventListener("click",event=>{
+  if(event.target===el.datePickerModal)closeDatePickerModal();
+});
+el.datePickerPrevMonth.onclick=()=>{
+  state.datePickerMonth=new Date(
+    state.datePickerMonth.getFullYear(),
+    state.datePickerMonth.getMonth()-1,
+    1
+  );
+  renderDatePicker();
+};
+el.datePickerNextMonth.onclick=()=>{
+  state.datePickerMonth=new Date(
+    state.datePickerMonth.getFullYear(),
+    state.datePickerMonth.getMonth()+1,
+    1
+  );
+  renderDatePicker();
+};
+el.datePickerYear.onchange=()=>{
+  state.datePickerMonth=new Date(
+    Number(el.datePickerYear.value),
+    state.datePickerMonth.getMonth(),
+    1
+  );
+  renderDatePicker();
+};
+el.datePickerMonth.onchange=()=>{
+  state.datePickerMonth=new Date(
+    state.datePickerMonth.getFullYear(),
+    Number(el.datePickerMonth.value),
+    1
+  );
+  renderDatePicker();
+};
 window.addEventListener("resize",()=>{if(state.currentView==="week"&&state.weekFit)applyWeekZoom()});
 el.loginButton.onclick=login;
 el.logout.onclick=logout;
