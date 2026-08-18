@@ -646,9 +646,12 @@ function habitAverageForDate(key){
 function combinedProgressForDate(key){
   const eventItems=allEventsForDate(key);
   const habits=activeHabitsOn(key);
-  const values=[];
-  if(eventItems.length)values.push(average(eventItems));
-  if(habits.length)values.push(habitAverageForDate(key));
+  const todos=todosForDate(key);
+  const values=[
+    ...eventItems.map(event=>Number(event.progress||0)),
+    ...habits.map(habit=>habitProgress(habit.id,key)),
+    ...todos.map(todo=>todo.status==="done"?100:0)
+  ];
   return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):0;
 }
 function monthKeys(date){
@@ -712,11 +715,15 @@ function renderStats(){
   const monthHabitAvg=monthHabitValues.length
     ?Math.round(monthHabitValues.reduce((a,b)=>a+b,0)/monthHabitValues.length)
     :0;
-  const combinedValues=[];
-  if(monthEventOccurrences.length)combinedValues.push(monthEventAvg);
-  if(monthHabitValues.length)combinedValues.push(monthHabitAvg);
-  const monthCombined=combinedValues.length
-    ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
+  const monthTodoValues=keys.flatMap(key=>todosForDate(key))
+    .map(todo=>todo.status==="done"?100:0);
+  const monthCombinedValues=[
+    ...monthEventOccurrences.map(event=>Number(event.progress||0)),
+    ...monthHabitValues,
+    ...monthTodoValues
+  ];
+  const monthCombined=monthCombinedValues.length
+    ?Math.round(monthCombinedValues.reduce((a,b)=>a+b,0)/monthCombinedValues.length)
     :0;
 
   const mobileStats=window.matchMedia("(max-width:720px)").matches;
@@ -726,7 +733,7 @@ function renderStats(){
   if(el.statsTodoLabel)el.statsTodoLabel.textContent=mobileStats?"할 일":`${monthText} 할 일 완료율`;
 
   el.statsTodayEventProgress.textContent=`${monthCombined}%`;
-  el.statsTodayEventCount.textContent="일정 + 습관";
+  el.statsTodayEventCount.textContent="일정 + 할 일 + 습관";
   el.statsTodayHabitProgress.textContent=`${monthEventAvg}%`;
   el.statsTodayHabitCount.textContent=`일정 ${monthEventOccurrences.length}개`;
   el.statsMonthCombinedProgress.textContent=`${monthHabitAvg}%`;
@@ -1726,6 +1733,17 @@ function updateHabitProgressDom(habitId,key,progress){
         button.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`);
       }
     }
+
+    const previewRow=el.selectedHabitPreview?.querySelector(
+      `.selected-habit-row[data-habit-id="${CSS.escape(habitId)}"]`
+    );
+    const previewProgress=previewRow?.querySelector(".selected-habit-progress");
+    if(previewProgress){
+      previewProgress.textContent=`${numericProgress}%`;
+      previewProgress.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`);
+    }
+
+    updateSelectedProgressMetrics(key);
   }
 }
 async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
@@ -3610,10 +3628,17 @@ function bindEventResize(block,event,column){
   });
 }
 
-async function setEventProgressFromCard(event,value){
+async function setEventProgressFromCard(event,value,button=null){
   if(!state.user)return;
 
   const numericValue=Number(value);
+  const updateButton=()=>{
+    if(!button)return;
+    button.dataset.progress=String(numericValue);
+    button.textContent=`${numericValue}%`;
+    button.style.setProperty("--event-progress",`${numericValue*3.6}deg`);
+    button.setAttribute("aria-label",`${event.title} 완료율 ${numericValue}%, 눌러서 변경`);
+  };
 
   try{
     if((event.repeat||"none")==="none"){
@@ -3627,8 +3652,8 @@ async function setEventProgressFromCard(event,value){
         };
       }
 
-      // 화면 전체를 재생성하지 않고 SELECTED DAY만 즉시 갱신합니다.
-      renderSelected();
+      updateButton();
+      updateSelectedProgressMetrics(event.occurrenceDate||event.date);
 
       await updateDoc(
         doc(db,"users",state.user.uid,"events",event.id),
@@ -3647,7 +3672,8 @@ async function setEventProgressFromCard(event,value){
         progress:numericValue
       };
 
-      renderSelected();
+      updateButton();
+      updateSelectedProgressMetrics(occurrenceDate);
 
       await setDoc(
         doc(db,"users",state.user.uid,"eventLogs",key),
@@ -3663,6 +3689,7 @@ async function setEventProgressFromCard(event,value){
   }catch(error){
     state.skipEventSnapshotRenders=Math.max(0,state.skipEventSnapshotRenders-1);
     console.error(error);
+    renderSelected();
     alert("완료율을 저장하지 못했습니다.");
   }
 }
@@ -4084,6 +4111,7 @@ async function setTodoStatus(todo,status){
         rolledTo:""
       };
       renderTodos();
+      updateSelectedProgressMetrics(occurrenceDate);
       if(el.todoOverviewModal?.classList.contains("show")){
         renderTodoOverview();
       }
@@ -4112,6 +4140,7 @@ async function setTodoStatus(todo,status){
         };
       }
       renderTodos();
+      updateSelectedProgressMetrics(occurrenceDate);
       if(el.todoOverviewModal?.classList.contains("show")){
         renderTodoOverview();
       }
@@ -4438,12 +4467,17 @@ function renderSelected(){
       progress.type="button";
       progress.className="event-progress-cycle";
       progress.textContent=`${event.progress}%`;
+      progress.dataset.progress=String(Number(event.progress||0));
       progress.style.setProperty("--event-progress",`${Number(event.progress)*3.6}deg`);
       progress.setAttribute("aria-label",`${event.title} 완료율 ${event.progress}%, 눌러서 변경`);
       progress.addEventListener("click",clickEvent=>{
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
-        setEventProgressFromCard(event,nextHabitProgressValue(event.progress));
+        setEventProgressFromCard(
+          event,
+          nextHabitProgressValue(progress.dataset.progress),
+          progress
+        );
       });
       item.appendChild(progress);
 
@@ -4459,33 +4493,34 @@ function renderSelected(){
       el.selectedEvents.appendChild(item);
     }});
   const insightHabits=activeHabitsOn(state.selectedDateKey);
-  const habitAvg=habitAverageForDate(state.selectedDateKey);
-  const checklist=items.flatMap(event=>checklistForOccurrence(event));
-  const checklistDone=checklist.filter(item=>item.status==="done").length;
-  const combinedValues=[];
-  if(items.length)combinedValues.push(avg);
-  if(insightHabits.length)combinedValues.push(habitAvg);
-  const combined=combinedValues.length
-    ?Math.round(combinedValues.reduce((a,b)=>a+b,0)/combinedValues.length)
-    :0;
+  renderSelectedHabitPreview(key,insightHabits);
+  updateSelectedProgressMetrics(key);
+}
+function updateSelectedProgressMetrics(key=state.selectedDateKey){
+  if(key!==state.selectedDateKey)return;
+  const d=parseDateKey(key);
+  const items=eventsForDate(key);
+  const insightHabits=activeHabitsOn(key);
+  const avg=average(items);
+  const habitAvg=habitAverageForDate(key);
+  const selectedTodoStats=todoCompletionForKeys([key]);
+  const todoRate=selectedTodoStats.progress;
+  const combined=combinedProgressForDate(key);
+  const isToday=key===dateKey(new Date());
 
   el.dayProgress.textContent=`${combined}%`;
   el.dayBar.style.width=`${combined}%`;
   el.dayCaption.textContent=
-    items.length||insightHabits.length
-      ?`${d.getMonth()+1}월 ${d.getDate()}일의 일정 · 습관 성과`
-      :"등록된 일정과 습관이 없습니다.";
+    items.length||selectedTodoStats.total||insightHabits.length
+      ?`${d.getMonth()+1}월 ${d.getDate()}일의 일정 · 할 일 · 습관 성과`
+      :"등록된 일정과 할 일, 습관이 없습니다.";
   if(el.selectedInsightEventProgress)el.selectedInsightEventProgress.textContent=`${avg}%`;
   if(el.selectedInsightHabitProgress)el.selectedInsightHabitProgress.textContent=`${habitAvg}%`;
-  const selectedTodoStats=todoCompletionForKeys([key]);
-  const todoRate=selectedTodoStats.progress;
   if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${todoRate}%`;
-
   if(el.selectedInsightCombinedBar)el.selectedInsightCombinedBar.style.height=`${combined}%`;
   if(el.selectedInsightEventBar)el.selectedInsightEventBar.style.height=`${avg}%`;
   if(el.selectedInsightHabitBar)el.selectedInsightHabitBar.style.height=`${habitAvg}%`;
   if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${todoRate}%`;
-  renderSelectedHabitPreview(key,insightHabits);
   if(el.selectedCompletionRing){
     el.selectedCompletionRing.style.setProperty("--completion",`${combined*3.6}deg`);
   }
@@ -4511,6 +4546,7 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
     const row=document.createElement("button");
     row.type="button";
     row.className="selected-habit-row";
+    row.dataset.habitId=habit.id;
     row.innerHTML=`
       <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${repeatLabel(habit.repeat||"daily")||"매일"}</small></span>
       <span class="selected-habit-progress" style="--habit-progress:${progress*3.6}deg">${progress}%</span>
@@ -4522,7 +4558,6 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
         nextHabitProgressValue(habitProgress(habit.id,key)),
         {optimistic:true}
       );
-      requestAnimationFrame(renderAll);
     };
     el.selectedHabitPreview.appendChild(row);
   });

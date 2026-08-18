@@ -7644,3 +7644,17 @@ body.week-fullscreen #calendarPage .week-zoom-controls{
     font-size:12px!important;
   }
 }
+
+/* Momentum v7.44 — progress updates without rebuilding cards */
+.event-progress-cycle,
+.habit-progress-cycle,
+.selected-habit-progress,
+.selected-completion-ring,
+.progress-fill{
+  transition:background-color .14s ease,color .14s ease,width .14s ease,box-shadow .14s ease!important;
+}
+.event-progress-cycle,
+.habit-progress-cycle,
+.selected-habit-row{
+  -webkit-tap-highlight-color:transparent;
+}
