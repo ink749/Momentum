@@ -82,6 +82,12 @@ function skipSnapshotRenders(kind,count=2){
     delete state.snapshotSkipTimers[kind];
   },2500);
 }
+function clearSnapshotRenderSkip(kind){
+  const key=`skip${kind}SnapshotRenders`;
+  state[key]=0;
+  clearTimeout(state.snapshotSkipTimers[kind]);
+  delete state.snapshotSkipTimers[kind];
+}
 const el = {
   loading:$("loadingScreen"), login:$("loginScreen"), app:$("app"), loginButton:$("googleLoginButton"), loginError:$("loginError"),
   logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
@@ -1864,6 +1870,40 @@ function fillUser(user){
   [el.userPhoto,el.mobilePhoto,el.sheetPhoto].forEach(i=>{i.src=photo;i.alt=`${name} 프로필`});
   el.userName.textContent=name;el.userEmail.textContent=email;el.sheetName.textContent=name;el.sheetEmail.textContent=email;
 }
+function progressStructuralSignature(record){
+  if(!record)return "";
+  const {progress,updatedAt,...structural}=record;
+  return JSON.stringify(structural);
+}
+function collectionChangedOnlyProgress(previous,next){
+  if(!previous.length||previous.length!==next.length)return false;
+  const previousById=new Map(previous.map(item=>[item.id,item]));
+  return next.every(item=>{
+    const before=previousById.get(item.id);
+    return Boolean(before)
+      &&progressStructuralSignature(before)===progressStructuralSignature(item);
+  });
+}
+function syncSelectedEventProgressDom(){
+  if(state.currentView!=="selected")return;
+  const items=eventsForDate(state.selectedDateKey);
+  const byOccurrence=new Map(items.map(item=>[
+    `${item.id}_${item.occurrenceDate||item.date}`,
+    item
+  ]));
+
+  el.selectedEvents.querySelectorAll(".event-progress-cycle").forEach(button=>{
+    const item=byOccurrence.get(
+      `${button.dataset.eventId}_${button.dataset.occurrenceDate}`
+    );
+    if(!item)return;
+    const progress=Number(item.progress||0);
+    button.dataset.progress=String(progress);
+    button.textContent=`${progress}%`;
+    button.style.setProperty("--event-progress",`${progress*3.6}deg`);
+  });
+  updateSelectedProgressMetrics(state.selectedDateKey);
+}
 function listen(user){
   if(state.unsubscribe)state.unsubscribe();
   if(state.unsubscribeEventLogs)state.unsubscribeEventLogs();
@@ -1872,7 +1912,17 @@ function listen(user){
   state.unsubscribe=onSnapshot(
     q,
     snap=>{
-      state.events=snap.docs.map(d=>({id:d.id,...d.data()}));
+      const previous=state.events;
+      const next=snap.docs.map(d=>({id:d.id,...d.data()}));
+      const progressOnly=collectionChangedOnlyProgress(previous,next);
+      state.events=next;
+
+      if(progressOnly){
+        clearSnapshotRenderSkip("Event");
+        syncSelectedEventProgressDom();
+        if(state.activePage==="stats")renderStats();
+        return;
+      }
 
       if(state.skipEventSnapshotRenders>0){
         state.skipEventSnapshotRenders--;
@@ -1892,8 +1942,17 @@ function listen(user){
   state.unsubscribeEventLogs=onSnapshot(
     collection(db,"users",user.uid,"eventLogs"),
     snap=>{
+      const previous=Object.values(state.eventLogs);
       state.eventLogs={};
       snap.docs.forEach(d=>{state.eventLogs[d.id]={id:d.id,...d.data()}});
+      const next=Object.values(state.eventLogs);
+
+      if(collectionChangedOnlyProgress(previous,next)){
+        clearSnapshotRenderSkip("Event");
+        syncSelectedEventProgressDom();
+        if(state.activePage==="stats")renderStats();
+        return;
+      }
 
       if(state.skipEventSnapshotRenders>0){
         state.skipEventSnapshotRenders--;
@@ -4503,6 +4562,8 @@ function renderSelected(){
       progress.className="event-progress-cycle";
       progress.textContent=`${event.progress}%`;
       progress.dataset.progress=String(Number(event.progress||0));
+      progress.dataset.eventId=String(event.id);
+      progress.dataset.occurrenceDate=String(event.occurrenceDate||event.date);
       progress.style.setProperty("--event-progress",`${Number(event.progress)*3.6}deg`);
       progress.setAttribute("aria-label",`${event.title} 완료율 ${event.progress}%, 눌러서 변경`);
       progress.addEventListener("click",clickEvent=>{
