@@ -3776,7 +3776,7 @@ async function setEventProgressFromCard(event,value,button=null){
 function todoStatusIcon(status){
   if(status==="done")return "✓";
   if(status==="cancelled")return "×";
-  return "";
+  return "□";
 }
 function nextTodoStatus(status){
   if(status==="pending"||status==="rolled")return "done";
@@ -4736,7 +4736,7 @@ function createChecklistItem(text="",status="pending"){
 function checklistStatusIcon(status){
   if(status==="done")return "✓";
   if(status==="failed")return "×";
-  return "";
+  return "□";
 }
 function nextChecklistStatus(status){
   if(status==="pending")return "done";
