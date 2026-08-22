@@ -7823,3 +7823,16 @@ body.week-fullscreen #calendarPage .period-navigation,body.week-fullscreen #cale
 .growth-add-button{background:linear-gradient(145deg,#24a36c,#137c50)!important;color:#fff!important;border:0!important}.growth-achievements span{grid-template-columns:28px minmax(0,1fr) auto!important}.growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}.growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}.growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
 .growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}.growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
 @media(max-width:600px){.event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}.growth-setup-grid{grid-template-columns:1fr}.growth-form-actions{grid-template-columns:auto 1fr auto auto}}
+
+/* Momentum v7.54 — keep all four primary destinations on one mobile row */
+@media(max-width:720px){
+  .mobile-bottom-nav{
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-template-rows:1fr!important;
+    flex-wrap:nowrap!important;
+    min-height:72px!important;
+    height:calc(72px + env(safe-area-inset-bottom))!important;
+  }
+  .mobile-nav-button{min-width:0!important;width:auto!important;grid-row:1!important}
+}
