@@ -7836,3 +7836,18 @@ body.week-fullscreen #calendarPage .period-navigation,body.week-fullscreen #cale
   }
   .mobile-nav-button{min-width:0!important;width:auto!important;grid-row:1!important}
 }
+
+/* Momentum v7.55 — calm RPG skill screen */
+.growth-view-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:min(330px,100%);margin:0 auto;padding:4px;border:1px solid #dfe9e3;border-radius:14px;background:#f3f7f4}
+.growth-view-tabs button{height:36px;border:0;border-radius:10px;background:transparent;color:#738179;font-size:12px;font-weight:800}
+.growth-view-tabs button.active{background:#fff;color:#177b52;box-shadow:0 3px 10px rgba(30,83,58,.1)}
+.growth-skill-tree-panel{padding:18px;border:1px solid #e0e9e3;border-radius:22px;background:linear-gradient(180deg,#fbfdfc,#f5f9f6);box-shadow:0 8px 24px rgba(27,70,49,.045)}
+.growth-skill-tree{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.growth-skill-branch{min-width:0}.growth-skill-branch h3{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 12px;color:#315448;font-size:12px}.growth-skill-branch h3 span{color:#188659}
+.growth-skill-path{display:grid;gap:15px;position:relative}.growth-skill-node{position:relative;display:flex;align-items:center;gap:9px;min-width:0;width:100%;min-height:58px;padding:9px 10px;border:1px solid #dfe9e3;border-radius:15px;background:#fff;text-align:left;color:#29483b;box-shadow:0 4px 12px rgba(29,70,51,.04)}
+.growth-skill-node>i{display:grid;place-items:center;flex:0 0 31px;width:31px;height:31px;border-radius:10px;background:#e7f5ed;color:#1a8b5c;font-style:normal}.growth-skill-node>span{min-width:0}.growth-skill-node strong,.growth-skill-node small{display:block}.growth-skill-node strong{font-size:12px}.growth-skill-node small{margin-top:3px;color:#75847c;font-size:9px;white-space:normal}.growth-skill-node .skill-link{position:absolute;left:24px;top:100%;width:2px;height:16px;background:#cbdcd2}
+.growth-skill-node.growing{border-style:dashed;background:#fbfdfc}.growth-skill-node.growing>i{background:#fff3d9;color:#d79a30}.growth-skill-node.locked{background:#f3f5f4;color:#94a099;box-shadow:none}.growth-skill-node.locked>i{background:#e7ebe8;color:#9da7a1}.growth-skill-node.locked .skill-link{background:#dce3df}
+.growth-content-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:720px){
+  .growth-skill-tree-panel{padding:12px 10px;overflow-x:auto}.growth-skill-tree{grid-template-columns:repeat(3,minmax(170px,1fr));gap:10px;min-width:530px}.growth-skill-node{min-height:54px}.growth-content-grid{grid-template-columns:1fr}.growth-view-tabs{width:100%}
+}

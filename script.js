@@ -34,7 +34,7 @@ const state = {
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
-  todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false,
+  todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   todoOverviewMonth:startOfMonth(new Date()),
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
@@ -72,7 +72,7 @@ const state = {
   isUndoing:false,
   growthProfile:{challenges:[]}, growthRewards:[],
   unsubscribeGrowthProfile:null, unsubscribeGrowthRewards:null,
-  growthDetailTab:"stats",
+  growthDetailTab:"stats", growthView:"tree",
   growthRewardsReady:false,
   growthDataReady:{events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false}
 };
@@ -155,7 +155,7 @@ const el = {
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
   growthPixelCharacter:$("growthPixelCharacter"), growthUserName:$("growthUserName"), growthLevel:$("growthLevel"), growthTitle:$("growthTitle"), growthXpText:$("growthXpText"), growthXpBar:$("growthXpBar"),
   growthExecution:$("growthExecution"), growthExecutionBar:$("growthExecutionBar"), growthExpertise:$("growthExpertise"), growthExpertiseBar:$("growthExpertiseBar"), growthLife:$("growthLife"), growthLifeBar:$("growthLifeBar"), growthPower:$("growthPower"), growthPowerBar:$("growthPowerBar"),
-  growthSkills:$("growthSkills"), growthEvidence:$("growthEvidence"), growthAssets:$("growthAssets"), growthAchievements:$("growthAchievements"), growthMonthDelta:$("growthMonthDelta"), growthMonthCaption:$("growthMonthCaption"),
+  growthSkills:$("growthSkills"), growthSkillTree:$("growthSkillTree"), growthSkillTreePanel:$("growthSkillTreePanel"), growthStatsPanel:$("growthStatsPanel"), growthEvidence:$("growthEvidence"), growthAssets:$("growthAssets"), growthAchievements:$("growthAchievements"), growthMonthDelta:$("growthMonthDelta"), growthMonthCaption:$("growthMonthCaption"),
   growthDetailModal:$("growthDetailModal"), growthDetailTitle:$("growthDetailTitle"), growthDetailContent:$("growthDetailContent"), growthSetupModal:$("growthSetupModal"), growthSetupTitle:$("growthSetupTitle"), growthChallengeForm:$("growthChallengeForm"), growthChallengeId:$("growthChallengeId"), growthChallengeName:$("growthChallengeName"), growthChallengeMode:$("growthChallengeMode"), growthChallengeTarget:$("growthChallengeTarget"), growthChallengeTargetWrap:$("growthChallengeTargetWrap"), growthChallengeDate:$("growthChallengeDate"), growthChallengeComplete:$("growthChallengeComplete"), growthChallengeCompleteWrap:$("growthChallengeCompleteWrap"), deleteGrowthChallengeButton:$("deleteGrowthChallengeButton"), growthSetupMessage:$("growthSetupMessage"), skillUnlockModal:$("skillUnlockModal"), skillUnlockName:$("skillUnlockName"), skillUnlockDescription:$("skillUnlockDescription"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
@@ -764,15 +764,15 @@ function renderStats(){
   el.statsMonthCombinedLabel.textContent=mobileStats?"습관":`${monthText} 습관 완료율`;
   if(el.statsTodoLabel)el.statsTodoLabel.textContent=mobileStats?"할 일":`${monthText} 할 일 완료율`;
 
-  el.statsTodayEventProgress.textContent=`${monthCombined}%`;
+  el.statsTodayEventProgress.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
   el.statsTodayEventCount.textContent="일정 + 할 일 + 습관";
-  el.statsTodayHabitProgress.textContent=`${monthEventAvg}%`;
+  el.statsTodayHabitProgress.textContent=monthEventOccurrences.length?`${monthEventAvg}%`:"—";
   el.statsTodayHabitCount.textContent=`일정 ${monthEventOccurrences.length}개`;
-  el.statsMonthCombinedProgress.textContent=`${monthHabitAvg}%`;
+  el.statsMonthCombinedProgress.textContent=monthHabitValues.length?`${monthHabitAvg}%`:"—";
   const monthHabitCountLabel=el.statsMonthCombinedProgress.nextElementSibling;
   if(monthHabitCountLabel)monthHabitCountLabel.textContent=`활성 습관 ${activeMonthHabits.length}개`;
-  if(el.statsTodoProgress)el.statsTodoProgress.textContent=`${todoProgress}%`;
-  if(el.statsTodoAverage)el.statsTodoAverage.textContent=`${todoProgress}%`;
+  if(el.statsTodoProgress)el.statsTodoProgress.textContent=todoTotal?`${todoProgress}%`:"—";
+  if(el.statsTodoAverage)el.statsTodoAverage.textContent=todoTotal?`${todoProgress}%`:"—";
   if(el.statsTodoCount)el.statsTodoCount.textContent=`완료 ${todoDone} / 전체 ${todoTotal}`;
 
   el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
@@ -800,8 +800,9 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
   const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
     const d=addDays(today,-offset),key=dateKey(d),value=combinedProgressForDate(key);
+    const hasItems=allEventsForDate(key).length+activeHabitsOn(key).length+todosForDate(key).length>0;
     const col=document.createElement("div");col.className="weekly-chart-day";
-    col.innerHTML=`<span class="weekly-chart-value">${value}%</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${Math.max(value,1)}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
+    col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
     el.weeklyProgressChart.appendChild(col);
   }
 }
@@ -2123,6 +2124,34 @@ function challengeStatusText(item){
   if(diff===0)return "오늘";
   return "기한 지남";
 }
+function renderGrowthSkillTree(m){
+  if(!el.growthSkillTree)return;
+  const habitCount=Object.values(state.habitLogs).filter(log=>Number(log.progress)>0).length;
+  const branches=[
+    {name:"실행",icon:"⚑",nodes:[
+      {name:"첫걸음",level:1,state:m.completedActions>0?"acquired":"growing",condition:"행동 1회 완료"},
+      {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20)),state:m.execution>=20?"acquired":"growing",condition:"실행도 20 달성"},
+      {name:"완수력",level:1,state:m.execution>=60?"acquired":"locked",condition:"실행도 60 달성"}
+    ]},
+    {name:"전문",icon:"▤",nodes:[
+      {name:"학습 기록",level:1,state:m.expertise>0?"acquired":"growing",condition:"공부 카테고리 일정 실행"},
+      {name:"문제풀이",level:Math.max(1,Math.ceil(m.expertise/25)),state:m.completedActions>=15?"acquired":"locked",condition:"완료 행동 15회"},
+      {name:"전문 분야",level:1,state:m.expertise>=50?"acquired":"locked",condition:"전문성 50 달성"}
+    ]},
+    {name:"생활",icon:"♡",nodes:[
+      {name:"생활 기반",level:1,state:m.life>0?"acquired":"growing",condition:"습관 1회 실행"},
+      {name:"루틴 유지",level:Math.max(1,Math.ceil(habitCount/15)),state:habitCount>=15?"acquired":"locked",condition:"습관 누적 15회"},
+      {name:"자기관리",level:1,state:m.life>=70?"acquired":"locked",condition:"생활력 70 달성"}
+    ]}
+  ];
+  el.growthSkillTree.innerHTML=branches.map(branch=>`<section class="growth-skill-branch"><h3><span>${branch.icon}</span>${branch.name}</h3><div class="growth-skill-path">${branch.nodes.map((node,index)=>`<button type="button" class="growth-skill-node ${node.state}" data-growth-skill="${escapeHtml(node.name)}"><i>${node.state==="acquired"?"◆":node.state==="growing"?"◇":"◇"}</i><span><strong>${escapeHtml(node.name)}</strong><small>${node.state==="locked"?node.condition:`Lv.${node.level} · ${node.state==="acquired"?"습득":"성장 중"}`}</small></span>${index<branch.nodes.length-1?'<b class="skill-link"></b>':""}</button>`).join("")}</div></section>`).join("");
+}
+function syncGrowthView(){
+  const tree=state.growthView==="tree";
+  if(el.growthSkillTreePanel)el.growthSkillTreePanel.hidden=!tree;
+  if(el.growthStatsPanel)el.growthStatsPanel.hidden=tree;
+  document.querySelectorAll("[data-growth-view]").forEach(button=>button.classList.toggle("active",button.dataset.growthView===state.growthView));
+}
 function renderGrowthState(){
   if(!el.growthPage)return;
   const m=growthMetrics();
@@ -2139,7 +2168,8 @@ function renderGrowthState(){
     {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20))},
     {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))}
   ];
-  el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
+  if(el.growthSkills)el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
+  renderGrowthSkillTree(m);syncGrowthView();
   const evidence=m.evidence;
   const deltaText=evidence.hasPrevious?`${evidence.completionDelta>0?"+":""}${evidence.completionDelta}%p`:"—";
   el.growthEvidence.innerHTML=`<span><strong>${deltaText}</strong><small>30일 완료율 변화</small></span><span><strong>${evidence.activeDays}일</strong><small>최근 30일 실천</small></span><span><strong>${escapeHtml(evidence.topAbility)}</strong><small>가장 성장한 능력치</small></span>`;
@@ -4096,7 +4126,7 @@ async function setEventProgressFromCard(event,value,button=null){
 
 function todoStatusIcon(status){
   if(status==="done")return "✓";
-  if(status==="cancelled")return "×";
+  if(status==="cancelled"||status==="rolled")return "×";
   return "□";
 }
 function nextTodoStatus(status){
@@ -4324,13 +4354,22 @@ async function submitTodoForm(event){
       const id=el.todoEditId.value;
       const source=state.todos.find(todo=>todo.id===id);
       if(!source)return;
+      const occurrenceDate=el.todoOccurrenceDate.value||source.date;
+      const existingOccurrence=todoOccurrence(source,occurrenceDate);
+      const overdue=occurrenceDate<dateKey(new Date())&&!["done","cancelled","rolled"].includes(existingOccurrence?.status||source.status||"pending");
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",id),
         {
           text,date,repeat,memo,checklist,important,
+          ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
           updatedAt:serverTimestamp()
         }
       );
+      if((repeat||"none")!=="none"&&overdue){
+        await setDoc(doc(db,"users",state.user.uid,"todoLogs",todoLogKey(id,occurrenceDate)),{
+          todoId:id,date:occurrenceDate,status:"rolled",rolledTo:dateKey(new Date()),updatedAt:serverTimestamp()
+        },{merge:true});
+      }
     }else{
       await addDoc(
         collection(db,"users",state.user.uid,"todos"),
@@ -4632,8 +4671,10 @@ async function markTodoOccurrenceRolled(todo,key,nextKey){
   }
 }
 async function createRolledTodo(todo,nextKey,key){
-  return addDoc(
-    collection(db,"users",state.user.uid,"todos"),
+  const sourceId=todo.sourceTodoId||todo.id;
+  const stableId=rolledTodoDocumentId(sourceId,nextKey);
+  return setDoc(
+    doc(db,"users",state.user.uid,"todos",stableId),
     {
       text:todo.text,
       date:nextKey,
@@ -4643,13 +4684,37 @@ async function createRolledTodo(todo,nextKey,key){
       important:Boolean(todo.important),
       status:"pending",
       rolledFrom:todo.id,
-      sourceTodoId:todo.sourceTodoId||todo.id,
+      sourceTodoId:sourceId,
       sourceOccurrenceDate:key,
       rolledTo:"",
       createdAt:serverTimestamp(),
       updatedAt:serverTimestamp()
-    }
+    },
+    {merge:true}
   );
+}
+function rolledTodoDocumentId(sourceId,key){
+  return `rolled_${String(sourceId).replaceAll("/","_")}_${String(key).replaceAll("-","")}`;
+}
+async function cleanupDuplicateRolledTodos(){
+  if(!state.user||state.todoDedupeRunning)return;
+  state.todoDedupeRunning=true;
+  try{
+    const groups=new Map();
+    state.todos.filter(item=>item.sourceTodoId&&item.rolledFrom).forEach(item=>{
+      const groupKey=`${item.sourceTodoId}:${item.date}`;
+      if(!groups.has(groupKey))groups.set(groupKey,[]);
+      groups.get(groupKey).push(item);
+    });
+    const duplicates=[];
+    groups.forEach(items=>{
+      if(items.length<2)return;
+      const expected=rolledTodoDocumentId(items[0].sourceTodoId,items[0].date);
+      const keep=items.find(item=>item.id===expected)||items.slice().sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0))[0];
+      items.filter(item=>item.id!==keep.id).forEach(item=>duplicates.push(item));
+    });
+    await Promise.all(duplicates.map(item=>deleteDoc(doc(db,"users",state.user.uid,"todos",item.id))));
+  }catch(error){console.error("중복 이월 할 일을 정리하지 못했습니다.",error)}finally{state.todoDedupeRunning=false}
 }
 async function rollPendingTodosToToday(){
   if(!state.user||state.todoRolloverRunning)return;
@@ -4724,7 +4789,7 @@ function listenTodos(user){
       renderTodos();
       if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
-      rollPendingTodosToToday();
+      cleanupDuplicateRolledTodos().then(()=>rollPendingTodosToToday());
     },
     error=>{
       console.error(error);
@@ -7445,6 +7510,13 @@ function toggleGrowthModal(modal,show){
   modal.classList.toggle("show",show);modal.setAttribute("aria-hidden",String(!show));
 }
 $("openGrowthSetupButton").onclick=()=>openGrowthChallenge();
+document.querySelectorAll("[data-growth-view]").forEach(button=>button.onclick=()=>{state.growthView=button.dataset.growthView;syncGrowthView()});
+el.growthSkillTree?.addEventListener("click",event=>{
+  const node=event.target.closest("[data-growth-skill]");if(!node)return;
+  state.growthDetailTab="skills";
+  document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab.dataset.growthTab==="skills"));
+  renderGrowthDetail();toggleGrowthModal(el.growthDetailModal,true);
+});
 $("closeGrowthSetupButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
 $("cancelGrowthChallengeButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
 $("closeGrowthDetailButton").onclick=()=>toggleGrowthModal(el.growthDetailModal,false);
