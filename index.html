@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1f8a5b" />
   <title>Momentum</title>
-  <link rel="stylesheet" href="style.css?v=7.49" />
+  <link rel="stylesheet" href="style.css?v=7.50" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -33,6 +33,7 @@
       <nav>
         <button id="calendarNavButton" class="nav-item active" type="button">▦ 캘린더</button>
         <button id="habitNavButton" class="nav-item" type="button">◫ 습관</button>
+        <button id="growthNavButton" class="nav-item" type="button">▥ 상태</button>
         <button id="statsNavButton" class="nav-item" type="button">◈ 통계</button>
       </nav>
       <div class="account-panel">
@@ -240,6 +241,62 @@
         </section>
       </section>
 
+      <section id="growthPage" hidden>
+        <header class="topbar growth-topbar">
+          <div>
+            <p class="eyebrow">YOUR CULTIVATED GROWTH</p>
+            <h1>나의 상태</h1>
+            <p class="sync-status">캘린더에 남긴 행동이 자동으로 쌓입니다.</p>
+          </div>
+          <div class="top-actions">
+            <button id="openGrowthSetupButton" class="secondary-button" type="button">도전과제 · 자격증</button>
+          </div>
+        </header>
+
+        <section class="growth-dashboard">
+          <article class="growth-profile-card">
+            <div id="growthPixelCharacter" class="growth-pixel-character" role="img" aria-label="성장 중인 도트 캐릭터"></div>
+            <div class="growth-profile-copy">
+              <div class="growth-profile-line"><strong id="growthUserName">사용자</strong><span>·</span><b id="growthLevel">Lv.1</b></div>
+              <p id="growthTitle">배우며 나아가는 사람</p>
+              <div class="growth-xp-line"><span>총 XP</span><strong id="growthXpText">0 / 500</strong></div>
+              <div class="growth-xp-track"><i id="growthXpBar"></i></div>
+            </div>
+          </article>
+
+          <div class="growth-stat-grid" aria-label="대표 능력치">
+            <button class="growth-stat-card active" type="button" data-growth-detail="execution"><span>⚑ 실행도</span><strong id="growthExecution">0</strong><i><b id="growthExecutionBar"></b></i></button>
+            <button class="growth-stat-card" type="button" data-growth-detail="expertise"><span>▤ 전문성</span><strong id="growthExpertise">0</strong><i><b id="growthExpertiseBar"></b></i></button>
+            <button class="growth-stat-card" type="button" data-growth-detail="life"><span>♡ 생활력</span><strong id="growthLife">0</strong><i><b id="growthLifeBar"></b></i></button>
+            <button class="growth-stat-card" type="button" data-growth-detail="growth"><span>♧ 성장력</span><strong id="growthPower">0</strong><i><b id="growthPowerBar"></b></i></button>
+          </div>
+
+          <div class="growth-content-grid">
+            <article class="growth-card growth-skills-card">
+              <div class="growth-card-heading"><div><p class="eyebrow">SKILLS</p><h2>보유 스킬</h2></div><button class="text-action-button" type="button" data-growth-detail="skills">전체 보기</button></div>
+              <div id="growthSkills" class="growth-skills"></div>
+            </article>
+
+            <article class="growth-card growth-evidence-card">
+              <div class="growth-card-heading"><div><p class="eyebrow">EVIDENCE</p><h2>성장의 증거</h2></div><button class="text-action-button" type="button" data-growth-detail="evidence">기록 보기</button></div>
+              <div id="growthEvidence" class="growth-evidence"></div>
+            </article>
+
+            <article class="growth-card growth-assets-card">
+              <div class="growth-card-heading"><div><p class="eyebrow">ASSETS</p><h2>자산</h2></div><button class="text-action-button" type="button" data-growth-detail="assets">관리</button></div>
+              <div id="growthAssets" class="growth-assets"></div>
+            </article>
+
+            <article class="growth-card growth-achievement-card">
+              <div class="growth-card-heading"><div><p class="eyebrow">ACHIEVEMENTS</p><h2>도전과제</h2></div><button class="text-action-button" type="button" data-growth-detail="achievements">도감 보기</button></div>
+              <div id="growthAchievements" class="growth-achievements"></div>
+            </article>
+          </div>
+
+          <article class="growth-month-strip"><span>이번 달 성장</span><strong id="growthMonthDelta">+0</strong><small id="growthMonthCaption">오늘의 기록을 시작해보세요.</small><button id="openGrowthDetailButton" type="button">성장 기록</button></article>
+        </section>
+      </section>
+
       <section id="statsPage" hidden>
         <header class="topbar">
           <div>
@@ -364,6 +421,10 @@
       <button id="mobileHabitNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">◫</span>
         <span>습관</span>
+      </button>
+      <button id="mobileGrowthNavButton" class="mobile-nav-button" type="button">
+        <span class="mobile-nav-icon">▥</span>
+        <span>상태</span>
       </button>
       <button id="mobileStatsNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">◈</span>
@@ -797,6 +858,43 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.49"></script>
+  <div id="growthDetailModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal growth-detail-modal">
+      <div class="modal-header"><div><p class="eyebrow">GROWTH DETAIL</p><h2 id="growthDetailTitle">상태 상세</h2></div><button id="closeGrowthDetailButton" class="close-button" type="button">×</button></div>
+      <div class="growth-detail-tabs" role="tablist">
+        <button type="button" data-growth-tab="stats" class="active">능력치</button><button type="button" data-growth-tab="skills">스킬</button><button type="button" data-growth-tab="assets">자산</button><button type="button" data-growth-tab="achievements">도전과제</button>
+      </div>
+      <div id="growthDetailContent" class="growth-detail-content"></div>
+    </div>
+  </div>
+
+  <div id="growthSetupModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal growth-setup-modal">
+      <div class="modal-header"><div><p class="eyebrow">GROWTH SETTINGS</p><h2>도전과제 · 자격증</h2></div><button id="closeGrowthSetupButton" class="close-button" type="button">×</button></div>
+      <form id="growthChallengeForm" class="growth-setup-form">
+        <h3>도전과제 만들기</h3>
+        <label>이름<input id="growthChallengeName" type="text" maxlength="60" placeholder="예: 운동 30일" required /></label>
+        <div class="growth-setup-grid"><label>연결 습관<select id="growthChallengeHabit"><option value="">직접 달성</option></select></label><label>목표 횟수<input id="growthChallengeTarget" type="number" min="1" max="1000000" value="30" required /></label></div>
+        <button class="primary-button" type="submit">도전과제 추가</button>
+      </form>
+      <form id="growthCertificateForm" class="growth-setup-form">
+        <h3>자격증 기록</h3>
+        <label>자격증 이름<input id="growthCertificateName" type="text" maxlength="80" placeholder="예: 소방설비기사" required /></label>
+        <label>획득일<input id="growthCertificateDate" type="date" required /></label>
+        <button class="primary-button" type="submit">기록하고 스킬 해금</button>
+      </form>
+      <p id="growthSetupMessage" class="error-message"></p>
+    </div>
+  </div>
+
+  <div id="skillUnlockModal" class="modal-backdrop" aria-hidden="true">
+    <div class="skill-unlock-sheet">
+      <span class="skill-unlock-icon">◆</span><p class="eyebrow">NEW SKILL</p><h2>새 스킬 습득</h2><strong id="skillUnlockName">전문 스킬 Lv.1</strong><p id="skillUnlockDescription">자격증 취득으로 해금되었습니다.</p>
+      <div class="skill-unlock-effects"><span>전문성 +5</span><span>기술 트리 개방</span><span>도트 장비 해금</span></div>
+      <button id="closeSkillUnlockButton" class="primary-button" type="button">확인</button>
+    </div>
+  </div>
+
+  <script type="module" src="script.js?v=7.50"></script>
 </body>
 </html>

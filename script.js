@@ -69,7 +69,10 @@ const state = {
   suppressTimePickerUntil:0,
   ignoreNextPopstate:false,
   undoStack:[],
-  isUndoing:false
+  isUndoing:false,
+  growthProfile:{challenges:[],certificates:[]},
+  unsubscribeGrowthProfile:null,
+  growthDetailTab:"stats"
 };
 
 const $ = (id) => document.getElementById(id);
@@ -140,14 +143,18 @@ const el = {
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
-  calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"),
+  calendarPage:$("calendarPage"), habitPage:$("habitPage"), growthPage:$("growthPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"), growthNav:$("growthNavButton"),
   habitTodayLabel:$("habitTodayLabel"), habitList:$("habitList"), habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
-  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
+  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileGrowthNav:$("mobileGrowthNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
+  growthPixelCharacter:$("growthPixelCharacter"), growthUserName:$("growthUserName"), growthLevel:$("growthLevel"), growthTitle:$("growthTitle"), growthXpText:$("growthXpText"), growthXpBar:$("growthXpBar"),
+  growthExecution:$("growthExecution"), growthExecutionBar:$("growthExecutionBar"), growthExpertise:$("growthExpertise"), growthExpertiseBar:$("growthExpertiseBar"), growthLife:$("growthLife"), growthLifeBar:$("growthLifeBar"), growthPower:$("growthPower"), growthPowerBar:$("growthPowerBar"),
+  growthSkills:$("growthSkills"), growthEvidence:$("growthEvidence"), growthAssets:$("growthAssets"), growthAchievements:$("growthAchievements"), growthMonthDelta:$("growthMonthDelta"), growthMonthCaption:$("growthMonthCaption"),
+  growthDetailModal:$("growthDetailModal"), growthDetailTitle:$("growthDetailTitle"), growthDetailContent:$("growthDetailContent"), growthSetupModal:$("growthSetupModal"), growthChallengeForm:$("growthChallengeForm"), growthChallengeName:$("growthChallengeName"), growthChallengeHabit:$("growthChallengeHabit"), growthChallengeTarget:$("growthChallengeTarget"), growthCertificateForm:$("growthCertificateForm"), growthCertificateName:$("growthCertificateName"), growthCertificateDate:$("growthCertificateDate"), growthSetupMessage:$("growthSetupMessage"), skillUnlockModal:$("skillUnlockModal"), skillUnlockName:$("skillUnlockName"), skillUnlockDescription:$("skillUnlockDescription"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -1201,7 +1208,7 @@ function currentHistoryState(){
   };
 }
 function navigateToPage(page,{push=true}={}){
-  if(!["calendar","habit","stats"].includes(page))page="calendar";
+  if(!["calendar","habit","growth","stats"].includes(page))page="calendar";
 
   const previousPage=state.activePage;
   state.activePage=page;
@@ -1221,7 +1228,7 @@ function syncHistoryState({replace=false}={}){
 
 
 function animateVisiblePage(){
-  const page=[el.calendarPage,el.habitPage,el.statsPage].find(item=>!item.hidden);
+  const page=[el.calendarPage,el.habitPage,el.growthPage,el.statsPage].find(item=>!item.hidden);
   if(!page)return;
   page.classList.remove("page-enter");
   void page.offsetWidth;
@@ -1241,22 +1248,26 @@ function showToast(message){
 function renderPage(){
   const calendarMode=state.activePage==="calendar";
   const habitMode=state.activePage==="habit";
+  const growthMode=state.activePage==="growth";
   const statsMode=state.activePage==="stats";
 
   el.calendarPage.hidden=!calendarMode;
   el.habitPage.hidden=!habitMode;
+  el.growthPage.hidden=!growthMode;
   el.statsPage.hidden=!statsMode;
 
   el.calendarNav.classList.toggle("active",calendarMode);
   el.habitNav.classList.toggle("active",habitMode);
+  el.growthNav.classList.toggle("active",growthMode);
   el.statsNav.classList.toggle("active",statsMode);
 
   el.mobileCalendarNav.classList.toggle("active",calendarMode);
   el.mobileHabitNav.classList.toggle("active",habitMode);
+  el.mobileGrowthNav.classList.toggle("active",growthMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
   el.mobileAdd.hidden=
-    statsMode
+    statsMode||growthMode
     ||(calendarMode&&state.currentView==="week");
   el.mobileAdd.classList.toggle("habit-mode",habitMode);
 
@@ -1277,6 +1288,7 @@ function renderPage(){
   el.mobileAdd.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
 
   if(habitMode)renderHabits();
+  if(growthMode)renderGrowthState();
   if(statsMode)renderStats();
 }
 function renderHabits(){
@@ -1862,6 +1874,127 @@ function listenHabits(user){
   },error=>{console.error(error);alert("습관 기록을 불러오지 못했습니다.")});
 }
 
+function growthProfileRef(){
+  return doc(db,"users",state.user.uid,"growth","profile");
+}
+function listenGrowthProfile(user){
+  if(state.unsubscribeGrowthProfile)state.unsubscribeGrowthProfile();
+  state.unsubscribeGrowthProfile=onSnapshot(
+    doc(db,"users",user.uid,"growth","profile"),
+    snap=>{
+      state.growthProfile={challenges:[],certificates:[],...(snap.exists()?snap.data():{})};
+      if(state.activePage==="growth")renderGrowthState();
+    },
+    error=>console.error("성장 상태를 불러오지 못했습니다.",error)
+  );
+}
+async function saveGrowthProfile(next){
+  state.growthProfile={...state.growthProfile,...next};
+  renderGrowthState();
+  await setDoc(growthProfileRef(),state.growthProfile,{merge:true});
+}
+function growthDateKeys(){
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  const keys=[];
+  for(let cursor=first;cursor<=now;cursor=addDays(cursor,1))keys.push(dateKey(cursor));
+  return keys;
+}
+function growthAverage(values){
+  const usable=values.filter(Number.isFinite);
+  return usable.length?Math.round(usable.reduce((sum,value)=>sum+value,0)/usable.length):0;
+}
+function growthMetrics(){
+  const keys=growthDateKeys();
+  const eventValues=[];const habitValues=[];const todoValues=[];
+  let studyHours=0;let problemCount=0;let exerciseCount=0;let completedActions=0;
+  const studyPattern=/공부|학습|독서|문제|자격|시험|업무|전문|소방/i;
+  const exercisePattern=/운동|헬스|걷기|달리기|체력|요가/i;
+  keys.forEach(key=>{
+    const events=eventsForDate(key);
+    if(events.length){
+      const values=events.map(event=>Number(event.progress||0));
+      eventValues.push(...values);completedActions+=values.filter(value=>value===100).length;
+      events.forEach(event=>{
+        const text=`${event.title||""} ${event.memo||""}`;
+        const weighted=Number(event.progress||0)/100;
+        if(studyPattern.test(text))studyHours+=(eventDurationMs(event)/3600000)*weighted;
+        const match=text.match(/([0-9][0-9,]*)\s*(?:문제|개)/);
+        if(match)problemCount+=Number(match[1].replaceAll(",",""))*weighted;
+        if(exercisePattern.test(text)&&event.progress===100)exerciseCount++;
+      });
+    }
+    const habits=activeHabitsOn(key);
+    const habitDay=habits.map(habit=>habitProgress(habit.id,key));
+    habitValues.push(...habitDay);completedActions+=habitDay.filter(value=>value===100).length;
+    const todos=todosForDate(key);
+    if(todos.length){
+      const values=todos.map(todo=>Number(todo.progress||0));
+      todoValues.push(...values);completedActions+=values.filter(value=>value===100).length;
+    }
+  });
+  const execution=growthAverage([...eventValues,...todoValues]);
+  const life=growthAverage(habitValues);
+  const expertise=Math.min(100,Math.round(studyHours*2+problemCount/25));
+  const certificates=state.growthProfile.certificates||[];
+  const challengeProgress=(state.growthProfile.challenges||[]).map(challenge=>{
+    const count=challenge.habitId
+      ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)===100).length
+      :0;
+    return {...challenge,count,complete:count>=Number(challenge.target||1)};
+  });
+  const completeChallenges=challengeProgress.filter(item=>item.complete).length;
+  const xp=Math.round([...eventValues,...habitValues,...todoValues].reduce((sum,value)=>sum+value/10,0)+certificates.length*150+completeChallenges*50);
+  const level=Math.floor(xp/500)+1;
+  const power=Math.min(100,growthAverage([execution,expertise,life])+certificates.length*3+completeChallenges*2);
+  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,certificates,challengeProgress,completeChallenges};
+}
+function certificateSkillName(name){
+  return `${String(name||"전문 자격").replace(/자격증|기사|기능사|산업기사/g,"").trim()||"전문"} 숙련`;
+}
+function renderGrowthState(){
+  if(!el.growthPage)return;
+  const m=growthMetrics();
+  const name=state.user?.displayName?.split(" ")[0]||"사용자";
+  el.growthUserName.textContent=name;
+  el.growthLevel.textContent=`Lv.${m.level}`;
+  el.growthTitle.textContent=m.certificates.length?"배운 것을 현실의 기술로 만든 사람":m.execution>=70?"꾸준히 밭을 일구는 사람":"오늘의 밭을 가꾸는 사람";
+  const current=m.xp%500;
+  el.growthXpText.textContent=`${current} / 500`;
+  el.growthXpBar.style.width=`${current/5}%`;
+  [[el.growthExecution,el.growthExecutionBar,m.execution],[el.growthExpertise,el.growthExpertiseBar,m.expertise],[el.growthLife,el.growthLifeBar,m.life],[el.growthPower,el.growthPowerBar,m.power]].forEach(([text,bar,value])=>{text.textContent=value;bar.style.width=`${value}%`;});
+  el.growthPixelCharacter.classList.toggle("evolved",m.certificates.length>0||m.completeChallenges>0);
+  const skills=[
+    {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20))},
+    {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))},
+    ...m.certificates.slice(-2).map(item=>({name:certificateSkillName(item.name),level:1}))
+  ];
+  el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
+  el.growthEvidence.innerHTML=`<span><strong>${m.studyHours.toFixed(1)}h</strong><small>학습 시간</small></span><span><strong>${m.problemCount}</strong><small>문제·기록</small></span><span><strong>${m.completedActions}</strong><small>완료 행동</small></span>`;
+  el.growthAssets.innerHTML=`<span><b>▣</b><em>자격·기술</em><strong>${m.certificates.length}</strong></span><span><b>▤</b><em>달성 과제</em><strong>${m.completeChallenges}</strong></span>`;
+  const automatic=[
+    {name:"첫 수확",done:m.completedActions>=1},
+    {name:"일곱 번의 실천",done:m.completedActions>=7},
+    {name:"한 달의 밭",done:m.completedActions>=30}
+  ];
+  el.growthAchievements.innerHTML=[...automatic,...m.challengeProgress.slice(-3).map(item=>({name:item.name,done:item.complete,caption:`${item.count}/${item.target}`}))].map(item=>`<span class="${item.done?"done":""}"><b>${item.done?"✓":"◇"}</b><em>${escapeHtml(item.name)}</em><small>${item.caption|| (item.done?"달성":"진행 중")}</small></span>`).join("");
+  el.growthMonthDelta.textContent=`+${m.xp} XP`;
+  el.growthMonthCaption.textContent=m.completedActions?`${m.completedActions}번의 행동이 성장으로 쌓였습니다.`:"홈에서 완료율을 바꾸면 자동으로 자랍니다.";
+  el.growthChallengeHabit.innerHTML=`<option value="">직접 달성</option>${state.habits.map(habit=>`<option value="${habit.id}">${escapeHtml(habit.name)}</option>`).join("")}`;
+  renderGrowthDetail();
+}
+function renderGrowthDetail(){
+  if(!el.growthDetailContent)return;
+  const m=growthMetrics();
+  const rows={
+    stats:[["실행도",m.execution],["전문성",m.expertise],["생활력",m.life],["성장력",m.power]],
+    skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`],...m.certificates.map(item=>[certificateSkillName(item.name),"Lv.1"])],
+    assets:[["자격·기술",`${m.certificates.length}개`],["완료 행동",`${m.completedActions}회`],["달성 과제",`${m.completeChallenges}개`]],
+    achievements:m.challengeProgress.map(item=>[item.name,`${item.count}/${item.target}${item.complete?" · 달성":""}`])
+  };
+  el.growthDetailContent.innerHTML=(rows[state.growthDetailTab]||rows.stats).map(([name,value])=>`<div><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")||"<p class=empty-state>아직 기록이 없습니다.</p>";
+}
+
 async function login(){
   el.loginError.textContent="";
   try{await signInWithPopup(auth,provider)}
@@ -2121,6 +2254,7 @@ function renderAll(){
   if(state.activePage==="stats"){
     renderStats();
   }
+  if(state.activePage==="growth")renderGrowthState();
 
   restoreViewScroll(preservedScroll);
 }
@@ -6856,6 +6990,7 @@ function setupPageSwipeNavigation(){
     {page:"calendar",view:"selected"},
     {page:"calendar",view:"week"},
     {page:"habit"},
+    {page:"growth"},
     {page:"stats"}
   ];
 
@@ -6868,7 +7003,8 @@ function setupPageSwipeNavigation(){
       return state.currentView==="selected"?0:1;
     }
     if(state.activePage==="habit")return 2;
-    return 3;
+    if(state.activePage==="growth")return 3;
+    return 4;
   };
 
   const showScreen=index=>{
@@ -6887,6 +7023,7 @@ function setupPageSwipeNavigation(){
     const visible=[
       el.calendarPage,
       el.habitPage,
+      el.growthPage,
       el.statsPage
     ].find(page=>!page.hidden);
 
@@ -7098,11 +7235,31 @@ el.mobileUser.onclick=openSheet;el.closeSheet.onclick=closeSheet;el.accountSheet
 
 el.calendarNav.onclick=()=>navigateToPage("calendar");
 el.habitNav.onclick=()=>navigateToPage("habit");
+el.growthNav.onclick=()=>navigateToPage("growth");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
+el.mobileGrowthNav.onclick=()=>navigateToPage("growth");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
+
+function toggleGrowthModal(modal,show){
+  modal.classList.toggle("show",show);modal.setAttribute("aria-hidden",String(!show));
+}
+$("openGrowthSetupButton").onclick=()=>{el.growthCertificateDate.value=dateKey(new Date());renderGrowthState();toggleGrowthModal(el.growthSetupModal,true)};
+$("closeGrowthSetupButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
+$("closeGrowthDetailButton").onclick=()=>toggleGrowthModal(el.growthDetailModal,false);
+$("closeSkillUnlockButton").onclick=()=>toggleGrowthModal(el.skillUnlockModal,false);
+[$("openGrowthDetailButton"),...document.querySelectorAll("[data-growth-detail]")].forEach(button=>button?.addEventListener("click",()=>{
+  const requested=button.dataset.growthDetail;
+  state.growthDetailTab=["skills","assets","achievements"].includes(requested)?requested:"stats";
+  document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab.dataset.growthTab===state.growthDetailTab));
+  renderGrowthDetail();toggleGrowthModal(el.growthDetailModal,true);
+}));
+document.querySelectorAll("[data-growth-tab]").forEach(button=>button.onclick=()=>{state.growthDetailTab=button.dataset.growthTab;document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab===button));renderGrowthDetail()});
+[el.growthSetupModal,el.growthDetailModal,el.skillUnlockModal].forEach(modal=>modal.addEventListener("click",event=>{if(event.target===modal)toggleGrowthModal(modal,false)}));
+el.growthChallengeForm.onsubmit=async event=>{event.preventDefault();const challenges=[...(state.growthProfile.challenges||[]),{id:crypto.randomUUID(),name:el.growthChallengeName.value.trim(),habitId:el.growthChallengeHabit.value,target:Number(el.growthChallengeTarget.value),createdAt:Date.now()}];await saveGrowthProfile({challenges});el.growthChallengeForm.reset();el.growthChallengeTarget.value="30";el.growthSetupMessage.textContent="도전과제를 추가했습니다."};
+el.growthCertificateForm.onsubmit=async event=>{event.preventDefault();const name=el.growthCertificateName.value.trim();const certificates=[...(state.growthProfile.certificates||[]),{id:crypto.randomUUID(),name,date:el.growthCertificateDate.value,createdAt:Date.now()}];await saveGrowthProfile({certificates});el.growthCertificateForm.reset();toggleGrowthModal(el.growthSetupModal,false);el.skillUnlockName.textContent=`${certificateSkillName(name)} Lv.1`;el.skillUnlockDescription.textContent=`${name} 취득 기록으로 해금되었습니다.`;toggleGrowthModal(el.skillUnlockModal,true)};
 $("statsTodayButton").onclick=()=>{
   state.statsInsightDate=null;
   state.statsDate=dateKey(new Date());
@@ -7476,6 +7633,7 @@ onAuthStateChanged(auth,async user=>{
     if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
     if(state.unsubscribeTodos){state.unsubscribeTodos();state.unsubscribeTodos=null}
     if(state.unsubscribeTodoLogs){state.unsubscribeTodoLogs();state.unsubscribeTodoLogs=null}
+    if(state.unsubscribeGrowthProfile){state.unsubscribeGrowthProfile();state.unsubscribeGrowthProfile=null}
     el.login.hidden=false;el.app.hidden=true;return
   }
   state.user=user;
@@ -7492,6 +7650,7 @@ onAuthStateChanged(auth,async user=>{
     listen(user);
     listenHabits(user);
     listenTodos(user);
+    listenGrowthProfile(user);
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");
