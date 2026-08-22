@@ -70,9 +70,11 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  growthProfile:{challenges:[],certificates:[]},
+  growthProfile:{challenges:[],rewards:[]},
   unsubscribeGrowthProfile:null,
-  growthDetailTab:"stats"
+  growthDetailTab:"stats",
+  growthRewardsReady:false,
+  growthDataReady:{events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false}
 };
 
 const $ = (id) => document.getElementById(id);
@@ -154,7 +156,7 @@ const el = {
   growthPixelCharacter:$("growthPixelCharacter"), growthUserName:$("growthUserName"), growthLevel:$("growthLevel"), growthTitle:$("growthTitle"), growthXpText:$("growthXpText"), growthXpBar:$("growthXpBar"),
   growthExecution:$("growthExecution"), growthExecutionBar:$("growthExecutionBar"), growthExpertise:$("growthExpertise"), growthExpertiseBar:$("growthExpertiseBar"), growthLife:$("growthLife"), growthLifeBar:$("growthLifeBar"), growthPower:$("growthPower"), growthPowerBar:$("growthPowerBar"),
   growthSkills:$("growthSkills"), growthEvidence:$("growthEvidence"), growthAssets:$("growthAssets"), growthAchievements:$("growthAchievements"), growthMonthDelta:$("growthMonthDelta"), growthMonthCaption:$("growthMonthCaption"),
-  growthDetailModal:$("growthDetailModal"), growthDetailTitle:$("growthDetailTitle"), growthDetailContent:$("growthDetailContent"), growthSetupModal:$("growthSetupModal"), growthChallengeForm:$("growthChallengeForm"), growthChallengeName:$("growthChallengeName"), growthChallengeHabit:$("growthChallengeHabit"), growthChallengeTarget:$("growthChallengeTarget"), growthCertificateForm:$("growthCertificateForm"), growthCertificateName:$("growthCertificateName"), growthCertificateDate:$("growthCertificateDate"), growthSetupMessage:$("growthSetupMessage"), skillUnlockModal:$("skillUnlockModal"), skillUnlockName:$("skillUnlockName"), skillUnlockDescription:$("skillUnlockDescription"),
+  growthDetailModal:$("growthDetailModal"), growthDetailTitle:$("growthDetailTitle"), growthDetailContent:$("growthDetailContent"), growthSetupModal:$("growthSetupModal"), growthSetupTitle:$("growthSetupTitle"), growthChallengeForm:$("growthChallengeForm"), growthChallengeId:$("growthChallengeId"), growthChallengeName:$("growthChallengeName"), growthChallengeMode:$("growthChallengeMode"), growthChallengeTarget:$("growthChallengeTarget"), growthChallengeTargetWrap:$("growthChallengeTargetWrap"), growthChallengeDate:$("growthChallengeDate"), growthChallengeComplete:$("growthChallengeComplete"), growthChallengeCompleteWrap:$("growthChallengeCompleteWrap"), deleteGrowthChallengeButton:$("deleteGrowthChallengeButton"), growthSetupMessage:$("growthSetupMessage"), skillUnlockModal:$("skillUnlockModal"), skillUnlockName:$("skillUnlockName"), skillUnlockDescription:$("skillUnlockDescription"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -1858,10 +1860,12 @@ function listenHabits(user){
   if(state.unsubscribeHabits)state.unsubscribeHabits();
   if(state.unsubscribeHabitLogs)state.unsubscribeHabitLogs();
   const habitsQuery=query(collection(db,"users",user.uid,"habits"),orderBy("startDate"));
-  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
+  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()}));state.growthDataReady.habits=true;renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
   state.unsubscribeHabitLogs=onSnapshot(collection(db,"users",user.uid,"habitLogs"),snap=>{
     state.habitLogs={};
     snap.docs.forEach(d=>{state.habitLogs[d.id]={id:d.id,...d.data()}});
+    state.growthDataReady.habitLogs=true;
+    reconcileGrowthRewards();
 
     if(state.skipHabitSnapshotRenders>0){
       state.skipHabitSnapshotRenders--;
@@ -1882,7 +1886,9 @@ function listenGrowthProfile(user){
   state.unsubscribeGrowthProfile=onSnapshot(
     doc(db,"users",user.uid,"growth","profile"),
     snap=>{
-      state.growthProfile={challenges:[],certificates:[],...(snap.exists()?snap.data():{})};
+      state.growthProfile={challenges:[],rewards:[],...(snap.exists()?snap.data():{})};
+      state.growthRewardsReady=true;
+      reconcileGrowthRewards();
       if(state.activePage==="growth")renderGrowthState();
     },
     error=>console.error("성장 상태를 불러오지 못했습니다.",error)
@@ -1936,21 +1942,99 @@ function growthMetrics(){
   const execution=growthAverage([...eventValues,...todoValues]);
   const life=growthAverage(habitValues);
   const expertise=Math.min(100,Math.round(studyHours*2+problemCount/25));
-  const certificates=state.growthProfile.certificates||[];
   const challengeProgress=(state.growthProfile.challenges||[]).map(challenge=>{
     const count=challenge.habitId
-      ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)===100).length
+      ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length
       :0;
-    return {...challenge,count,complete:count>=Number(challenge.target||1)};
+    const computed=challenge.mode==="count"?count>=Number(challenge.target||1):Boolean(challenge.completed);
+    return {...challenge,count,complete:!challenge.manualIncomplete&&computed};
   });
   const completeChallenges=challengeProgress.filter(item=>item.complete).length;
-  const xp=Math.round([...eventValues,...habitValues,...todoValues].reduce((sum,value)=>sum+value/10,0)+certificates.length*150+completeChallenges*50);
+  const rewards=(state.growthProfile.rewards||[]).filter(item=>item.active!==false);
+  const xp=Math.max(0,Math.round(rewards.reduce((sum,item)=>sum+Number(item.xp||0),0)));
   const level=Math.floor(xp/500)+1;
-  const power=Math.min(100,growthAverage([execution,expertise,life])+certificates.length*3+completeChallenges*2);
-  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,certificates,challengeProgress,completeChallenges};
+  const power=Math.min(100,growthAverage([execution,expertise,life])+completeChallenges*2);
+  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,challengeProgress,completeChallenges,rewards};
 }
-function certificateSkillName(name){
-  return `${String(name||"전문 자격").replace(/자격증|기사|기능사|산업기사/g,"").trim()||"전문"} 숙련`;
+function habitMilestones(count){
+  const result=[3,15,30,70,100,150].filter(value=>count>=value);
+  for(let value=200;value<=count;value+=50)result.push(value);
+  return result;
+}
+function milestoneXp(value){
+  if(value===3)return 10;if(value===15)return 30;if(value===30)return 50;
+  if(value===70)return 80;if(value===100)return 100;if(value===150)return 150;
+  return 100;
+}
+function derivedGrowthRewards(){
+  const rewards=[];
+  const add=(id,sourceType,sourceId,label,xp)=>rewards.push({id,sourceType,sourceId,label,xp,active:true});
+  state.events.filter(event=>(event.repeat||"none")==="none"&&Number(event.progress)>0).forEach(event=>add(`event:${event.id}:${event.date}`,"event",event.id,`${event.title} ${event.progress}%`,Number(event.progress)/10));
+  Object.values(state.eventLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`event:${log.eventId}:${log.date}`,"event",log.eventId,`일정 ${log.progress}%`,Number(log.progress)/10));
+  Object.values(state.habitLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`habit-day:${log.habitId}:${log.date}`,"habit-day",log.habitId,`습관 ${log.progress}%`,Number(log.progress)/10));
+  state.todos.filter(todo=>Number(todo.progress)>0).forEach(todo=>add(`todo:${todo.id}:${todo.date||"single"}`,"todo",todo.id,`${todo.name||todo.title||"할 일"} ${todo.progress}%`,Number(todo.progress)/10));
+  Object.values(state.todoLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`todo:${log.todoId}:${log.date}`,"todo",log.todoId,`할 일 ${log.progress}%`,Number(log.progress)/10));
+  state.habits.forEach(habit=>{
+    const count=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
+    habitMilestones(count).forEach(milestone=>add(`habit-milestone:${habit.id}:${milestone}`,"habit-milestone",habit.id,`${habit.name} ${milestone}회 달성`,milestoneXp(milestone)));
+  });
+  (state.growthProfile.challenges||[]).forEach(challenge=>{
+    const count=challenge.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length:0;
+    const complete=!challenge.manualIncomplete&&(challenge.mode==="count"?count>=Number(challenge.target||1):Boolean(challenge.completed));
+    if(complete)add(`challenge:${challenge.id}`,"challenge",challenge.id,`${challenge.name} 달성`,50);
+  });
+  return [...new Map(rewards.map(item=>[item.id,item])).values()];
+}
+let growthRewardSyncing=false;
+async function reconcileGrowthRewards(){
+  if(!state.user||!state.growthRewardsReady||growthRewardSyncing||!Object.values(state.growthDataReady).every(Boolean))return;
+  const previous=state.growthProfile.rewards||[];
+  const next=derivedGrowthRewards().map(item=>{
+    const old=previous.find(value=>value.id===item.id);
+    return {...item,awardedAt:old?.awardedAt||Date.now()};
+  });
+  const signature=list=>JSON.stringify(list.map(({id,xp,label,active})=>({id,xp,label,active})).sort((a,b)=>a.id.localeCompare(b.id)));
+  if(signature(previous)===signature(next))return;
+  const freshMilestones=next.filter(item=>item.sourceType==="habit-milestone"&&!previous.some(old=>old.id===item.id));
+  growthRewardSyncing=true;
+  try{
+    state.growthProfile={...state.growthProfile,rewards:next};
+    await setDoc(growthProfileRef(),{rewards:next},{merge:true});
+    if(freshMilestones.length){
+      const latest=freshMilestones.at(-1);showToast(`${latest.label} · +${latest.xp} XP`);
+    }
+    if(state.activePage==="growth")renderGrowthState();
+  }catch(error){console.error("보상 지급 기록을 저장하지 못했습니다.",error)}finally{growthRewardSyncing=false}
+}
+function openGrowthChallenge(challenge=null){
+  el.growthChallengeForm.reset();
+  el.growthChallengeId.value=challenge?.id||"";
+  el.growthChallengeName.value=challenge?.name||"";
+  el.growthChallengeMode.value=challenge?.mode||"date";
+  el.growthChallengeTarget.value=challenge?.target||30;
+  el.growthChallengeDate.value=challenge?.dueDate||"";
+  const current=challenge?growthMetrics().challengeProgress.find(item=>item.id===challenge.id):null;
+  el.growthChallengeComplete.checked=Boolean(current?.complete);
+  el.growthSetupTitle.textContent=challenge?"도전과제 수정":"도전과제 추가";
+  el.deleteGrowthChallengeButton.hidden=!challenge;
+  el.growthChallengeCompleteWrap.hidden=!challenge;
+  syncGrowthChallengeMode();el.growthSetupMessage.textContent="";toggleGrowthModal(el.growthSetupModal,true);
+}
+function syncGrowthChallengeMode(){
+  const countMode=el.growthChallengeMode.value==="count";
+  el.growthChallengeTargetWrap.hidden=!countMode;
+  if(el.growthChallengeId.value)el.growthChallengeCompleteWrap.hidden=false;
+}
+async function removeGrowthChallenge(id){
+  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===id);if(!challenge)return;
+  if(challenge.habitId){
+    await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
+    await deleteDoc(doc(db,"users",state.user.uid,"habits",challenge.habitId));
+  }
+  const challenges=(state.growthProfile.challenges||[]).filter(item=>item.id!==id);
+  const rewards=(state.growthProfile.rewards||[]).filter(item=>item.sourceId!==id&&item.sourceId!==challenge.habitId);
+  await saveGrowthProfile({challenges,rewards});
+  toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
 }
 function renderGrowthState(){
   if(!el.growthPage)return;
@@ -1958,29 +2042,28 @@ function renderGrowthState(){
   const name=state.user?.displayName?.split(" ")[0]||"사용자";
   el.growthUserName.textContent=name;
   el.growthLevel.textContent=`Lv.${m.level}`;
-  el.growthTitle.textContent=m.certificates.length?"배운 것을 현실의 기술로 만든 사람":m.execution>=70?"꾸준히 밭을 일구는 사람":"오늘의 밭을 가꾸는 사람";
+  el.growthTitle.textContent=m.execution>=70?"꾸준히 밭을 일구는 사람":"오늘의 밭을 가꾸는 사람";
   const current=m.xp%500;
   el.growthXpText.textContent=`${current} / 500`;
   el.growthXpBar.style.width=`${current/5}%`;
   [[el.growthExecution,el.growthExecutionBar,m.execution],[el.growthExpertise,el.growthExpertiseBar,m.expertise],[el.growthLife,el.growthLifeBar,m.life],[el.growthPower,el.growthPowerBar,m.power]].forEach(([text,bar,value])=>{text.textContent=value;bar.style.width=`${value}%`;});
-  el.growthPixelCharacter.classList.toggle("evolved",m.certificates.length>0||m.completeChallenges>0);
+  el.growthPixelCharacter.classList.toggle("evolved",m.completeChallenges>0);
   const skills=[
     {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20))},
-    {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))},
-    ...m.certificates.slice(-2).map(item=>({name:certificateSkillName(item.name),level:1}))
+    {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))}
   ];
   el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
   el.growthEvidence.innerHTML=`<span><strong>${m.studyHours.toFixed(1)}h</strong><small>학습 시간</small></span><span><strong>${m.problemCount}</strong><small>문제·기록</small></span><span><strong>${m.completedActions}</strong><small>완료 행동</small></span>`;
-  el.growthAssets.innerHTML=`<span><b>▣</b><em>자격·기술</em><strong>${m.certificates.length}</strong></span><span><b>▤</b><em>달성 과제</em><strong>${m.completeChallenges}</strong></span>`;
+  el.growthAssets.innerHTML=`<span><b>▣</b><em>보상 기록</em><strong>${m.rewards.length}</strong></span><span><b>▤</b><em>달성 과제</em><strong>${m.completeChallenges}</strong></span>`;
   const automatic=[
     {name:"첫 수확",done:m.completedActions>=1},
     {name:"일곱 번의 실천",done:m.completedActions>=7},
-    {name:"한 달의 밭",done:m.completedActions>=30}
+    {name:"한 달의 밭",done:m.completedActions>=30},
+    ...m.rewards.filter(item=>item.sourceType==="habit-milestone").slice(-3).map(item=>({name:item.label,done:true,caption:`+${item.xp} XP`}))
   ];
-  el.growthAchievements.innerHTML=[...automatic,...m.challengeProgress.slice(-3).map(item=>({name:item.name,done:item.complete,caption:`${item.count}/${item.target}`}))].map(item=>`<span class="${item.done?"done":""}"><b>${item.done?"✓":"◇"}</b><em>${escapeHtml(item.name)}</em><small>${item.caption|| (item.done?"달성":"진행 중")}</small></span>`).join("");
+  el.growthAchievements.innerHTML=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].map(item=>`<span class="${item.done?"done":""}" ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id||!item.done?"disabled":""} aria-label="${item.done?"미완료로 변경":"진행 중"}">${item.done?"✓":"◇"}</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||(item.mode==="count"?`${item.count}/${item.target}`:(item.done?"달성":"진행 중"))}</small></span>`).join("");
   el.growthMonthDelta.textContent=`+${m.xp} XP`;
   el.growthMonthCaption.textContent=m.completedActions?`${m.completedActions}번의 행동이 성장으로 쌓였습니다.`:"홈에서 완료율을 바꾸면 자동으로 자랍니다.";
-  el.growthChallengeHabit.innerHTML=`<option value="">직접 달성</option>${state.habits.map(habit=>`<option value="${habit.id}">${escapeHtml(habit.name)}</option>`).join("")}`;
   renderGrowthDetail();
 }
 function renderGrowthDetail(){
@@ -1988,9 +2071,9 @@ function renderGrowthDetail(){
   const m=growthMetrics();
   const rows={
     stats:[["실행도",m.execution],["전문성",m.expertise],["생활력",m.life],["성장력",m.power]],
-    skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`],...m.certificates.map(item=>[certificateSkillName(item.name),"Lv.1"])],
-    assets:[["자격·기술",`${m.certificates.length}개`],["완료 행동",`${m.completedActions}회`],["달성 과제",`${m.completeChallenges}개`]],
-    achievements:m.challengeProgress.map(item=>[item.name,`${item.count}/${item.target}${item.complete?" · 달성":""}`])
+    skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`]],
+    assets:[["누적 경험치",`${m.xp} XP`],...m.rewards.slice().reverse().slice(0,40).map(item=>[item.label,`+${item.xp} XP`])],
+    achievements:m.challengeProgress.map(item=>[item.name,item.mode==="count"?`${item.count}/${item.target}${item.complete?" · 달성":""}`:`${item.dueDate||"기한 없음"}${item.complete?" · 달성":""}`])
   };
   el.growthDetailContent.innerHTML=(rows[state.growthDetailTab]||rows.stats).map(([name,value])=>`<div><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")||"<p class=empty-state>아직 기록이 없습니다.</p>";
 }
@@ -2055,6 +2138,8 @@ function listen(user){
       const next=snap.docs.map(d=>({id:d.id,...d.data()}));
       const progressOnly=collectionChangedOnlyProgress(previous,next);
       state.events=next;
+      state.growthDataReady.events=true;
+      reconcileGrowthRewards();
 
       if(progressOnly){
         clearSnapshotRenderSkip("Event");
@@ -2084,6 +2169,8 @@ function listen(user){
       const previous=Object.values(state.eventLogs);
       state.eventLogs={};
       snap.docs.forEach(d=>{state.eventLogs[d.id]={id:d.id,...d.data()}});
+      state.growthDataReady.eventLogs=true;
+      reconcileGrowthRewards();
       const next=Object.values(state.eventLogs);
 
       if(collectionChangedOnlyProgress(previous,next)){
@@ -2255,6 +2342,8 @@ function renderAll(){
     renderStats();
   }
   if(state.activePage==="growth")renderGrowthState();
+
+  reconcileGrowthRewards();
 
   restoreViewScroll(preservedScroll);
 }
@@ -4523,6 +4612,8 @@ function listenTodos(user){
     collection(db,"users",user.uid,"todos"),
     snap=>{
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+      state.growthDataReady.todos=true;
+      reconcileGrowthRewards();
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -4547,6 +4638,8 @@ function listenTodos(user){
       snap.docs.forEach(d=>{
         state.todoLogs[d.id]={id:d.id,...d.data()};
       });
+      state.growthDataReady.todoLogs=true;
+      reconcileGrowthRewards();
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -7246,8 +7339,9 @@ el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 function toggleGrowthModal(modal,show){
   modal.classList.toggle("show",show);modal.setAttribute("aria-hidden",String(!show));
 }
-$("openGrowthSetupButton").onclick=()=>{el.growthCertificateDate.value=dateKey(new Date());renderGrowthState();toggleGrowthModal(el.growthSetupModal,true)};
+$("openGrowthSetupButton").onclick=()=>openGrowthChallenge();
 $("closeGrowthSetupButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
+$("cancelGrowthChallengeButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
 $("closeGrowthDetailButton").onclick=()=>toggleGrowthModal(el.growthDetailModal,false);
 $("closeSkillUnlockButton").onclick=()=>toggleGrowthModal(el.skillUnlockModal,false);
 [$("openGrowthDetailButton"),...document.querySelectorAll("[data-growth-detail]")].forEach(button=>button?.addEventListener("click",()=>{
@@ -7258,8 +7352,41 @@ $("closeSkillUnlockButton").onclick=()=>toggleGrowthModal(el.skillUnlockModal,fa
 }));
 document.querySelectorAll("[data-growth-tab]").forEach(button=>button.onclick=()=>{state.growthDetailTab=button.dataset.growthTab;document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab===button));renderGrowthDetail()});
 [el.growthSetupModal,el.growthDetailModal,el.skillUnlockModal].forEach(modal=>modal.addEventListener("click",event=>{if(event.target===modal)toggleGrowthModal(modal,false)}));
-el.growthChallengeForm.onsubmit=async event=>{event.preventDefault();const challenges=[...(state.growthProfile.challenges||[]),{id:crypto.randomUUID(),name:el.growthChallengeName.value.trim(),habitId:el.growthChallengeHabit.value,target:Number(el.growthChallengeTarget.value),createdAt:Date.now()}];await saveGrowthProfile({challenges});el.growthChallengeForm.reset();el.growthChallengeTarget.value="30";el.growthSetupMessage.textContent="도전과제를 추가했습니다."};
-el.growthCertificateForm.onsubmit=async event=>{event.preventDefault();const name=el.growthCertificateName.value.trim();const certificates=[...(state.growthProfile.certificates||[]),{id:crypto.randomUUID(),name,date:el.growthCertificateDate.value,createdAt:Date.now()}];await saveGrowthProfile({certificates});el.growthCertificateForm.reset();toggleGrowthModal(el.growthSetupModal,false);el.skillUnlockName.textContent=`${certificateSkillName(name)} Lv.1`;el.skillUnlockDescription.textContent=`${name} 취득 기록으로 해금되었습니다.`;toggleGrowthModal(el.skillUnlockModal,true)};
+el.growthChallengeMode.onchange=syncGrowthChallengeMode;
+el.growthAchievements.addEventListener("click",async event=>{
+  const row=event.target.closest("[data-challenge-id]");if(!row)return;
+  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===row.dataset.challengeId);if(!challenge)return;
+  if(event.target.closest(".growth-state-mark")&&!event.target.disabled){
+    const challenges=state.growthProfile.challenges.map(item=>item.id===challenge.id?{...item,manualIncomplete:true,completed:false}:item);
+    const rewards=(state.growthProfile.rewards||[]).filter(item=>item.sourceId!==challenge.id);
+    await saveGrowthProfile({challenges,rewards});reconcileGrowthRewards();return;
+  }
+  if(event.target.closest(".growth-achievement-name"))openGrowthChallenge(challenge);
+});
+el.deleteGrowthChallengeButton.onclick=()=>removeGrowthChallenge(el.growthChallengeId.value);
+el.growthChallengeForm.onsubmit=async event=>{
+  event.preventDefault();
+  const id=el.growthChallengeId.value||crypto.randomUUID();
+  const previous=(state.growthProfile.challenges||[]).find(item=>item.id===id);
+  const mode=el.growthChallengeMode.value;
+  const name=el.growthChallengeName.value.trim();
+  const dueDate=el.growthChallengeDate.value;
+  const target=mode==="count"?Number(el.growthChallengeTarget.value||1):null;
+  let habitId=previous?.habitId||null;
+  try{
+    if(mode==="count"){
+      const habitData={name,startDate:previous?.createdDate||dateKey(new Date()),repeat:"daily",endDate:dueDate||"",challengeId:id,updatedAt:serverTimestamp()};
+      if(habitId)await setDoc(doc(db,"users",state.user.uid,"habits",habitId),habitData,{merge:true});
+      else habitId=(await addDoc(collection(db,"users",state.user.uid,"habits"),{...habitData,createdAt:serverTimestamp()})).id;
+    }else if(habitId){
+      await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
+      await deleteDoc(doc(db,"users",state.user.uid,"habits",habitId));habitId=null;
+    }
+    const next={id,name,mode,target,dueDate,habitId,completed:mode==="date"?el.growthChallengeComplete.checked:false,manualIncomplete:mode==="count"&&previous?.manualIncomplete?!el.growthChallengeComplete.checked:false,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const challenges=previous?state.growthProfile.challenges.map(item=>item.id===id?next:item):[...(state.growthProfile.challenges||[]),next];
+    await saveGrowthProfile({challenges});toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
+  }catch(error){console.error(error);el.growthSetupMessage.textContent="도전과제를 저장하지 못했습니다."}
+};
 $("statsTodayButton").onclick=()=>{
   state.statsInsightDate=null;
   state.statsDate=dateKey(new Date());
@@ -7626,6 +7753,7 @@ onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
+    state.growthRewardsReady=false;state.growthDataReady={events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}

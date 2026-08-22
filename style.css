@@ -149,6 +149,45 @@
   }
 }
 
+/* Momentum v7.51 — compact week toolbar, inline progress, editable challenges */
+body.week-fullscreen #calendarPage .calendar-toolbar{
+  height:auto!important;
+  min-height:0!important;
+  justify-content:flex-start!important;
+  align-content:stretch!important;
+}
+body.week-fullscreen #calendarPage .period-navigation,
+body.week-fullscreen #calendarPage .calendar-controls{
+  flex:none!important;
+}
+.event-progress-inline{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  padding:5px 8px!important;
+  border:1px solid #dce9e2!important;
+  border-radius:13px;
+  background:#fff;
+}
+.event-progress-inline legend{display:contents;color:#40584e;font-size:11px;font-weight:850}
+.event-progress-inline .progress-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}
+.event-progress-inline .progress-options button{min-width:0;min-height:31px!important;padding:3px 2px;border-width:1px;border-radius:9px;font-size:10px}
+.event-progress-inline .progress-options button.selected{transform:none!important;border-color:#173d2d!important;box-shadow:0 0 0 1px #173d2d inset}
+.growth-add-button{background:linear-gradient(145deg,#24a36c,#137c50)!important;color:#fff!important;border:0!important}
+.growth-achievements span{grid-template-columns:28px minmax(0,1fr) auto!important}
+.growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}
+.growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}
+.growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
+.growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}
+.growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
+@media(max-width:600px){
+  .event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}
+  .growth-setup-grid{grid-template-columns:1fr}.growth-form-actions{grid-template-columns:auto 1fr auto auto}
+}
+
 /* Momentum v7.42 — DAY/TODAY, compact white system, cyclic progress */
 :root{
   --bg:#fff;
@@ -7770,3 +7809,12 @@ body.week-fullscreen #calendarPage .week-zoom-controls{
 @media(max-width:720px){
   #growthPage{padding-top:0}.growth-topbar{padding-bottom:8px}.growth-topbar .sync-status{display:none}.growth-dashboard{padding:0 12px 24px;gap:10px}.growth-profile-card{min-height:106px;padding:10px 13px;gap:9px}.growth-pixel-character{flex-basis:92px;width:92px;height:76px}.growth-profile-line{font-size:15px}.growth-stat-grid{grid-template-columns:repeat(4,1fr);gap:5px}.growth-stat-card{padding:9px 7px;border-radius:14px}.growth-stat-card span{font-size:9px;white-space:nowrap}.growth-stat-card strong{font-size:19px}.growth-content-grid{grid-template-columns:1fr;gap:9px}.growth-card{padding:14px}.growth-month-strip{gap:7px}.growth-month-strip small{display:none}.mobile-bottom-nav{grid-template-columns:repeat(4,1fr)}
 }
+
+/* Momentum v7.51 final cascade */
+body.week-fullscreen #calendarPage .calendar-toolbar{height:auto!important;min-height:0!important;justify-content:flex-start!important;align-content:stretch!important}
+body.week-fullscreen #calendarPage .period-navigation,body.week-fullscreen #calendarPage .calendar-controls{flex:none!important}
+.event-progress-inline{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:9px;min-width:0;padding:5px 8px!important;border:1px solid #dce9e2!important;border-radius:13px;background:#fff}
+.event-progress-inline legend{display:contents;color:#40584e;font-size:11px;font-weight:850}.event-progress-inline .progress-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}.event-progress-inline .progress-options button{min-width:0;min-height:31px!important;padding:3px 2px;border-width:1px;border-radius:9px;font-size:10px}.event-progress-inline .progress-options button.selected{transform:none!important;border-color:#173d2d!important;box-shadow:0 0 0 1px #173d2d inset}
+.growth-add-button{background:linear-gradient(145deg,#24a36c,#137c50)!important;color:#fff!important;border:0!important}.growth-achievements span{grid-template-columns:28px minmax(0,1fr) auto!important}.growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}.growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}.growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
+.growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}.growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
+@media(max-width:600px){.event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}.growth-setup-grid{grid-template-columns:1fr}.growth-form-actions{grid-template-columns:auto 1fr auto auto}}
