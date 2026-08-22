@@ -149,7 +149,7 @@
   }
 }
 
-/* Momentum v7.51 — compact week toolbar, inline progress, editable challenges */
+/* Momentum v7.52 — independent reward ledger, reversible XP, D-day states */
 body.week-fullscreen #calendarPage .calendar-toolbar{
   height:auto!important;
   min-height:0!important;
@@ -181,6 +181,9 @@ body.week-fullscreen #calendarPage .calendar-controls{
 .growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}
 .growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}
 .growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
+.heatmap-block-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.heatmap-block-heading .heatmap-block-name{margin:0}
+.heatmap-habit-progress{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.35;color:#73827a;font-weight:700}
 .growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}
 .growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
 @media(max-width:600px){

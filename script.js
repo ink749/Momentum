@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDcrq-223O2A8E0yJoVNgXnDARH1bfwrgw",
@@ -70,8 +70,8 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  growthProfile:{challenges:[],rewards:[]},
-  unsubscribeGrowthProfile:null,
+  growthProfile:{challenges:[]}, growthRewards:[],
+  unsubscribeGrowthProfile:null, unsubscribeGrowthRewards:null,
   growthDetailTab:"stats",
   growthRewardsReady:false,
   growthDataReady:{events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false}
@@ -1501,12 +1501,21 @@ function createHeatmapHabitBlock(habit,className){
   const block=document.createElement("section");
   block.className=className;
 
+  const heading=document.createElement("div");
+  heading.className="heatmap-block-heading";
   const title=document.createElement("button");
   title.type="button";
   title.className="heatmap-block-name";
   title.textContent=habit.name;
   title.onclick=()=>openHabitEdit(habit);
-  block.appendChild(title);
+  const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
+  const challenge=(state.growthProfile.challenges||[]).find(item=>item.habitId===habit.id&&item.mode==="count");
+  const nextMilestone=[3,15,30,70,100,150].find(value=>value>achieved)||Math.ceil((achieved+1)/50)*50;
+  const progress=document.createElement("span");
+  progress.className="heatmap-habit-progress";
+  progress.textContent=challenge?`${achieved} / ${challenge.target}`:`누적 ${achieved}회 · 다음 보상 ${nextMilestone}회`;
+  heading.append(title,progress);
+  block.appendChild(heading);
 
   const rows=heatmapRowsForHabit(habit);
   const keys=rows.flatMap(row=>row.keys);
@@ -1881,18 +1890,38 @@ function listenHabits(user){
 function growthProfileRef(){
   return doc(db,"users",state.user.uid,"growth","profile");
 }
+function growthRewardsRef(){return collection(db,"users",state.user.uid,"growthRewards")}
 function listenGrowthProfile(user){
   if(state.unsubscribeGrowthProfile)state.unsubscribeGrowthProfile();
+  if(state.unsubscribeGrowthRewards)state.unsubscribeGrowthRewards();
+  state.growthRewardsReady=false;
   state.unsubscribeGrowthProfile=onSnapshot(
     doc(db,"users",user.uid,"growth","profile"),
     snap=>{
-      state.growthProfile={challenges:[],rewards:[],...(snap.exists()?snap.data():{})};
-      state.growthRewardsReady=true;
-      reconcileGrowthRewards();
+      const loaded={challenges:[],...(snap.exists()?snap.data():{})};
+      const legacyRewards=Array.isArray(loaded.rewards)?loaded.rewards:[];
+      delete loaded.rewards;
+      state.growthProfile=loaded;
+      if(legacyRewards.length)migrateLegacyGrowthRewards(legacyRewards);
       if(state.activePage==="growth")renderGrowthState();
     },
     error=>console.error("성장 상태를 불러오지 못했습니다.",error)
   );
+  state.unsubscribeGrowthRewards=onSnapshot(growthRewardsRef(),snap=>{
+    state.growthRewards=snap.docs.map(item=>({id:item.id,...item.data()}));
+    state.growthRewardsReady=true;
+    reconcileGrowthRewards();
+    if(state.activePage==="growth")renderGrowthState();
+  },error=>console.error("보상 지급 기록을 불러오지 못했습니다.",error));
+}
+let legacyRewardMigrationRunning=false;
+async function migrateLegacyGrowthRewards(rewards){
+  if(legacyRewardMigrationRunning||!state.user)return;
+  legacyRewardMigrationRunning=true;
+  try{
+    await Promise.all(rewards.map(reward=>setDoc(doc(growthRewardsRef(),reward.id),reward,{merge:true})));
+    await setDoc(growthProfileRef(),{rewards:deleteField()},{merge:true});
+  }catch(error){console.error("기존 보상 기록을 이전하지 못했습니다.",error)}finally{legacyRewardMigrationRunning=false}
 }
 async function saveGrowthProfile(next){
   state.growthProfile={...state.growthProfile,...next};
@@ -1946,11 +1975,11 @@ function growthMetrics(){
     const count=challenge.habitId
       ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length
       :0;
-    const computed=challenge.mode==="count"?count>=Number(challenge.target||1):Boolean(challenge.completed);
+    const computed=challenge.mode==="count"?(Boolean(challenge.completed)||count>=Number(challenge.target||1)):Boolean(challenge.completed);
     return {...challenge,count,complete:!challenge.manualIncomplete&&computed};
   });
   const completeChallenges=challengeProgress.filter(item=>item.complete).length;
-  const rewards=(state.growthProfile.rewards||[]).filter(item=>item.active!==false);
+  const rewards=state.growthRewards.filter(item=>item.active!==false);
   const xp=Math.max(0,Math.round(rewards.reduce((sum,item)=>sum+Number(item.xp||0),0)));
   const level=Math.floor(xp/500)+1;
   const power=Math.min(100,growthAverage([execution,expertise,life])+completeChallenges*2);
@@ -1980,7 +2009,7 @@ function derivedGrowthRewards(){
   });
   (state.growthProfile.challenges||[]).forEach(challenge=>{
     const count=challenge.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length:0;
-    const complete=!challenge.manualIncomplete&&(challenge.mode==="count"?count>=Number(challenge.target||1):Boolean(challenge.completed));
+    const complete=!challenge.manualIncomplete&&(challenge.mode==="count"?(Boolean(challenge.completed)||count>=Number(challenge.target||1)):Boolean(challenge.completed));
     if(complete)add(`challenge:${challenge.id}`,"challenge",challenge.id,`${challenge.name} 달성`,50);
   });
   return [...new Map(rewards.map(item=>[item.id,item])).values()];
@@ -1988,7 +2017,7 @@ function derivedGrowthRewards(){
 let growthRewardSyncing=false;
 async function reconcileGrowthRewards(){
   if(!state.user||!state.growthRewardsReady||growthRewardSyncing||!Object.values(state.growthDataReady).every(Boolean))return;
-  const previous=state.growthProfile.rewards||[];
+  const previous=state.growthRewards;
   const next=derivedGrowthRewards().map(item=>{
     const old=previous.find(value=>value.id===item.id);
     return {...item,awardedAt:old?.awardedAt||Date.now()};
@@ -1998,8 +2027,17 @@ async function reconcileGrowthRewards(){
   const freshMilestones=next.filter(item=>item.sourceType==="habit-milestone"&&!previous.some(old=>old.id===item.id));
   growthRewardSyncing=true;
   try{
-    state.growthProfile={...state.growthProfile,rewards:next};
-    await setDoc(growthProfileRef(),{rewards:next},{merge:true});
+    const nextIds=new Set(next.map(item=>item.id));
+    const stale=previous.filter(item=>!nextIds.has(item.id));
+    const changed=next.filter(item=>{
+      const old=previous.find(value=>value.id===item.id);
+      return !old||signature([old])!==signature([item]);
+    });
+    await Promise.all([
+      ...changed.map(item=>setDoc(doc(growthRewardsRef(),item.id),item,{merge:false})),
+      ...stale.map(item=>deleteDoc(doc(growthRewardsRef(),item.id)))
+    ]);
+    state.growthRewards=next;
     if(freshMilestones.length){
       const latest=freshMilestones.at(-1);showToast(`${latest.label} · +${latest.xp} XP`);
     }
@@ -2032,9 +2070,29 @@ async function removeGrowthChallenge(id){
     await deleteDoc(doc(db,"users",state.user.uid,"habits",challenge.habitId));
   }
   const challenges=(state.growthProfile.challenges||[]).filter(item=>item.id!==id);
-  const rewards=(state.growthProfile.rewards||[]).filter(item=>item.sourceId!==id&&item.sourceId!==challenge.habitId);
-  await saveGrowthProfile({challenges,rewards});
+  await deleteGrowthRewardsBySources([id,challenge.habitId]);
+  await saveGrowthProfile({challenges});
   toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
+}
+async function deleteGrowthRewardsBySources(sourceIds){
+  const ids=new Set(sourceIds.filter(Boolean));
+  const targets=state.growthRewards.filter(item=>ids.has(item.sourceId));
+  await Promise.all(targets.map(item=>deleteDoc(doc(growthRewardsRef(),item.id))));
+  state.growthRewards=state.growthRewards.filter(item=>!ids.has(item.sourceId));
+}
+function challengeStatusText(item){
+  if(item.complete||item.done)return "달성";
+  if(item.mode==="count"){
+    const countText=`${item.count} / ${item.target}`;
+    if(!item.dueDate)return countText;
+    const diff=Math.round((parseDateKey(item.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
+    return `${countText} · ${diff>0?`D-${diff}`:diff===0?"오늘":"기한 지남"}`;
+  }
+  if(!item.dueDate)return "진행 중";
+  const diff=Math.round((parseDateKey(item.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
+  if(diff>0)return `D-${diff}`;
+  if(diff===0)return "오늘";
+  return "기한 지남";
 }
 function renderGrowthState(){
   if(!el.growthPage)return;
@@ -2061,7 +2119,7 @@ function renderGrowthState(){
     {name:"한 달의 밭",done:m.completedActions>=30},
     ...m.rewards.filter(item=>item.sourceType==="habit-milestone").slice(-3).map(item=>({name:item.label,done:true,caption:`+${item.xp} XP`}))
   ];
-  el.growthAchievements.innerHTML=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].map(item=>`<span class="${item.done?"done":""}" ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id||!item.done?"disabled":""} aria-label="${item.done?"미완료로 변경":"진행 중"}">${item.done?"✓":"◇"}</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||(item.mode==="count"?`${item.count}/${item.target}`:(item.done?"달성":"진행 중"))}</small></span>`).join("");
+  el.growthAchievements.innerHTML=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].map(item=>{const done=Boolean(item.done||item.complete);return `<span class="${done?"done":""}" ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id?"disabled":""} aria-label="${done?"미완료로 변경":"완료로 표시"}">${done?"✓":"◇"}</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||challengeStatusText(item)}</small></span>`}).join("");
   el.growthMonthDelta.textContent=`+${m.xp} XP`;
   el.growthMonthCaption.textContent=m.completedActions?`${m.completedActions}번의 행동이 성장으로 쌓였습니다.`:"홈에서 완료율을 바꾸면 자동으로 자랍니다.";
   renderGrowthDetail();
@@ -2073,7 +2131,7 @@ function renderGrowthDetail(){
     stats:[["실행도",m.execution],["전문성",m.expertise],["생활력",m.life],["성장력",m.power]],
     skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`]],
     assets:[["누적 경험치",`${m.xp} XP`],...m.rewards.slice().reverse().slice(0,40).map(item=>[item.label,`+${item.xp} XP`])],
-    achievements:m.challengeProgress.map(item=>[item.name,item.mode==="count"?`${item.count}/${item.target}${item.complete?" · 달성":""}`:`${item.dueDate||"기한 없음"}${item.complete?" · 달성":""}`])
+    achievements:m.challengeProgress.map(item=>[item.name,challengeStatusText(item)])
   };
   el.growthDetailContent.innerHTML=(rows[state.growthDetailTab]||rows.stats).map(([name,value])=>`<div><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")||"<p class=empty-state>아직 기록이 없습니다.</p>";
 }
@@ -4250,9 +4308,12 @@ async function deleteTodo(){
   if(!confirm("이 할 일을 삭제할까요?"))return;
 
   try{
-    await deleteDoc(
-      doc(db,"users",state.user.uid,"todos",el.todoEditId.value)
-    );
+    const todoId=el.todoEditId.value;
+    await Promise.all([
+      deleteDoc(doc(db,"users",state.user.uid,"todos",todoId)),
+      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id))),
+      deleteGrowthRewardsBySources([todoId])
+    ]);
     closeTodoModal();
   }catch(error){
     console.error(error);
@@ -6986,9 +7047,12 @@ async function deleteEntireRepeatSeries(){
   if(!state.user||!el.eventId.value)return;
 
   try{
-    await deleteDoc(
-      doc(db,"users",state.user.uid,"events",el.eventId.value)
-    );
+    const eventId=el.eventId.value;
+    await Promise.all([
+      deleteDoc(doc(db,"users",state.user.uid,"events",eventId)),
+      ...Object.values(state.eventLogs).filter(log=>log.eventId===eventId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"eventLogs",log.id))),
+      deleteGrowthRewardsBySources([eventId])
+    ]);
     closeRepeatDeleteDialog();
     closeModal();
   }catch(error){
@@ -7020,6 +7084,7 @@ async function removeEvent(){
     await deleteDoc(
       doc(db,"users",state.user.uid,"events",deletedId)
     );
+    await deleteGrowthRewardsBySources([deletedId]);
 
     pushUndo("일정 삭제",async()=>{
       await setDoc(
@@ -7357,9 +7422,11 @@ el.growthAchievements.addEventListener("click",async event=>{
   const row=event.target.closest("[data-challenge-id]");if(!row)return;
   const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===row.dataset.challengeId);if(!challenge)return;
   if(event.target.closest(".growth-state-mark")&&!event.target.disabled){
-    const challenges=state.growthProfile.challenges.map(item=>item.id===challenge.id?{...item,manualIncomplete:true,completed:false}:item);
-    const rewards=(state.growthProfile.rewards||[]).filter(item=>item.sourceId!==challenge.id);
-    await saveGrowthProfile({challenges,rewards});reconcileGrowthRewards();return;
+    const current=growthMetrics().challengeProgress.find(item=>item.id===challenge.id);
+    const markingComplete=!current?.complete;
+    const challenges=state.growthProfile.challenges.map(item=>item.id===challenge.id?{...item,manualIncomplete:!markingComplete,completed:markingComplete}:item);
+    if(!markingComplete)await deleteGrowthRewardsBySources([challenge.id]);
+    await saveGrowthProfile({challenges});reconcileGrowthRewards();return;
   }
   if(event.target.closest(".growth-achievement-name"))openGrowthChallenge(challenge);
 });
@@ -7382,7 +7449,9 @@ el.growthChallengeForm.onsubmit=async event=>{
       await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
       await deleteDoc(doc(db,"users",state.user.uid,"habits",habitId));habitId=null;
     }
-    const next={id,name,mode,target,dueDate,habitId,completed:mode==="date"?el.growthChallengeComplete.checked:false,manualIncomplete:mode==="count"&&previous?.manualIncomplete?!el.growthChallengeComplete.checked:false,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const checked=el.growthChallengeComplete.checked;
+    const wasComplete=previous?Boolean(growthMetrics().challengeProgress.find(item=>item.id===id)?.complete):false;
+    const next={id,name,mode,target,dueDate,habitId,completed:checked,manualIncomplete:mode==="count"&&!checked&&wasComplete,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
     const challenges=previous?state.growthProfile.challenges.map(item=>item.id===id?next:item):[...(state.growthProfile.challenges||[]),next];
     await saveGrowthProfile({challenges});toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
   }catch(error){console.error(error);el.growthSetupMessage.textContent="도전과제를 저장하지 못했습니다."}
@@ -7753,7 +7822,7 @@ onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
-    state.growthRewardsReady=false;state.growthDataReady={events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false};
+    state.growthRewards=[];state.growthRewardsReady=false;state.growthDataReady={events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
@@ -7762,6 +7831,7 @@ onAuthStateChanged(auth,async user=>{
     if(state.unsubscribeTodos){state.unsubscribeTodos();state.unsubscribeTodos=null}
     if(state.unsubscribeTodoLogs){state.unsubscribeTodoLogs();state.unsubscribeTodoLogs=null}
     if(state.unsubscribeGrowthProfile){state.unsubscribeGrowthProfile();state.unsubscribeGrowthProfile=null}
+    if(state.unsubscribeGrowthRewards){state.unsubscribeGrowthRewards();state.unsubscribeGrowthRewards=null}
     el.login.hidden=false;el.app.hidden=true;return
   }
   state.user=user;
