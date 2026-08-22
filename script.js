@@ -624,9 +624,9 @@ function habitDefaultEndDate(habit){
   return new Date(9999,11,31);
 }
 function habitEffectiveEndDate(habit){
-  return habit.endDate
-    ?parseDateKey(habit.endDate)
-    :habitDefaultEndDate(habit);
+  const configured=habit.endDate?parseDateKey(habit.endDate):habitDefaultEndDate(habit);
+  const archived=habit.archivedDate?parseDateKey(habit.archivedDate):habitDefaultEndDate(habit);
+  return configured<archived?configured:archived;
 }
 function habitIsActive(habit,key){
   const target=parseDateKey(key);
@@ -1301,7 +1301,7 @@ function renderHabitList(){
   const d=parseDateKey(state.selectedHabitDateKey);
   el.habitTodayLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 습관`;
   el.habitList.innerHTML="";
-  const active=state.habits.filter(h=>habitIsActive(h,state.selectedHabitDateKey));
+  const active=state.habits.filter(h=>!h.archived&&habitIsActive(h,state.selectedHabitDateKey));
   if(!active.length){
     el.habitList.innerHTML='<div class="habit-empty">등록된 습관이 없습니다.<br>오른쪽 아래 + 버튼을 눌러 시작하세요.</div>';
     return;
@@ -1565,9 +1565,7 @@ function habitExistsInHeatmapPeriod(habit){
   if(!habit?.startDate)return false;
 
   const habitStart=parseDateKey(habit.startDate);
-  const habitEnd=habit.endDate
-    ?parseDateKey(habit.endDate)
-    :new Date(9999,11,31);
+  const habitEnd=habitEffectiveEndDate(habit);
 
   const window=habitHeatmapDisplayWindow(habit);
 
@@ -1733,15 +1731,15 @@ async function submitHabit(event){
 }
 async function deleteHabit(){
   if(!state.user||!el.habitId.value)return;
-  if(!confirm("이 습관을 삭제할까요? 기존 기록은 화면에서 더 이상 표시되지 않습니다."))return;
+  if(!confirm("이 습관을 종료할까요? 과거 실행 기록과 통계는 그대로 유지됩니다."))return;
   try{
     const habitId=el.habitId.value;
     const source=state.habits.find(habit=>habit.id===habitId);
     const deletedData=firestoreRecordData(source);
 
-    await deleteDoc(
-      doc(db,"users",state.user.uid,"habits",habitId)
-    );
+    await updateDoc(doc(db,"users",state.user.uid,"habits",habitId),{
+      archived:true,archivedDate:dateKey(new Date()),archivedAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
 
     pushUndo("습관 삭제",async()=>{
       await setDoc(
@@ -1939,6 +1937,35 @@ function growthAverage(values){
   const usable=values.filter(Number.isFinite);
   return usable.length?Math.round(usable.reduce((sum,value)=>sum+value,0)/usable.length):0;
 }
+function growthEvidenceMetrics(){
+  const today=parseDateKey(dateKey(new Date()));
+  const abilityLabels={study:"전문성",exercise:"체력",work:"업무력",personal:"생활력",other:"실행력"};
+  const measure=(from,to)=>{
+    const values=[];const activeDays=new Set();const abilities={};
+    for(let cursor=new Date(from);cursor<=to;cursor=addDays(cursor,1)){
+      const key=dateKey(cursor);const dayValues=[];
+      eventsForDate(key).forEach(event=>{
+        const value=Number(event.progress||0);values.push(value);dayValues.push(value);
+        const ability=abilityLabels[event.category||"other"]||"실행력";
+        abilities[ability]=(abilities[ability]||0)+value/100;
+      });
+      activeHabitsOn(key).forEach(habit=>{
+        const value=habitProgress(habit.id,key);values.push(value);dayValues.push(value);
+        abilities["꾸준함"]=(abilities["꾸준함"]||0)+value/100;
+      });
+      todosForDate(key).forEach(todo=>{
+        const value=Number(todo.progress||0);values.push(value);dayValues.push(value);
+        abilities["실행력"]=(abilities["실행력"]||0)+value/100;
+      });
+      if(dayValues.some(value=>value>0))activeDays.add(key);
+    }
+    return {average:values.length?values.reduce((sum,value)=>sum+value,0)/values.length:0,hasRecords:values.length>0,activeDays:activeDays.size,abilities};
+  };
+  const current=measure(addDays(today,-29),today);
+  const previous=measure(addDays(today,-59),addDays(today,-30));
+  const topAbility=Object.entries(current.abilities).sort((a,b)=>b[1]-a[1])[0]||["기록 없음",0];
+  return {completionDelta:Math.round(current.average-previous.average),hasPrevious:previous.hasRecords,activeDays:current.activeDays,activeDaysDelta:current.activeDays-previous.activeDays,topAbility:topAbility[0],topAbilityValue:Math.round(topAbility[1]*10)/10};
+}
 function growthMetrics(){
   const keys=growthDateKeys();
   const eventValues=[];const habitValues=[];const todoValues=[];
@@ -1970,7 +1997,9 @@ function growthMetrics(){
   });
   const execution=growthAverage([...eventValues,...todoValues]);
   const life=growthAverage(habitValues);
-  const expertise=Math.min(100,Math.round(studyHours*2+problemCount/25));
+  const studyValues=[];
+  keys.forEach(key=>eventsForDate(key).filter(event=>event.category==="study").forEach(event=>studyValues.push(Number(event.progress||0))));
+  const expertise=growthAverage(studyValues);
   const challengeProgress=(state.growthProfile.challenges||[]).map(challenge=>{
     const count=challenge.habitId
       ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length
@@ -1983,7 +2012,7 @@ function growthMetrics(){
   const xp=Math.max(0,Math.round(rewards.reduce((sum,item)=>sum+Number(item.xp||0),0)));
   const level=Math.floor(xp/500)+1;
   const power=Math.min(100,growthAverage([execution,expertise,life])+completeChallenges*2);
-  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,challengeProgress,completeChallenges,rewards};
+  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,challengeProgress,completeChallenges,rewards,evidence:growthEvidenceMetrics()};
 }
 function habitMilestones(count){
   const result=[3,15,30,70,100,150].filter(value=>count>=value);
@@ -2111,15 +2140,18 @@ function renderGrowthState(){
     {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))}
   ];
   el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
-  el.growthEvidence.innerHTML=`<span><strong>${m.studyHours.toFixed(1)}h</strong><small>학습 시간</small></span><span><strong>${m.problemCount}</strong><small>문제·기록</small></span><span><strong>${m.completedActions}</strong><small>완료 행동</small></span>`;
-  el.growthAssets.innerHTML=`<span><b>▣</b><em>보상 기록</em><strong>${m.rewards.length}</strong></span><span><b>▤</b><em>달성 과제</em><strong>${m.completeChallenges}</strong></span>`;
+  const evidence=m.evidence;
+  const deltaText=evidence.hasPrevious?`${evidence.completionDelta>0?"+":""}${evidence.completionDelta}%p`:"—";
+  el.growthEvidence.innerHTML=`<span><strong>${deltaText}</strong><small>30일 완료율 변화</small></span><span><strong>${evidence.activeDays}일</strong><small>최근 30일 실천</small></span><span><strong>${escapeHtml(evidence.topAbility)}</strong><small>가장 성장한 능력치</small></span>`;
+  el.growthAssets.innerHTML=`<span><b>▤</b><em>달성한 도전과제</em><strong>${m.completeChallenges}</strong></span><span><b>◆</b><em>보유 스킬</em><strong>${skills.length}</strong></span>`;
   const automatic=[
     {name:"첫 수확",done:m.completedActions>=1},
     {name:"일곱 번의 실천",done:m.completedActions>=7},
     {name:"한 달의 밭",done:m.completedActions>=30},
     ...m.rewards.filter(item=>item.sourceType==="habit-milestone").slice(-3).map(item=>({name:item.label,done:true,caption:`+${item.xp} XP`}))
   ];
-  el.growthAchievements.innerHTML=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].map(item=>{const done=Boolean(item.done||item.complete);return `<span class="${done?"done":""}" ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id?"disabled":""} aria-label="${done?"미완료로 변경":"완료로 표시"}">${done?"✓":"◇"}</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||challengeStatusText(item)}</small></span>`}).join("");
+  const currentAchievements=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].filter(item=>!Boolean(item.done||item.complete));
+  el.growthAchievements.innerHTML=currentAchievements.map(item=>`<span ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id?"disabled":""} aria-label="완료로 표시">◇</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||challengeStatusText(item)}</small></span>`).join("")||'<p class="empty-state">진행 중인 도전과제가 없습니다.</p>';
   el.growthMonthDelta.textContent=`+${m.xp} XP`;
   el.growthMonthCaption.textContent=m.completedActions?`${m.completedActions}번의 행동이 성장으로 쌓였습니다.`:"홈에서 완료율을 바꾸면 자동으로 자랍니다.";
   renderGrowthDetail();
@@ -2127,11 +2159,19 @@ function renderGrowthState(){
 function renderGrowthDetail(){
   if(!el.growthDetailContent)return;
   const m=growthMetrics();
+  if(state.growthDetailTab==="achievements"){
+    const pending=m.challengeProgress.filter(item=>!item.complete);
+    const completed=m.challengeProgress.filter(item=>item.complete);
+    const section=(title,items)=>`<section class="growth-achievement-section"><h3>${title}</h3>${items.map(item=>`<button type="button" class="growth-detail-challenge" data-detail-challenge-id="${item.id}"><span>${escapeHtml(item.name)}</span><strong>${escapeHtml(challengeStatusText(item))}</strong></button>`).join("")||'<p class="empty-state">해당하는 도전과제가 없습니다.</p>'}</section>`;
+    el.growthDetailContent.innerHTML=section("진행 중",pending)+section("달성",completed);
+    return;
+  }
   const rows={
     stats:[["실행도",m.execution],["전문성",m.expertise],["생활력",m.life],["성장력",m.power]],
     skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`]],
-    assets:[["누적 경험치",`${m.xp} XP`],...m.rewards.slice().reverse().slice(0,40).map(item=>[item.label,`+${item.xp} XP`])],
-    achievements:m.challengeProgress.map(item=>[item.name,challengeStatusText(item)])
+    assets:[["달성한 도전과제",m.completeChallenges],["보유 스킬",2]],
+    evidence:[["30일 완료율 변화",m.evidence.hasPrevious?`${m.evidence.completionDelta>0?"+":""}${m.evidence.completionDelta}%p`:"비교 기록 없음"],["최근 30일 실천",`${m.evidence.activeDays}일`],["이전 30일 대비 실천",`${m.evidence.activeDaysDelta>0?"+":""}${m.evidence.activeDaysDelta}일`],["가장 성장한 능력치",m.evidence.topAbility]],
+    achievements:[]
   };
   el.growthDetailContent.innerHTML=(rows[state.growthDetailTab]||rows.stats).map(([name,value])=>`<div><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")||"<p class=empty-state>아직 기록이 없습니다.</p>";
 }
@@ -7411,11 +7451,16 @@ $("closeGrowthDetailButton").onclick=()=>toggleGrowthModal(el.growthDetailModal,
 $("closeSkillUnlockButton").onclick=()=>toggleGrowthModal(el.skillUnlockModal,false);
 [$("openGrowthDetailButton"),...document.querySelectorAll("[data-growth-detail]")].forEach(button=>button?.addEventListener("click",()=>{
   const requested=button.dataset.growthDetail;
-  state.growthDetailTab=["skills","assets","achievements"].includes(requested)?requested:"stats";
+  state.growthDetailTab=["skills","assets","achievements","evidence"].includes(requested)?requested:"stats";
   document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab.dataset.growthTab===state.growthDetailTab));
   renderGrowthDetail();toggleGrowthModal(el.growthDetailModal,true);
 }));
 document.querySelectorAll("[data-growth-tab]").forEach(button=>button.onclick=()=>{state.growthDetailTab=button.dataset.growthTab;document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab===button));renderGrowthDetail()});
+el.growthDetailContent.addEventListener("click",event=>{
+  const button=event.target.closest("[data-detail-challenge-id]");if(!button)return;
+  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===button.dataset.detailChallengeId);
+  if(challenge)openGrowthChallenge(challenge);
+});
 [el.growthSetupModal,el.growthDetailModal,el.skillUnlockModal].forEach(modal=>modal.addEventListener("click",event=>{if(event.target===modal)toggleGrowthModal(modal,false)}));
 el.growthChallengeMode.onchange=syncGrowthChallengeMode;
 el.growthAchievements.addEventListener("click",async event=>{
@@ -7688,6 +7733,11 @@ $("closeHabitModal").onclick=closeHabitModal;
 $("cancelHabit").onclick=closeHabitModal;
 el.habitForm.onsubmit=submitHabit;
 el.deleteHabitButton.onclick=deleteHabit;
+el.habitEndDate.addEventListener("click",()=>{
+  if(!el.habitEndDate.value)return;
+  el.habitEndDate.value="";
+  el.habitEndDate.dispatchEvent(new Event("change",{bubbles:true}));
+});
 el.habitModal.onclick=e=>{if(e.target===el.habitModal)closeHabitModal()};
 $("habitTodayButton").onclick=()=>{const today=new Date();state.selectedHabitDateKey=dateKey(today);state.habitMonth=startOfMonth(today);renderHabits()};
 $("prevHabitDate").onclick=()=>{state.selectedHabitDateKey=dateKey(addDays(parseDateKey(state.selectedHabitDateKey),-1));renderHabits()};

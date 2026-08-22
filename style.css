@@ -149,7 +149,7 @@
   }
 }
 
-/* Momentum v7.52 — independent reward ledger, reversible XP, D-day states */
+/* Momentum v7.53 — durable habit history and objective growth evidence */
 body.week-fullscreen #calendarPage .calendar-toolbar{
   height:auto!important;
   min-height:0!important;
@@ -184,6 +184,8 @@ body.week-fullscreen #calendarPage .calendar-controls{
 .heatmap-block-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .heatmap-block-heading .heatmap-block-name{margin:0}
 .heatmap-habit-progress{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.35;color:#73827a;font-weight:700}
+.habit-modal-actions #cancelHabit,.habit-modal-actions #saveHabitButton,#habitModal .modal-actions #cancelHabit,#habitModal .modal-actions #saveHabitButton{width:72px!important;min-width:72px!important;padding-inline:10px!important}
+.growth-achievement-section{display:grid;gap:5px;margin-bottom:16px}.growth-achievement-section h3{margin:4px 0 5px;font-size:12px;color:#65776e}.growth-detail-challenge{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 10px;border:0;border-bottom:1px solid #edf2ef;background:#fff;text-align:left;color:#314b3f}.growth-detail-challenge strong{font-size:10px;color:#27815b}.growth-detail-challenge:hover{background:#f7faf8}
 .growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}
 .growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
 @media(max-width:600px){
