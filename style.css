@@ -7732,3 +7732,70 @@ body.week-fullscreen #calendarPage .week-zoom-controls{
   .event-optional-section summary{height:35px}
   .event-modal .event-modal-actions{bottom:-11px!important}
 }
+
+/* Momentum v7.48 — unified three-state checklist controls */
+.todo-checkbox,
+.event-checklist-row i,
+.week-event-checkitem i,
+.day-view-checkitem i,
+.day-checklist-popover-item i,
+.checklist-status-button{
+  box-sizing:border-box!important;
+  display:grid!important;
+  place-items:center!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  padding:0!important;
+  border:1.5px solid #cbdad2!important;
+  border-radius:9px!important;
+  background:#fff!important;
+  color:transparent!important;
+  font-style:normal!important;
+  font-size:17px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  box-shadow:none!important;
+}
+.todo-row.status-done .todo-checkbox,
+.event-checklist-row.status-done i,
+.week-event-checkitem.status-done i,
+.day-view-checkitem.status-done i,
+.day-checklist-popover-item.status-done i,
+.checklist-status-button.status-done{
+  border-color:#168c59!important;
+  background:#168c59!important;
+  color:#fff!important;
+}
+.todo-row.status-cancelled .todo-checkbox,
+.event-checklist-row.status-failed i,
+.week-event-checkitem.status-failed i,
+.day-view-checkitem.status-failed i,
+.day-checklist-popover-item.status-failed i,
+.checklist-status-button.status-failed{
+  border-color:#e2a09c!important;
+  background:#fff4f3!important;
+  color:#c8443c!important;
+}
+.todo-checkbox:active,
+.event-checklist-row:active i,
+.week-event-checkitem:active i,
+.day-view-checkitem:active i,
+.checklist-status-button:active{
+  transform:scale(.92);
+}
+.todo-row{
+  grid-template-columns:30px minmax(0,1fr) auto!important;
+  align-items:center!important;
+}
+.todo-row .todo-meta{
+  grid-column:3!important;
+  grid-row:1!important;
+  align-self:center!important;
+  margin:0!important;
+}
+
+@media(max-width:720px){
+  .todo-row{grid-template-columns:30px minmax(0,1fr) auto!important}
+  .todo-row .todo-meta{grid-column:3!important;grid-row:1!important}
+}

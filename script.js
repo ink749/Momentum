@@ -3776,7 +3776,12 @@ async function setEventProgressFromCard(event,value,button=null){
 function todoStatusIcon(status){
   if(status==="done")return "✓";
   if(status==="cancelled")return "×";
-  return "□";
+  return "";
+}
+function nextTodoStatus(status){
+  if(status==="pending"||status==="rolled")return "done";
+  if(status==="done")return "cancelled";
+  return "pending";
 }
 function todoLogKey(todoId,key){
   return `${todoId}_${String(key).replaceAll("-","")}`;
@@ -4068,12 +4073,15 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
     event.preventDefault();
     event.stopPropagation();
 
-    const next=
-      todo.status==="pending"||todo.status==="rolled"
-        ?"done"
-        :todo.status==="done"
-          ?"cancelled"
+    const row=btn.closest(".todo-row");
+    const current=row?.classList.contains("status-done")
+      ?"done"
+      :row?.classList.contains("status-cancelled")
+        ?"cancelled"
+        :row?.classList.contains("status-rolled")
+          ?"rolled"
           :"pending";
+    const next=nextTodoStatus(current);
 
     setTodoStatus(todo,next);
   };
@@ -4088,7 +4096,10 @@ function updateTodoStatusDom(todo,status){
     row.classList.remove("status-pending","status-done","status-cancelled","status-rolled");
     row.classList.add(`status-${status}`);
     const button=row.querySelector(".todo-checkbox");
-    if(button)button.textContent=todoStatusIcon(status);
+    if(button){
+      button.textContent=todoStatusIcon(status);
+      button.setAttribute("aria-label",`${todo.text} 상태 ${status}, 눌러서 변경`);
+    }
   });
 }
 function renderTodos(){
@@ -4181,9 +4192,14 @@ async function removeTodoRolloverDescendants(todo){
 async function setTodoStatus(todo,status){
   if(!state.user||!todo)return;
 
-  const wasRolled=todo.status==="rolled";
+  const previousStatus=todo.status||"pending";
+  const wasRolled=previousStatus==="rolled";
   const occurrenceDate=todo.occurrenceDate||todo.date;
   skipSnapshotRenders("Todo",2);
+
+  // 같은 버튼을 연속해서 눌러도 다음 순환 상태를 읽을 수 있도록
+  // 화면에 전달된 발생 객체도 즉시 현재 상태로 맞춥니다.
+  todo.status=status;
 
   try{
     if((todo.repeat||"none")!=="none"){
@@ -4257,6 +4273,8 @@ async function setTodoStatus(todo,status){
     if(state.activePage==="stats")renderStats();
   }catch(error){
     console.error(error);
+    todo.status=previousStatus;
+    updateTodoStatusDom(todo,previousStatus);
     alert("할 일 상태를 저장하지 못했습니다.");
   }
 }
@@ -4718,7 +4736,7 @@ function createChecklistItem(text="",status="pending"){
 function checklistStatusIcon(status){
   if(status==="done")return "✓";
   if(status==="failed")return "×";
-  return "□";
+  return "";
 }
 function nextChecklistStatus(status){
   if(status==="pending")return "done";
@@ -6519,6 +6537,31 @@ async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef})
   });
 }
 
+async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress){
+  const logId=eventLogKey(eventId,occurrenceDate);
+  const numericProgress=Number(progress||0);
+
+  state.eventLogs[logId]={
+    ...(state.eventLogs[logId]||{}),
+    id:logId,
+    eventId,
+    date:occurrenceDate,
+    progress:numericProgress
+  };
+  skipSnapshotRenders("Event",2);
+
+  await setDoc(
+    doc(db,"users",state.user.uid,"eventLogs",logId),
+    {
+      eventId,
+      date:occurrenceDate,
+      progress:numericProgress,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+}
+
 async function submit(event){
   event.preventDefault();
   if(!state.user)return;
@@ -6586,6 +6629,11 @@ async function submit(event){
           occurrenceDate,
           eventsRef
         });
+        await saveRecurringOccurrenceProgress(
+          source.id,
+          occurrenceDate,
+          state.selectedProgress
+        );
         await finishEventSave(occurrenceDate);
         return;
       }
