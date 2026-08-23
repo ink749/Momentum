@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDcrq-223O2A8E0yJoVNgXnDARH1bfwrgw",
@@ -19,12 +19,40 @@ const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
+const THEMES=[
+  {id:"green",name:"녹색",main:"#8bcf4a",dark:"#5f9230",soft:"#f0f9e7",bg:"#f9fcf6",muted:"#f4f9ef",line:"#e1ecd8",text:"#2f3d27",glow:"#b9e58e"},
+  {id:"red-brown",name:"붉은색 / 갈색",main:"#a85645",dark:"#743c31",soft:"#f7ebe7",bg:"#fbf7f5",muted:"#f7f1ee",line:"#eaded8",text:"#3d2d29",glow:"#d99a84"},
+  {id:"blue",name:"청색 (파란색)",main:"#347fc4",dark:"#245b91",soft:"#e9f3fb",bg:"#f6f9fc",muted:"#f0f5f9",line:"#dce7ef",text:"#213544",glow:"#79b7e8"},
+  {id:"glass",name:"회색 / 하늘색 / 백색",main:"#7899ad",dark:"#506f82",soft:"rgba(224,239,247,.62)",bg:"#eef4f7",muted:"rgba(255,255,255,.55)",line:"rgba(154,179,194,.38)",text:"#30434e",glow:"#b9dbea",glass:true},
+  {id:"red-orange",name:"붉은색 / 주황색",main:"#df6e3e",dark:"#aa3f30",soft:"#fff0e8",bg:"#fff9f5",muted:"#fff3ec",line:"#f1dfd5",text:"#442e27",glow:"#f3a36f"},
+  {id:"red",name:"붉은색",main:"#c94f59",dark:"#943640",soft:"#fbecef",bg:"#fcf7f8",muted:"#f9f0f2",line:"#ecdde0",text:"#422c31",glow:"#e58b94"},
+  {id:"yellow",name:"노란색",main:"#d7a928",dark:"#977315",soft:"#fff7d8",bg:"#fffdf5",muted:"#fff9e7",line:"#eee4c5",text:"#423b25",glow:"#edce72"},
+  {id:"lime-green",name:"연두색 / 녹색",main:"#69a83f",dark:"#42772b",soft:"#eef7e8",bg:"#f8fbf5",muted:"#f2f8ed",line:"#dfead7",text:"#2f4129",glow:"#a8d67e"},
+  {id:"pale-yellow",name:"연한 노란색",main:"#bca34a",dark:"#806f32",soft:"#fff9e3",bg:"#fffdf7",muted:"#fffaf0",line:"#eee7d3",text:"#443f31",glow:"#ead995"},
+  {id:"deep-green",name:"짙은 녹색",main:"#176b50",dark:"#0d4937",soft:"#e3f0eb",bg:"#f3f8f6",muted:"#edf4f1",line:"#d6e5df",text:"#19352b",glow:"#5aa78c"},
+  {id:"azure",name:"푸른색 (파란색)",main:"#3469d4",dark:"#244a9b",soft:"#e9effd",bg:"#f6f8fd",muted:"#eff3fb",line:"#dce3f2",text:"#25334d",glow:"#7fa4ed"},
+  {id:"purple",name:"보라색",main:"#8361b5",dark:"#5f438a",soft:"#f1ebf8",bg:"#faf8fc",muted:"#f5f1f9",line:"#e7deef",text:"#392f45",glow:"#b69bd7"}
+];
+const CATEGORY_COLORS=[
+  {name:"초록색",value:"#2fa66a"},
+  {name:"하늘색",value:"#65bff0"},
+  {name:"남색",value:"#253a73"},
+  {name:"짙은 초록색",value:"#176b50"},
+  {name:"빨간색",value:"#d65353"},
+  {name:"분홍색",value:"#e982a8"},
+  {name:"노란색",value:"#e4bd32"},
+  {name:"청록색",value:"#3fc6b3"},
+  {name:"주황색",value:"#ed8738"},
+  {name:"연두색",value:"#8bcf4a"},
+  {name:"푸른 보라색",value:"#665ad1"},
+  {name:"자주색",value:"#a33f83"}
+];
 const DEFAULT_CATEGORIES = [
-  {id:"study",name:"공부",color:"#5b7cfa"},
-  {id:"exercise",name:"운동",color:"#33a474"},
-  {id:"work",name:"업무",color:"#ee8b3f"},
-  {id:"personal",name:"개인",color:"#9b6fe8"},
-  {id:"other",name:"기타",color:"#8a9790",locked:true}
+  {id:"study",name:"공부",color:"#65bff0"},
+  {id:"exercise",name:"운동",color:"#8bcf4a"},
+  {id:"work",name:"업무",color:"#ed8738"},
+  {id:"personal",name:"개인",color:"#665ad1"},
+  {id:"other",name:"기타",color:"#253a73",locked:true}
 ];
 const state = {
   user:null, events:[], currentView:"selected",
@@ -70,14 +98,30 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  growthProfile:{challenges:[]}, growthRewards:[],
-  unsubscribeGrowthProfile:null, unsubscribeGrowthRewards:null,
-  growthDetailTab:"stats", growthView:"tree",
-  growthRewardsReady:false,
-  growthDataReady:{events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false}
+  goalProfile:{challenges:[]}, unsubscribeGoals:null
 };
 
 const $ = (id) => document.getElementById(id);
+function mixHex(a,b,amount){
+  const parse=value=>value.replace("#","").match(/.{2}/g).map(part=>parseInt(part,16));
+  const [ar,ag,ab]=parse(a),[br,bg,bb]=parse(b);
+  return `#${[ar+(br-ar)*amount,ag+(bg-ag)*amount,ab+(bb-ab)*amount].map(value=>Math.round(value).toString(16).padStart(2,"0")).join("")}`;
+}
+function applyTheme(id,{save=true}={}){
+  const theme=THEMES.find(item=>item.id===id)||THEMES[0],root=document.documentElement.style;
+  root.setProperty("--bg",theme.bg);root.setProperty("--surface","#ffffff");root.setProperty("--muted",theme.muted);root.setProperty("--line",theme.line);root.setProperty("--text",theme.text);
+  root.setProperty("--green",theme.main);root.setProperty("--green-dark",theme.dark);root.setProperty("--green-soft",theme.soft);root.setProperty("--theme-glow",theme.glow);
+  document.documentElement.dataset.theme=theme.id;document.documentElement.classList.toggle("glass-theme",Boolean(theme.glass));
+  COLORS[0]=mixHex(theme.main,"#ffffff",.9);COLORS[25]=mixHex(theme.main,"#ffffff",.72);COLORS[50]=mixHex(theme.main,"#ffffff",.48);COLORS[75]=mixHex(theme.main,"#ffffff",.24);COLORS[100]=theme.main;
+  if(save)localStorage.setItem("momentum_theme",theme.id);
+  document.querySelectorAll("[data-theme-id]").forEach(button=>button.classList.toggle("active",button.dataset.themeId===theme.id));
+  if(state.events?.length)renderAll();
+}
+function renderThemePicker(){
+  const picker=$("themePicker");if(!picker)return;
+  const current=localStorage.getItem("momentum_theme")||"green";
+  picker.innerHTML=THEMES.map(theme=>`<button type="button" data-theme-id="${theme.id}" class="${theme.id===current?"active":""}"><i style="--theme-main:${theme.main};--theme-soft:${theme.soft}"></i><span>${escapeHtml(theme.name)}</span></button>`).join("");
+}
 function skipSnapshotRenders(kind,count=2){
   const key=`skip${kind}SnapshotRenders`;
   state[key]=Math.max(Number(state[key]||0),count);
@@ -145,18 +189,15 @@ const el = {
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
-  calendarPage:$("calendarPage"), habitPage:$("habitPage"), growthPage:$("growthPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"), growthNav:$("growthNavButton"),
+  calendarPage:$("calendarPage"), habitPage:$("habitPage"), diaryPage:$("diaryPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"), diaryNav:$("diaryNavButton"),
   habitTodayLabel:$("habitTodayLabel"), habitList:$("habitList"), habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
-  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileGrowthNav:$("mobileGrowthNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
+  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
-  growthPixelCharacter:$("growthPixelCharacter"), growthUserName:$("growthUserName"), growthLevel:$("growthLevel"), growthTitle:$("growthTitle"), growthXpText:$("growthXpText"), growthXpBar:$("growthXpBar"),
-  growthExecution:$("growthExecution"), growthExecutionBar:$("growthExecutionBar"), growthExpertise:$("growthExpertise"), growthExpertiseBar:$("growthExpertiseBar"), growthLife:$("growthLife"), growthLifeBar:$("growthLifeBar"), growthPower:$("growthPower"), growthPowerBar:$("growthPowerBar"),
-  growthSkills:$("growthSkills"), growthSkillTree:$("growthSkillTree"), growthSkillTreePanel:$("growthSkillTreePanel"), growthStatsPanel:$("growthStatsPanel"), growthEvidence:$("growthEvidence"), growthAssets:$("growthAssets"), growthAchievements:$("growthAchievements"), growthMonthDelta:$("growthMonthDelta"), growthMonthCaption:$("growthMonthCaption"),
-  growthDetailModal:$("growthDetailModal"), growthDetailTitle:$("growthDetailTitle"), growthDetailContent:$("growthDetailContent"), growthSetupModal:$("growthSetupModal"), growthSetupTitle:$("growthSetupTitle"), growthChallengeForm:$("growthChallengeForm"), growthChallengeId:$("growthChallengeId"), growthChallengeName:$("growthChallengeName"), growthChallengeMode:$("growthChallengeMode"), growthChallengeTarget:$("growthChallengeTarget"), growthChallengeTargetWrap:$("growthChallengeTargetWrap"), growthChallengeDate:$("growthChallengeDate"), growthChallengeComplete:$("growthChallengeComplete"), growthChallengeCompleteWrap:$("growthChallengeCompleteWrap"), deleteGrowthChallengeButton:$("deleteGrowthChallengeButton"), growthSetupMessage:$("growthSetupMessage"), skillUnlockModal:$("skillUnlockModal"), skillUnlockName:$("skillUnlockName"), skillUnlockDescription:$("skillUnlockDescription"),
+  goalList:$("goalList"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalDate:$("goalDate"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -775,8 +816,15 @@ function renderStats(){
   if(el.statsTodoAverage)el.statsTodoAverage.textContent=todoTotal?`${todoProgress}%`:"—";
   if(el.statsTodoCount)el.statsTodoCount.textContent=`완료 ${todoDone} / 전체 ${todoTotal}`;
 
+  const monthRateCombined=$("monthRateCombined"),monthRateEvents=$("monthRateEvents"),monthRateHabits=$("monthRateHabits"),monthRateTodos=$("monthRateTodos");
+  if(monthRateCombined)monthRateCombined.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
+  if(monthRateEvents)monthRateEvents.textContent=monthEventOccurrences.length?`${monthEventAvg}%`:"—";
+  if(monthRateHabits)monthRateHabits.textContent=monthHabitValues.length?`${monthHabitAvg}%`:"—";
+  if(monthRateTodos)monthRateTodos.textContent=todoTotal?`${todoProgress}%`:"—";
+
   el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
-  el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 완료율`;
+  const weeklyLabel={combined:"종합",events:"일정",todos:"할 일"}[state.weeklyMetric||"combined"];
+  el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 ${weeklyLabel} 완료율`;
   el.statsMonthSummaryTitle.textContent=`${monthText} 요약`;
   el.statsCategoryTitle.textContent=`카테고리별 ${selectedDate.getMonth()+1}월 성취도`;
   el.statsHabitRankingTitle.textContent=`습관별 ${selectedDate.getMonth()+1}월 달성률`;
@@ -799,8 +847,16 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
   el.weeklyProgressChart.innerHTML="";
   const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
-    const d=addDays(today,-offset),key=dateKey(d),value=combinedProgressForDate(key);
-    const hasItems=allEventsForDate(key).length+activeHabitsOn(key).length+todosForDate(key).length>0;
+    const d=addDays(today,-offset),key=dateKey(d);
+    const events=allEventsForDate(key),todos=todosForDate(key),habits=activeHabitsOn(key);
+    const metric=state.weeklyMetric||"combined";
+    const values=metric==="events"
+      ?events.map(item=>Number(item.progress||0))
+      :metric==="todos"
+        ?todos.map(item=>item.status==="done"?100:0)
+        :[...events.map(item=>Number(item.progress||0)),...habits.map(item=>habitProgress(item.id,key)),...todos.map(item=>item.status==="done"?100:0)];
+    const hasItems=values.length>0;
+    const value=hasItems?Math.round(values.reduce((sum,item)=>sum+item,0)/values.length):0;
     const col=document.createElement("div");col.className="weekly-chart-day";
     col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
     el.weeklyProgressChart.appendChild(col);
@@ -1211,7 +1267,8 @@ function currentHistoryState(){
   };
 }
 function navigateToPage(page,{push=true}={}){
-  if(!["calendar","habit","growth","stats"].includes(page))page="calendar";
+  if(page==="growth")page="diary";
+  if(!["calendar","habit","diary","stats"].includes(page))page="calendar";
 
   const previousPage=state.activePage;
   state.activePage=page;
@@ -1231,7 +1288,7 @@ function syncHistoryState({replace=false}={}){
 
 
 function animateVisiblePage(){
-  const page=[el.calendarPage,el.habitPage,el.growthPage,el.statsPage].find(item=>!item.hidden);
+  const page=[el.calendarPage,el.habitPage,el.diaryPage,el.statsPage].find(item=>!item.hidden);
   if(!page)return;
   page.classList.remove("page-enter");
   void page.offsetWidth;
@@ -1251,26 +1308,26 @@ function showToast(message){
 function renderPage(){
   const calendarMode=state.activePage==="calendar";
   const habitMode=state.activePage==="habit";
-  const growthMode=state.activePage==="growth";
+  const diaryMode=state.activePage==="diary";
   const statsMode=state.activePage==="stats";
 
   el.calendarPage.hidden=!calendarMode;
   el.habitPage.hidden=!habitMode;
-  el.growthPage.hidden=!growthMode;
+  el.diaryPage.hidden=!diaryMode;
   el.statsPage.hidden=!statsMode;
 
   el.calendarNav.classList.toggle("active",calendarMode);
   el.habitNav.classList.toggle("active",habitMode);
-  el.growthNav.classList.toggle("active",growthMode);
+  el.diaryNav.classList.toggle("active",diaryMode);
   el.statsNav.classList.toggle("active",statsMode);
 
   el.mobileCalendarNav.classList.toggle("active",calendarMode);
   el.mobileHabitNav.classList.toggle("active",habitMode);
-  el.mobileGrowthNav.classList.toggle("active",growthMode);
+  el.mobileDiaryNav.classList.toggle("active",diaryMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
   el.mobileAdd.hidden=
-    statsMode||growthMode
+    statsMode||diaryMode
     ||(calendarMode&&state.currentView==="week");
   el.mobileAdd.classList.toggle("habit-mode",habitMode);
 
@@ -1290,8 +1347,8 @@ function renderPage(){
   }
   el.mobileAdd.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
 
-  if(habitMode)renderHabits();
-  if(growthMode)renderGrowthState();
+  if(habitMode){renderHabits();renderGoals();}
+  if(diaryMode)renderDiary();
   if(statsMode)renderStats();
 }
 function renderHabits(){
@@ -1510,7 +1567,7 @@ function createHeatmapHabitBlock(habit,className){
   title.textContent=habit.name;
   title.onclick=()=>openHabitEdit(habit);
   const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
-  const challenge=(state.growthProfile.challenges||[]).find(item=>item.habitId===habit.id&&item.mode==="count");
+  const challenge=(state.goalProfile.challenges||[]).find(item=>item.habitId===habit.id&&item.mode==="count");
   const nextMilestone=[3,15,30,70,100,150].find(value=>value>achieved)||Math.ceil((achieved+1)/50)*50;
   const progress=document.createElement("span");
   progress.className="heatmap-habit-progress";
@@ -1868,13 +1925,10 @@ function listenHabits(user){
   if(state.unsubscribeHabits)state.unsubscribeHabits();
   if(state.unsubscribeHabitLogs)state.unsubscribeHabitLogs();
   const habitsQuery=query(collection(db,"users",user.uid,"habits"),orderBy("startDate"));
-  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()}));state.growthDataReady.habits=true;renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
+  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
   state.unsubscribeHabitLogs=onSnapshot(collection(db,"users",user.uid,"habitLogs"),snap=>{
     state.habitLogs={};
     snap.docs.forEach(d=>{state.habitLogs[d.id]={id:d.id,...d.data()}});
-    state.growthDataReady.habitLogs=true;
-    reconcileGrowthRewards();
-
     if(state.skipHabitSnapshotRenders>0){
       state.skipHabitSnapshotRenders--;
       if(state.activePage==="stats")renderStats();
@@ -1886,324 +1940,37 @@ function listenHabits(user){
   },error=>{console.error(error);alert("습관 기록을 불러오지 못했습니다.")});
 }
 
-function growthProfileRef(){
-  return doc(db,"users",state.user.uid,"growth","profile");
+function goalProfileRef(){return doc(db,"users",state.user.uid,"growth","profile")}
+function goalProgress(goal){
+  const count=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
+  const reached=goal.mode==="count"?count>=Number(goal.target||1):false;
+  return {...goal,count,complete:!goal.manualIncomplete&&(Boolean(goal.completed)||reached)};
 }
-function growthRewardsRef(){return collection(db,"users",state.user.uid,"growthRewards")}
-function listenGrowthProfile(user){
-  if(state.unsubscribeGrowthProfile)state.unsubscribeGrowthProfile();
-  if(state.unsubscribeGrowthRewards)state.unsubscribeGrowthRewards();
-  state.growthRewardsReady=false;
-  state.unsubscribeGrowthProfile=onSnapshot(
-    doc(db,"users",user.uid,"growth","profile"),
-    snap=>{
-      const loaded={challenges:[],...(snap.exists()?snap.data():{})};
-      const legacyRewards=Array.isArray(loaded.rewards)?loaded.rewards:[];
-      delete loaded.rewards;
-      state.growthProfile=loaded;
-      if(legacyRewards.length)migrateLegacyGrowthRewards(legacyRewards);
-      if(state.activePage==="growth")renderGrowthState();
-    },
-    error=>console.error("성장 상태를 불러오지 못했습니다.",error)
-  );
-  state.unsubscribeGrowthRewards=onSnapshot(growthRewardsRef(),snap=>{
-    state.growthRewards=snap.docs.map(item=>({id:item.id,...item.data()}));
-    state.growthRewardsReady=true;
-    reconcileGrowthRewards();
-    if(state.activePage==="growth")renderGrowthState();
-  },error=>console.error("보상 지급 기록을 불러오지 못했습니다.",error));
+function goalStatus(goal){
+  if(goal.complete)return "달성";
+  const count=goal.mode==="count"?`${goal.count} / ${goal.target}`:"";
+  if(!goal.dueDate)return count||"진행 중";
+  const days=Math.round((parseDateKey(goal.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
+  return [count,days>0?`D-${days}`:days===0?"오늘":"기한 지남"].filter(Boolean).join(" · ");
 }
-let legacyRewardMigrationRunning=false;
-async function migrateLegacyGrowthRewards(rewards){
-  if(legacyRewardMigrationRunning||!state.user)return;
-  legacyRewardMigrationRunning=true;
-  try{
-    await Promise.all(rewards.map(reward=>setDoc(doc(growthRewardsRef(),reward.id),reward,{merge:true})));
-    await setDoc(growthProfileRef(),{rewards:deleteField()},{merge:true});
-  }catch(error){console.error("기존 보상 기록을 이전하지 못했습니다.",error)}finally{legacyRewardMigrationRunning=false}
+function renderGoals(){
+  const goals=(state.goalProfile.challenges||[]).map(goalProgress);
+  el.goalList.innerHTML=goals.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}"><button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"완료"}">${goal.complete?"✓":"◇"}</button><button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small></span>`).join("")||'<p class="empty-state">아직 목표가 없습니다. 이루고 싶은 것을 추가해보세요.</p>';
 }
-async function saveGrowthProfile(next){
-  state.growthProfile={...state.growthProfile,...next};
-  renderGrowthState();
-  await setDoc(growthProfileRef(),state.growthProfile,{merge:true});
+function listenGoals(user){
+  state.unsubscribeGoals?.();
+  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],...(snap.exists()?snap.data():{})};renderGoals()},error=>console.error("목표를 불러오지 못했습니다.",error));
 }
-function growthDateKeys(){
-  const now=new Date();
-  const first=new Date(now.getFullYear(),now.getMonth(),1);
-  const keys=[];
-  for(let cursor=first;cursor<=now;cursor=addDays(cursor,1))keys.push(dateKey(cursor));
-  return keys;
+async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
+function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
+function openGoal(goal=null){
+  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalDate.value=goal?.dueDate||"";el.goalComplete.checked=Boolean(goal&&goalProgress(goal).complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
 }
-function growthAverage(values){
-  const usable=values.filter(Number.isFinite);
-  return usable.length?Math.round(usable.reduce((sum,value)=>sum+value,0)/usable.length):0;
-}
-function growthEvidenceMetrics(){
-  const today=parseDateKey(dateKey(new Date()));
-  const abilityLabels={study:"전문성",exercise:"체력",work:"업무력",personal:"생활력",other:"실행력"};
-  const measure=(from,to)=>{
-    const values=[];const activeDays=new Set();const abilities={};
-    for(let cursor=new Date(from);cursor<=to;cursor=addDays(cursor,1)){
-      const key=dateKey(cursor);const dayValues=[];
-      eventsForDate(key).forEach(event=>{
-        const value=Number(event.progress||0);values.push(value);dayValues.push(value);
-        const ability=abilityLabels[event.category||"other"]||"실행력";
-        abilities[ability]=(abilities[ability]||0)+value/100;
-      });
-      activeHabitsOn(key).forEach(habit=>{
-        const value=habitProgress(habit.id,key);values.push(value);dayValues.push(value);
-        abilities["꾸준함"]=(abilities["꾸준함"]||0)+value/100;
-      });
-      todosForDate(key).forEach(todo=>{
-        const value=Number(todo.progress||0);values.push(value);dayValues.push(value);
-        abilities["실행력"]=(abilities["실행력"]||0)+value/100;
-      });
-      if(dayValues.some(value=>value>0))activeDays.add(key);
-    }
-    return {average:values.length?values.reduce((sum,value)=>sum+value,0)/values.length:0,hasRecords:values.length>0,activeDays:activeDays.size,abilities};
-  };
-  const current=measure(addDays(today,-29),today);
-  const previous=measure(addDays(today,-59),addDays(today,-30));
-  const topAbility=Object.entries(current.abilities).sort((a,b)=>b[1]-a[1])[0]||["기록 없음",0];
-  return {completionDelta:Math.round(current.average-previous.average),hasPrevious:previous.hasRecords,activeDays:current.activeDays,activeDaysDelta:current.activeDays-previous.activeDays,topAbility:topAbility[0],topAbilityValue:Math.round(topAbility[1]*10)/10};
-}
-function growthMetrics(){
-  const keys=growthDateKeys();
-  const eventValues=[];const habitValues=[];const todoValues=[];
-  let studyHours=0;let problemCount=0;let exerciseCount=0;let completedActions=0;
-  const studyPattern=/공부|학습|독서|문제|자격|시험|업무|전문|소방/i;
-  const exercisePattern=/운동|헬스|걷기|달리기|체력|요가/i;
-  keys.forEach(key=>{
-    const events=eventsForDate(key);
-    if(events.length){
-      const values=events.map(event=>Number(event.progress||0));
-      eventValues.push(...values);completedActions+=values.filter(value=>value===100).length;
-      events.forEach(event=>{
-        const text=`${event.title||""} ${event.memo||""}`;
-        const weighted=Number(event.progress||0)/100;
-        if(studyPattern.test(text))studyHours+=(eventDurationMs(event)/3600000)*weighted;
-        const match=text.match(/([0-9][0-9,]*)\s*(?:문제|개)/);
-        if(match)problemCount+=Number(match[1].replaceAll(",",""))*weighted;
-        if(exercisePattern.test(text)&&event.progress===100)exerciseCount++;
-      });
-    }
-    const habits=activeHabitsOn(key);
-    const habitDay=habits.map(habit=>habitProgress(habit.id,key));
-    habitValues.push(...habitDay);completedActions+=habitDay.filter(value=>value===100).length;
-    const todos=todosForDate(key);
-    if(todos.length){
-      const values=todos.map(todo=>Number(todo.progress||0));
-      todoValues.push(...values);completedActions+=values.filter(value=>value===100).length;
-    }
-  });
-  const execution=growthAverage([...eventValues,...todoValues]);
-  const life=growthAverage(habitValues);
-  const studyValues=[];
-  keys.forEach(key=>eventsForDate(key).filter(event=>event.category==="study").forEach(event=>studyValues.push(Number(event.progress||0))));
-  const expertise=growthAverage(studyValues);
-  const challengeProgress=(state.growthProfile.challenges||[]).map(challenge=>{
-    const count=challenge.habitId
-      ?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length
-      :0;
-    const computed=challenge.mode==="count"?(Boolean(challenge.completed)||count>=Number(challenge.target||1)):Boolean(challenge.completed);
-    return {...challenge,count,complete:!challenge.manualIncomplete&&computed};
-  });
-  const completeChallenges=challengeProgress.filter(item=>item.complete).length;
-  const rewards=state.growthRewards.filter(item=>item.active!==false);
-  const xp=Math.max(0,Math.round(rewards.reduce((sum,item)=>sum+Number(item.xp||0),0)));
-  const level=Math.floor(xp/500)+1;
-  const power=Math.min(100,growthAverage([execution,expertise,life])+completeChallenges*2);
-  return {execution,life,expertise,power,xp,level,studyHours,problemCount:Math.round(problemCount),exerciseCount,completedActions,challengeProgress,completeChallenges,rewards,evidence:growthEvidenceMetrics()};
-}
-function habitMilestones(count){
-  const result=[3,15,30,70,100,150].filter(value=>count>=value);
-  for(let value=200;value<=count;value+=50)result.push(value);
-  return result;
-}
-function milestoneXp(value){
-  if(value===3)return 10;if(value===15)return 30;if(value===30)return 50;
-  if(value===70)return 80;if(value===100)return 100;if(value===150)return 150;
-  return 100;
-}
-function derivedGrowthRewards(){
-  const rewards=[];
-  const add=(id,sourceType,sourceId,label,xp)=>rewards.push({id,sourceType,sourceId,label,xp,active:true});
-  state.events.filter(event=>(event.repeat||"none")==="none"&&Number(event.progress)>0).forEach(event=>add(`event:${event.id}:${event.date}`,"event",event.id,`${event.title} ${event.progress}%`,Number(event.progress)/10));
-  Object.values(state.eventLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`event:${log.eventId}:${log.date}`,"event",log.eventId,`일정 ${log.progress}%`,Number(log.progress)/10));
-  Object.values(state.habitLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`habit-day:${log.habitId}:${log.date}`,"habit-day",log.habitId,`습관 ${log.progress}%`,Number(log.progress)/10));
-  state.todos.filter(todo=>Number(todo.progress)>0).forEach(todo=>add(`todo:${todo.id}:${todo.date||"single"}`,"todo",todo.id,`${todo.name||todo.title||"할 일"} ${todo.progress}%`,Number(todo.progress)/10));
-  Object.values(state.todoLogs).filter(log=>Number(log.progress)>0).forEach(log=>add(`todo:${log.todoId}:${log.date}`,"todo",log.todoId,`할 일 ${log.progress}%`,Number(log.progress)/10));
-  state.habits.forEach(habit=>{
-    const count=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
-    habitMilestones(count).forEach(milestone=>add(`habit-milestone:${habit.id}:${milestone}`,"habit-milestone",habit.id,`${habit.name} ${milestone}회 달성`,milestoneXp(milestone)));
-  });
-  (state.growthProfile.challenges||[]).forEach(challenge=>{
-    const count=challenge.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId&&Number(log.progress)>0).length:0;
-    const complete=!challenge.manualIncomplete&&(challenge.mode==="count"?(Boolean(challenge.completed)||count>=Number(challenge.target||1)):Boolean(challenge.completed));
-    if(complete)add(`challenge:${challenge.id}`,"challenge",challenge.id,`${challenge.name} 달성`,50);
-  });
-  return [...new Map(rewards.map(item=>[item.id,item])).values()];
-}
-let growthRewardSyncing=false;
-async function reconcileGrowthRewards(){
-  if(!state.user||!state.growthRewardsReady||growthRewardSyncing||!Object.values(state.growthDataReady).every(Boolean))return;
-  const previous=state.growthRewards;
-  const next=derivedGrowthRewards().map(item=>{
-    const old=previous.find(value=>value.id===item.id);
-    return {...item,awardedAt:old?.awardedAt||Date.now()};
-  });
-  const signature=list=>JSON.stringify(list.map(({id,xp,label,active})=>({id,xp,label,active})).sort((a,b)=>a.id.localeCompare(b.id)));
-  if(signature(previous)===signature(next))return;
-  const freshMilestones=next.filter(item=>item.sourceType==="habit-milestone"&&!previous.some(old=>old.id===item.id));
-  growthRewardSyncing=true;
-  try{
-    const nextIds=new Set(next.map(item=>item.id));
-    const stale=previous.filter(item=>!nextIds.has(item.id));
-    const changed=next.filter(item=>{
-      const old=previous.find(value=>value.id===item.id);
-      return !old||signature([old])!==signature([item]);
-    });
-    await Promise.all([
-      ...changed.map(item=>setDoc(doc(growthRewardsRef(),item.id),item,{merge:false})),
-      ...stale.map(item=>deleteDoc(doc(growthRewardsRef(),item.id)))
-    ]);
-    state.growthRewards=next;
-    if(freshMilestones.length){
-      const latest=freshMilestones.at(-1);showToast(`${latest.label} · +${latest.xp} XP`);
-    }
-    if(state.activePage==="growth")renderGrowthState();
-  }catch(error){console.error("보상 지급 기록을 저장하지 못했습니다.",error)}finally{growthRewardSyncing=false}
-}
-function openGrowthChallenge(challenge=null){
-  el.growthChallengeForm.reset();
-  el.growthChallengeId.value=challenge?.id||"";
-  el.growthChallengeName.value=challenge?.name||"";
-  el.growthChallengeMode.value=challenge?.mode||"date";
-  el.growthChallengeTarget.value=challenge?.target||30;
-  el.growthChallengeDate.value=challenge?.dueDate||"";
-  const current=challenge?growthMetrics().challengeProgress.find(item=>item.id===challenge.id):null;
-  el.growthChallengeComplete.checked=Boolean(current?.complete);
-  el.growthSetupTitle.textContent=challenge?"도전과제 수정":"도전과제 추가";
-  el.deleteGrowthChallengeButton.hidden=!challenge;
-  el.growthChallengeCompleteWrap.hidden=!challenge;
-  syncGrowthChallengeMode();el.growthSetupMessage.textContent="";toggleGrowthModal(el.growthSetupModal,true);
-}
-function syncGrowthChallengeMode(){
-  const countMode=el.growthChallengeMode.value==="count";
-  el.growthChallengeTargetWrap.hidden=!countMode;
-  if(el.growthChallengeId.value)el.growthChallengeCompleteWrap.hidden=false;
-}
-async function removeGrowthChallenge(id){
-  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===id);if(!challenge)return;
-  if(challenge.habitId){
-    await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===challenge.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
-    await deleteDoc(doc(db,"users",state.user.uid,"habits",challenge.habitId));
-  }
-  const challenges=(state.growthProfile.challenges||[]).filter(item=>item.id!==id);
-  await deleteGrowthRewardsBySources([id,challenge.habitId]);
-  await saveGrowthProfile({challenges});
-  toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
-}
-async function deleteGrowthRewardsBySources(sourceIds){
-  const ids=new Set(sourceIds.filter(Boolean));
-  const targets=state.growthRewards.filter(item=>ids.has(item.sourceId));
-  await Promise.all(targets.map(item=>deleteDoc(doc(growthRewardsRef(),item.id))));
-  state.growthRewards=state.growthRewards.filter(item=>!ids.has(item.sourceId));
-}
-function challengeStatusText(item){
-  if(item.complete||item.done)return "달성";
-  if(item.mode==="count"){
-    const countText=`${item.count} / ${item.target}`;
-    if(!item.dueDate)return countText;
-    const diff=Math.round((parseDateKey(item.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
-    return `${countText} · ${diff>0?`D-${diff}`:diff===0?"오늘":"기한 지남"}`;
-  }
-  if(!item.dueDate)return "진행 중";
-  const diff=Math.round((parseDateKey(item.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
-  if(diff>0)return `D-${diff}`;
-  if(diff===0)return "오늘";
-  return "기한 지남";
-}
-function renderGrowthSkillTree(m){
-  if(!el.growthSkillTree)return;
-  const habitCount=Object.values(state.habitLogs).filter(log=>Number(log.progress)>0).length;
-  const branches=[
-    {name:"실행",icon:"⚑",nodes:[
-      {name:"첫걸음",level:1,state:m.completedActions>0?"acquired":"growing",condition:"행동 1회 완료"},
-      {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20)),state:m.execution>=20?"acquired":"growing",condition:"실행도 20 달성"},
-      {name:"완수력",level:1,state:m.execution>=60?"acquired":"locked",condition:"실행도 60 달성"}
-    ]},
-    {name:"전문",icon:"▤",nodes:[
-      {name:"학습 기록",level:1,state:m.expertise>0?"acquired":"growing",condition:"공부 카테고리 일정 실행"},
-      {name:"문제풀이",level:Math.max(1,Math.ceil(m.expertise/25)),state:m.completedActions>=15?"acquired":"locked",condition:"완료 행동 15회"},
-      {name:"전문 분야",level:1,state:m.expertise>=50?"acquired":"locked",condition:"전문성 50 달성"}
-    ]},
-    {name:"생활",icon:"♡",nodes:[
-      {name:"생활 기반",level:1,state:m.life>0?"acquired":"growing",condition:"습관 1회 실행"},
-      {name:"루틴 유지",level:Math.max(1,Math.ceil(habitCount/15)),state:habitCount>=15?"acquired":"locked",condition:"습관 누적 15회"},
-      {name:"자기관리",level:1,state:m.life>=70?"acquired":"locked",condition:"생활력 70 달성"}
-    ]}
-  ];
-  el.growthSkillTree.innerHTML=branches.map(branch=>`<section class="growth-skill-branch"><h3><span>${branch.icon}</span>${branch.name}</h3><div class="growth-skill-path">${branch.nodes.map((node,index)=>`<button type="button" class="growth-skill-node ${node.state}" data-growth-skill="${escapeHtml(node.name)}"><i>${node.state==="acquired"?"◆":node.state==="growing"?"◇":"◇"}</i><span><strong>${escapeHtml(node.name)}</strong><small>${node.state==="locked"?node.condition:`Lv.${node.level} · ${node.state==="acquired"?"습득":"성장 중"}`}</small></span>${index<branch.nodes.length-1?'<b class="skill-link"></b>':""}</button>`).join("")}</div></section>`).join("");
-}
-function syncGrowthView(){
-  const tree=state.growthView==="tree";
-  if(el.growthSkillTreePanel)el.growthSkillTreePanel.hidden=!tree;
-  if(el.growthStatsPanel)el.growthStatsPanel.hidden=tree;
-  document.querySelectorAll("[data-growth-view]").forEach(button=>button.classList.toggle("active",button.dataset.growthView===state.growthView));
-}
-function renderGrowthState(){
-  if(!el.growthPage)return;
-  const m=growthMetrics();
-  const name=state.user?.displayName?.split(" ")[0]||"사용자";
-  el.growthUserName.textContent=name;
-  el.growthLevel.textContent=`Lv.${m.level}`;
-  el.growthTitle.textContent=m.execution>=70?"꾸준히 밭을 일구는 사람":"오늘의 밭을 가꾸는 사람";
-  const current=m.xp%500;
-  el.growthXpText.textContent=`${current} / 500`;
-  el.growthXpBar.style.width=`${current/5}%`;
-  [[el.growthExecution,el.growthExecutionBar,m.execution],[el.growthExpertise,el.growthExpertiseBar,m.expertise],[el.growthLife,el.growthLifeBar,m.life],[el.growthPower,el.growthPowerBar,m.power]].forEach(([text,bar,value])=>{text.textContent=value;bar.style.width=`${value}%`;});
-  el.growthPixelCharacter.classList.toggle("evolved",m.completeChallenges>0);
-  const skills=[
-    {name:"실행력",level:Math.max(1,Math.ceil(m.execution/20))},
-    {name:"꾸준함",level:Math.max(1,Math.ceil(m.life/20))}
-  ];
-  if(el.growthSkills)el.growthSkills.innerHTML=skills.map(skill=>`<span><b>◆</b>${escapeHtml(skill.name)} <small>Lv.${skill.level}</small></span>`).join("");
-  renderGrowthSkillTree(m);syncGrowthView();
-  const evidence=m.evidence;
-  const deltaText=evidence.hasPrevious?`${evidence.completionDelta>0?"+":""}${evidence.completionDelta}%p`:"—";
-  el.growthEvidence.innerHTML=`<span><strong>${deltaText}</strong><small>30일 완료율 변화</small></span><span><strong>${evidence.activeDays}일</strong><small>최근 30일 실천</small></span><span><strong>${escapeHtml(evidence.topAbility)}</strong><small>가장 성장한 능력치</small></span>`;
-  el.growthAssets.innerHTML=`<span><b>▤</b><em>달성한 도전과제</em><strong>${m.completeChallenges}</strong></span><span><b>◆</b><em>보유 스킬</em><strong>${skills.length}</strong></span>`;
-  const automatic=[
-    {name:"첫 수확",done:m.completedActions>=1},
-    {name:"일곱 번의 실천",done:m.completedActions>=7},
-    {name:"한 달의 밭",done:m.completedActions>=30},
-    ...m.rewards.filter(item=>item.sourceType==="habit-milestone").slice(-3).map(item=>({name:item.label,done:true,caption:`+${item.xp} XP`}))
-  ];
-  const currentAchievements=[...automatic.map(item=>({...item,system:true})),...m.challengeProgress].filter(item=>!Boolean(item.done||item.complete));
-  el.growthAchievements.innerHTML=currentAchievements.map(item=>`<span ${item.id?`data-challenge-id="${item.id}"`:""}><button class="growth-state-mark" type="button" ${!item.id?"disabled":""} aria-label="완료로 표시">◇</button><button class="growth-achievement-name" type="button" ${!item.id?"disabled":""}>${escapeHtml(item.name)}</button><small>${item.caption||challengeStatusText(item)}</small></span>`).join("")||'<p class="empty-state">진행 중인 도전과제가 없습니다.</p>';
-  el.growthMonthDelta.textContent=`+${m.xp} XP`;
-  el.growthMonthCaption.textContent=m.completedActions?`${m.completedActions}번의 행동이 성장으로 쌓였습니다.`:"홈에서 완료율을 바꾸면 자동으로 자랍니다.";
-  renderGrowthDetail();
-}
-function renderGrowthDetail(){
-  if(!el.growthDetailContent)return;
-  const m=growthMetrics();
-  if(state.growthDetailTab==="achievements"){
-    const pending=m.challengeProgress.filter(item=>!item.complete);
-    const completed=m.challengeProgress.filter(item=>item.complete);
-    const section=(title,items)=>`<section class="growth-achievement-section"><h3>${title}</h3>${items.map(item=>`<button type="button" class="growth-detail-challenge" data-detail-challenge-id="${item.id}"><span>${escapeHtml(item.name)}</span><strong>${escapeHtml(challengeStatusText(item))}</strong></button>`).join("")||'<p class="empty-state">해당하는 도전과제가 없습니다.</p>'}</section>`;
-    el.growthDetailContent.innerHTML=section("진행 중",pending)+section("달성",completed);
-    return;
-  }
-  const rows={
-    stats:[["실행도",m.execution],["전문성",m.expertise],["생활력",m.life],["성장력",m.power]],
-    skills:[["실행력",`Lv.${Math.max(1,Math.ceil(m.execution/20))}`],["꾸준함",`Lv.${Math.max(1,Math.ceil(m.life/20))}`]],
-    assets:[["달성한 도전과제",m.completeChallenges],["보유 스킬",2]],
-    evidence:[["30일 완료율 변화",m.evidence.hasPrevious?`${m.evidence.completionDelta>0?"+":""}${m.evidence.completionDelta}%p`:"비교 기록 없음"],["최근 30일 실천",`${m.evidence.activeDays}일`],["이전 30일 대비 실천",`${m.evidence.activeDaysDelta>0?"+":""}${m.evidence.activeDaysDelta}일`],["가장 성장한 능력치",m.evidence.topAbility]],
-    achievements:[]
-  };
-  el.growthDetailContent.innerHTML=(rows[state.growthDetailTab]||rows.stats).map(([name,value])=>`<div><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")||"<p class=empty-state>아직 기록이 없습니다.</p>";
+function syncGoalMode(){el.goalTargetWrap.hidden=el.goalMode.value!=="count";if(el.goalId.value)el.goalCompleteWrap.hidden=false}
+async function removeGoal(id){
+  const goal=(state.goalProfile.challenges||[]).find(item=>item.id===id);if(!goal)return;
+  if(goal.habitId){await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));await deleteDoc(doc(db,"users",state.user.uid,"habits",goal.habitId))}
+  await saveGoals((state.goalProfile.challenges||[]).filter(item=>item.id!==id));toggleGoalModal(false);
 }
 
 async function login(){
@@ -2266,8 +2033,6 @@ function listen(user){
       const next=snap.docs.map(d=>({id:d.id,...d.data()}));
       const progressOnly=collectionChangedOnlyProgress(previous,next);
       state.events=next;
-      state.growthDataReady.events=true;
-      reconcileGrowthRewards();
 
       if(progressOnly){
         clearSnapshotRenderSkip("Event");
@@ -2297,8 +2062,6 @@ function listen(user){
       const previous=Object.values(state.eventLogs);
       state.eventLogs={};
       snap.docs.forEach(d=>{state.eventLogs[d.id]={id:d.id,...d.data()}});
-      state.growthDataReady.eventLogs=true;
-      reconcileGrowthRewards();
       const next=Object.values(state.eventLogs);
 
       if(collectionChangedOnlyProgress(previous,next)){
@@ -2469,10 +2232,6 @@ function renderAll(){
   if(state.activePage==="stats"){
     renderStats();
   }
-  if(state.activePage==="growth")renderGrowthState();
-
-  reconcileGrowthRewards();
-
   restoreViewScroll(preservedScroll);
 }
 function renderPeriodLabel(){
@@ -2951,9 +2710,7 @@ function renderMonth(){
     const progress=document.createElement("div");
     progress.className="month-day-insight";
     progress.innerHTML=`
-      <div class="month-day-progress-track">
-        <span style="width:${combined}%"></span>
-      </div>
+      <div class="month-day-area-fill" style="height:${combined}%"></div>
       <strong>${combined}%</strong>
     `;
 
@@ -4390,8 +4147,7 @@ async function deleteTodo(){
     const todoId=el.todoEditId.value;
     await Promise.all([
       deleteDoc(doc(db,"users",state.user.uid,"todos",todoId)),
-      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id))),
-      deleteGrowthRewardsBySources([todoId])
+      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id)))
     ]);
     closeTodoModal();
   }catch(error){
@@ -4626,7 +4382,7 @@ async function setTodoStatus(todo,status){
 
     // 과거 미완료 때문에 생성된 이후 이월본은
     // 원 날짜 상태 저장이 끝난 다음 제거한다.
-    if(wasRolled&&status!=="rolled"){
+    if((wasRolled&&status!=="rolled")||status==="done"){
       await removeTodoRolloverDescendants(todo);
     }
 
@@ -4778,8 +4534,6 @@ function listenTodos(user){
     collection(db,"users",user.uid,"todos"),
     snap=>{
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
-      state.growthDataReady.todos=true;
-      reconcileGrowthRewards();
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -4804,8 +4558,6 @@ function listenTodos(user){
       snap.docs.forEach(d=>{
         state.todoLogs[d.id]={id:d.id,...d.data()};
       });
-      state.growthDataReady.todoLogs=true;
-      reconcileGrowthRewards();
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -5578,12 +5330,23 @@ function renderCategoryManager(){
     const row=document.createElement("div");
     row.className="category-manager-row";
 
-    const color=document.createElement("input");
-    color.type="color";
+    const color=document.createElement("button");
+    color.type="button";
     color.className="category-color-input";
-    color.value=category.color;
+    color.style.background=category.color;
     color.setAttribute("aria-label",`${category.name} 색상`);
-    color.oninput=()=>{state.editingCategories[index].color=color.value};
+    color.title=CATEGORY_COLORS.find(item=>item.value.toLowerCase()===String(category.color).toLowerCase())?.name||"카테고리 색상";
+
+    const palette=document.createElement("div");
+    palette.className="category-palette";
+    palette.hidden=true;
+    palette.innerHTML=CATEGORY_COLORS.map((item,colorIndex)=>`<button type="button" data-category-color="${item.value}" title="${colorIndex+1}. ${item.name}" aria-label="${colorIndex+1}. ${item.name}" class="${item.value.toLowerCase()===String(category.color).toLowerCase()?"active":""}" style="--category-swatch:${item.value}"><i></i><small>${colorIndex+1}</small></button>`).join("");
+    color.onclick=()=>{palette.hidden=!palette.hidden};
+    palette.onclick=event=>{
+      const selected=event.target.closest("[data-category-color]");if(!selected)return;
+      state.editingCategories[index].color=selected.dataset.categoryColor;
+      renderCategoryManager();
+    };
 
     const name=document.createElement("input");
     name.type="text";
@@ -5603,7 +5366,7 @@ function renderCategoryManager(){
       renderCategoryManager();
     };
 
-    row.append(color,name,remove);
+    row.append(color,name,remove,palette);
     el.categoryManagerList.appendChild(row);
   });
 }
@@ -5629,7 +5392,7 @@ function addCategory(){
   state.editingCategories.push({
     id:categoryId(),
     name:`새 카테고리 ${state.editingCategories.length+1}`,
-    color:"#4f9d78"
+    color:CATEGORY_COLORS[9].value
   });
   renderCategoryManager();
 }
@@ -7155,8 +6918,7 @@ async function deleteEntireRepeatSeries(){
     const eventId=el.eventId.value;
     await Promise.all([
       deleteDoc(doc(db,"users",state.user.uid,"events",eventId)),
-      ...Object.values(state.eventLogs).filter(log=>log.eventId===eventId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"eventLogs",log.id))),
-      deleteGrowthRewardsBySources([eventId])
+      ...Object.values(state.eventLogs).filter(log=>log.eventId===eventId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"eventLogs",log.id)))
     ]);
     closeRepeatDeleteDialog();
     closeModal();
@@ -7189,8 +6951,6 @@ async function removeEvent(){
     await deleteDoc(
       doc(db,"users",state.user.uid,"events",deletedId)
     );
-    await deleteGrowthRewardsBySources([deletedId]);
-
     pushUndo("일정 삭제",async()=>{
       await setDoc(
         doc(db,"users",state.user.uid,"events",deletedId),
@@ -7253,7 +7013,7 @@ function setupPageSwipeNavigation(){
     {page:"calendar",view:"selected"},
     {page:"calendar",view:"week"},
     {page:"habit"},
-    {page:"growth"},
+    {page:"diary"},
     {page:"stats"}
   ];
 
@@ -7266,7 +7026,7 @@ function setupPageSwipeNavigation(){
       return state.currentView==="selected"?0:1;
     }
     if(state.activePage==="habit")return 2;
-    if(state.activePage==="growth")return 3;
+    if(state.activePage==="diary")return 3;
     return 4;
   };
 
@@ -7286,7 +7046,7 @@ function setupPageSwipeNavigation(){
     const visible=[
       el.calendarPage,
       el.habitPage,
-      el.growthPage,
+      el.diaryPage,
       el.statsPage
     ].find(page=>!page.hidden);
 
@@ -7494,68 +7254,38 @@ el.repeatDeleteDialog.onclick=event=>{
 };
 $("progressOptions").onclick=e=>{const b=e.target.closest("button[data-value]");if(b)setProgress(b.dataset.value)};el.modal.onclick=e=>{if(e.target===el.modal)closeModal()};
 el.mobileUser.onclick=openSheet;el.closeSheet.onclick=closeSheet;el.accountSheet.onclick=e=>{if(e.target===el.accountSheet)closeSheet()};
+$("openSettingsButton").onclick=openSheet;
 
 
 el.calendarNav.onclick=()=>navigateToPage("calendar");
 el.habitNav.onclick=()=>navigateToPage("habit");
-el.growthNav.onclick=()=>navigateToPage("growth");
+el.diaryNav.onclick=()=>navigateToPage("diary");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
-el.mobileGrowthNav.onclick=()=>navigateToPage("growth");
+el.mobileDiaryNav.onclick=()=>navigateToPage("diary");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
-function toggleGrowthModal(modal,show){
-  modal.classList.toggle("show",show);modal.setAttribute("aria-hidden",String(!show));
-}
-$("openGrowthSetupButton").onclick=()=>openGrowthChallenge();
-document.querySelectorAll("[data-growth-view]").forEach(button=>button.onclick=()=>{state.growthView=button.dataset.growthView;syncGrowthView()});
-el.growthSkillTree?.addEventListener("click",event=>{
-  const node=event.target.closest("[data-growth-skill]");if(!node)return;
-  state.growthDetailTab="skills";
-  document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab.dataset.growthTab==="skills"));
-  renderGrowthDetail();toggleGrowthModal(el.growthDetailModal,true);
-});
-$("closeGrowthSetupButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
-$("cancelGrowthChallengeButton").onclick=()=>toggleGrowthModal(el.growthSetupModal,false);
-$("closeGrowthDetailButton").onclick=()=>toggleGrowthModal(el.growthDetailModal,false);
-$("closeSkillUnlockButton").onclick=()=>toggleGrowthModal(el.skillUnlockModal,false);
-[$("openGrowthDetailButton"),...document.querySelectorAll("[data-growth-detail]")].forEach(button=>button?.addEventListener("click",()=>{
-  const requested=button.dataset.growthDetail;
-  state.growthDetailTab=["skills","assets","achievements","evidence"].includes(requested)?requested:"stats";
-  document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab.dataset.growthTab===state.growthDetailTab));
-  renderGrowthDetail();toggleGrowthModal(el.growthDetailModal,true);
-}));
-document.querySelectorAll("[data-growth-tab]").forEach(button=>button.onclick=()=>{state.growthDetailTab=button.dataset.growthTab;document.querySelectorAll("[data-growth-tab]").forEach(tab=>tab.classList.toggle("active",tab===button));renderGrowthDetail()});
-el.growthDetailContent.addEventListener("click",event=>{
-  const button=event.target.closest("[data-detail-challenge-id]");if(!button)return;
-  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===button.dataset.detailChallengeId);
-  if(challenge)openGrowthChallenge(challenge);
-});
-[el.growthSetupModal,el.growthDetailModal,el.skillUnlockModal].forEach(modal=>modal.addEventListener("click",event=>{if(event.target===modal)toggleGrowthModal(modal,false)}));
-el.growthChallengeMode.onchange=syncGrowthChallengeMode;
-el.growthAchievements.addEventListener("click",async event=>{
-  const row=event.target.closest("[data-challenge-id]");if(!row)return;
-  const challenge=(state.growthProfile.challenges||[]).find(item=>item.id===row.dataset.challengeId);if(!challenge)return;
-  if(event.target.closest(".growth-state-mark")&&!event.target.disabled){
-    const current=growthMetrics().challengeProgress.find(item=>item.id===challenge.id);
-    const markingComplete=!current?.complete;
-    const challenges=state.growthProfile.challenges.map(item=>item.id===challenge.id?{...item,manualIncomplete:!markingComplete,completed:markingComplete}:item);
-    if(!markingComplete)await deleteGrowthRewardsBySources([challenge.id]);
-    await saveGrowthProfile({challenges});reconcileGrowthRewards();return;
+$("openGoalButton").onclick=()=>openGoal();
+$("closeGoalModal").onclick=$("cancelGoalButton").onclick=()=>toggleGoalModal(false);
+el.goalModal.onclick=event=>{if(event.target===el.goalModal)toggleGoalModal(false)};
+el.goalMode.onchange=syncGoalMode;
+el.goalList.onclick=async event=>{
+  const row=event.target.closest("[data-goal-id]");if(!row)return;
+  const goal=(state.goalProfile.challenges||[]).find(item=>item.id===row.dataset.goalId);if(!goal)return;
+  if(event.target.closest(".goal-state")){
+    const completed=!goalProgress(goal).complete;
+    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,completed,manualIncomplete:!completed}:item));return;
   }
-  if(event.target.closest(".growth-achievement-name"))openGrowthChallenge(challenge);
-});
-el.deleteGrowthChallengeButton.onclick=()=>removeGrowthChallenge(el.growthChallengeId.value);
-el.growthChallengeForm.onsubmit=async event=>{
+  if(event.target.closest(".goal-name"))openGoal(goal);
+};
+el.deleteGoalButton.onclick=()=>removeGoal(el.goalId.value);
+el.goalForm.onsubmit=async event=>{
   event.preventDefault();
-  const id=el.growthChallengeId.value||crypto.randomUUID();
-  const previous=(state.growthProfile.challenges||[]).find(item=>item.id===id);
-  const mode=el.growthChallengeMode.value;
-  const name=el.growthChallengeName.value.trim();
-  const dueDate=el.growthChallengeDate.value;
-  const target=mode==="count"?Number(el.growthChallengeTarget.value||1):null;
+  const id=el.goalId.value||crypto.randomUUID();
+  const previous=(state.goalProfile.challenges||[]).find(item=>item.id===id);
+  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null;
   let habitId=previous?.habitId||null;
   try{
     if(mode==="count"){
@@ -7566,12 +7296,11 @@ el.growthChallengeForm.onsubmit=async event=>{
       await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
       await deleteDoc(doc(db,"users",state.user.uid,"habits",habitId));habitId=null;
     }
-    const checked=el.growthChallengeComplete.checked;
-    const wasComplete=previous?Boolean(growthMetrics().challengeProgress.find(item=>item.id===id)?.complete):false;
-    const next={id,name,mode,target,dueDate,habitId,completed:checked,manualIncomplete:mode==="count"&&!checked&&wasComplete,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
-    const challenges=previous?state.growthProfile.challenges.map(item=>item.id===id?next:item):[...(state.growthProfile.challenges||[]),next];
-    await saveGrowthProfile({challenges});toggleGrowthModal(el.growthSetupModal,false);reconcileGrowthRewards();
-  }catch(error){console.error(error);el.growthSetupMessage.textContent="도전과제를 저장하지 못했습니다."}
+    const completed=el.goalComplete.checked;
+    const next={id,name,mode,target,dueDate,habitId,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const challenges=previous?state.goalProfile.challenges.map(item=>item.id===id?next:item):[...(state.goalProfile.challenges||[]),next];
+    await saveGoals(challenges);toggleGoalModal(false);
+  }catch(error){console.error(error);el.goalMessage.textContent="목표를 저장하지 못했습니다."}
 };
 $("statsTodayButton").onclick=()=>{
   state.statsInsightDate=null;
@@ -7933,6 +7662,65 @@ window.addEventListener("popstate",event=>{
   }
 });
 
+function personalStorageKey(kind){return `momentum_${kind}_${state.user?.uid||"local"}`}
+function readPersonalItems(kind){
+  try{return JSON.parse(localStorage.getItem(personalStorageKey(kind))||"[]")}
+  catch{return []}
+}
+function writePersonalItems(kind,items){localStorage.setItem(personalStorageKey(kind),JSON.stringify(items))}
+
+function renderHomeMemos(){
+  const list=$("homeMemoList");if(!list)return;
+  const items=readPersonalItems("memos");
+  list.innerHTML=items.length?items.map(item=>`<article class="home-memo" data-memo-id="${item.id}" tabindex="0">${escapeHtml(item.text)}<button type="button" aria-label="메모 삭제">×</button></article>`).join(""):'<p class="home-memo-empty">명언, 다짐, 잊고 싶지 않은 문장을 고정해보세요.</p>';
+}
+function addHomeMemo(){
+  const text=prompt("홈에 고정할 메모를 적어주세요.");if(!text?.trim())return;
+  const items=readPersonalItems("memos");items.unshift({id:String(Date.now()),text:text.trim()});writePersonalItems("memos",items.slice(0,20));renderHomeMemos();
+}
+$("addHomeMemoButton")?.addEventListener("click",addHomeMemo);
+$("homeMemoList")?.addEventListener("click",event=>{
+  const card=event.target.closest(".home-memo");if(!card)return;
+  const items=readPersonalItems("memos");
+  if(event.target.closest("button")){writePersonalItems("memos",items.filter(item=>item.id!==card.dataset.memoId));renderHomeMemos();return}
+  const item=items.find(entry=>entry.id===card.dataset.memoId);if(!item)return;
+  const text=prompt("메모 수정",item.text);if(text===null)return;
+  item.text=text.trim();writePersonalItems("memos",items.filter(entry=>entry.text));renderHomeMemos();
+});
+
+function diaryElements(){return {date:$("diaryDate"),title:$("diaryTitle"),body:$("diaryBody"),list:$("diaryList"),message:$("diaryMessage")}}
+function renderDiary(){
+  const d=diaryElements();if(!d.date)return;
+  if(!d.date.value)d.date.value=dateKey(new Date());
+  const items=readPersonalItems("diaries").sort((a,b)=>b.date.localeCompare(a.date));
+  d.list.innerHTML=items.length?items.map(item=>`<button class="diary-entry ${item.date===d.date.value?"active":""}" type="button" data-diary-date="${item.date}"><strong>${escapeHtml(item.title||"제목 없는 기록")}</strong><small>${escapeHtml(item.date)} · ${escapeHtml((item.body||"").slice(0,44))}</small></button>`).join(""):'<p class="diary-empty">아직 기록이 없습니다.</p>';
+  const current=items.find(item=>item.date===d.date.value);d.title.value=current?.title||"";d.body.value=current?.body||"";
+}
+function saveDiary(){
+  const d=diaryElements(),date=d.date.value;if(!date)return;
+  const items=readPersonalItems("diaries");const index=items.findIndex(item=>item.date===date);
+  const entry={date,title:d.title.value.trim(),body:d.body.value.trim(),updatedAt:Date.now()};
+  if(index>=0)items[index]=entry;else items.push(entry);writePersonalItems("diaries",items);renderDiary();d.message.textContent="저장했습니다.";setTimeout(()=>d.message.textContent="",1400);
+}
+$("diaryDate")?.addEventListener("change",renderDiary);$("saveDiaryButton")?.addEventListener("click",saveDiary);
+$("deleteDiaryButton")?.addEventListener("click",()=>{const d=diaryElements();if(!d.date.value||!confirm("이 날짜의 일기를 삭제할까요?"))return;writePersonalItems("diaries",readPersonalItems("diaries").filter(item=>item.date!==d.date.value));renderDiary()});
+$("diaryList")?.addEventListener("click",event=>{const button=event.target.closest("[data-diary-date]");if(!button)return;$("diaryDate").value=button.dataset.diaryDate;renderDiary()});
+
+document.querySelectorAll("[data-habit-section]").forEach(button=>button.addEventListener("click",()=>{
+  document.querySelectorAll("[data-habit-section]").forEach(item=>item.classList.toggle("active",item===button));
+  const goals=button.dataset.habitSection==="goals";$("habitMainPanel").hidden=goals;$("goalMainPanel").hidden=!goals;
+  $("openHabitModal").hidden=goals;$("habitTodayButton").hidden=goals;
+  if(goals)renderGoals();
+}));
+document.querySelectorAll("[data-weekly-metric]").forEach(button=>button.addEventListener("click",()=>{
+  state.weeklyMetric=button.dataset.weeklyMetric;document.querySelectorAll("[data-weekly-metric]").forEach(item=>item.classList.toggle("active",item===button));renderStats();
+}));
+
+renderHomeMemos();
+renderThemePicker();
+applyTheme(localStorage.getItem("momentum_theme")||"green",{save:false});
+$("themePicker")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-id]");if(button)applyTheme(button.dataset.themeId)});
+
 
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
@@ -7944,7 +7732,6 @@ onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
-    state.growthRewards=[];state.growthRewardsReady=false;state.growthDataReady={events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
@@ -7952,14 +7739,15 @@ onAuthStateChanged(auth,async user=>{
     if(state.unsubscribeHabitLogs){state.unsubscribeHabitLogs();state.unsubscribeHabitLogs=null}
     if(state.unsubscribeTodos){state.unsubscribeTodos();state.unsubscribeTodos=null}
     if(state.unsubscribeTodoLogs){state.unsubscribeTodoLogs();state.unsubscribeTodoLogs=null}
-    if(state.unsubscribeGrowthProfile){state.unsubscribeGrowthProfile();state.unsubscribeGrowthProfile=null}
-    if(state.unsubscribeGrowthRewards){state.unsubscribeGrowthRewards();state.unsubscribeGrowthRewards=null}
+    if(state.unsubscribeGoals){state.unsubscribeGoals();state.unsubscribeGoals=null}
     el.login.hidden=false;el.app.hidden=true;return
   }
   state.user=user;
   el.login.hidden=true;
   el.app.hidden=false;
   fillUser(user);
+  renderHomeMemos();
+  if(state.activePage==="diary")renderDiary();
 
   if(!history.state?.momentum){
     syncHistoryState({replace:true});
@@ -7970,7 +7758,7 @@ onAuthStateChanged(auth,async user=>{
     listen(user);
     listenHabits(user);
     listenTodos(user);
-    listenGrowthProfile(user);
+    listenGoals(user);
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");

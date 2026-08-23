@@ -149,7 +149,7 @@
   }
 }
 
-/* Momentum v7.53 — durable habit history and objective growth evidence */
+/* Compact progress controls */
 body.week-fullscreen #calendarPage .calendar-toolbar{
   height:auto!important;
   min-height:0!important;
@@ -176,21 +176,12 @@ body.week-fullscreen #calendarPage .calendar-controls{
 .event-progress-inline .progress-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}
 .event-progress-inline .progress-options button{min-width:0;min-height:31px!important;padding:3px 2px;border-width:1px;border-radius:9px;font-size:10px}
 .event-progress-inline .progress-options button.selected{transform:none!important;border-color:#173d2d!important;box-shadow:0 0 0 1px #173d2d inset}
-.growth-add-button{background:linear-gradient(145deg,#24a36c,#137c50)!important;color:#fff!important;border:0!important}
-.growth-achievements span{grid-template-columns:28px minmax(0,1fr) auto!important}
-.growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}
-.growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}
-.growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
 .heatmap-block-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .heatmap-block-heading .heatmap-block-name{margin:0}
 .heatmap-habit-progress{flex:0 0 auto;text-align:right;font-size:10px;line-height:1.35;color:#73827a;font-weight:700}
 .habit-modal-actions #cancelHabit,.habit-modal-actions #saveHabitButton,#habitModal .modal-actions #cancelHabit,#habitModal .modal-actions #saveHabitButton{width:72px!important;min-width:72px!important;padding-inline:10px!important}
-.growth-achievement-section{display:grid;gap:5px;margin-bottom:16px}.growth-achievement-section h3{margin:4px 0 5px;font-size:12px;color:#65776e}.growth-detail-challenge{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 10px;border:0;border-bottom:1px solid #edf2ef;background:#fff;text-align:left;color:#314b3f}.growth-detail-challenge strong{font-size:10px;color:#27815b}.growth-detail-challenge:hover{background:#f7faf8}
-.growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}
-.growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
 @media(max-width:600px){
   .event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}
-  .growth-setup-grid{grid-template-columns:1fr}.growth-form-actions{grid-template-columns:auto 1fr auto auto}
 }
 
 /* Momentum v7.42 — DAY/TODAY, compact white system, cyclic progress */
@@ -1687,8 +1678,10 @@ mark{
   padding:3px;
   border:1px solid var(--line);
   border-radius:10px;
-  background:#fff;
+  box-shadow:inset 0 0 0 3px #fff;
+  cursor:pointer;
 }
+.category-palette{grid-column:1/-1;display:grid;grid-template-columns:repeat(12,minmax(28px,1fr));gap:5px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fff}.category-palette[hidden]{display:none}.category-palette button{min-width:0;height:38px;padding:3px;border:1px solid transparent;border-radius:9px;background:#f7f9f8;display:grid;place-items:center;gap:1px}.category-palette button i{display:block;width:20px;height:20px;border-radius:6px;background:var(--category-swatch)}.category-palette button small{font-size:7px;color:var(--soft)}.category-palette button.active{border-color:var(--text);box-shadow:0 0 0 1px var(--text) inset}
 .category-name-input{
   margin:0;
   min-width:0;
@@ -6189,7 +6182,8 @@ body.week-four-weeks .week-event-checklist{
 .todo-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:38px;padding:5px 7px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .todo-checkbox{width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--muted);color:var(--green-dark);font-weight:900}
 .todo-text{min-width:0;font-size:12px;font-weight:700}.todo-meta{color:var(--soft);font-size:9px;white-space:nowrap}
-.todo-row.status-done .todo-text,.todo-row.status-cancelled .todo-text,.todo-row.status-rolled .todo-text{text-decoration:line-through;opacity:.5}
+.todo-row.status-done .todo-text{opacity:.62;text-decoration:none}
+.todo-row.status-cancelled .todo-text,.todo-row.status-rolled .todo-text{text-decoration:line-through;opacity:.5}
 .todo-row.status-rolled .todo-checkbox{opacity:.72}
 .event-checklist-row.status-failed span,.day-view-checkitem.status-failed span{text-decoration:line-through;opacity:.5}
 @media(max-width:720px){.selected-todo-card{margin-top:8px}.todo-row{grid-template-columns:28px minmax(0,1fr)}.todo-meta{grid-column:2}}
@@ -6251,7 +6245,7 @@ body.week-four-weeks .week-event-checklist{
   font-weight:700;
   cursor:pointer;
 }
-.todo-row.status-done .todo-name-button,
+.todo-row.status-done .todo-name-button{opacity:.62;text-decoration:none}
 .todo-row.status-cancelled .todo-name-button,
 .todo-row.status-rolled .todo-name-button{
   text-decoration:line-through;
@@ -7794,35 +7788,12 @@ body.week-fullscreen #calendarPage .week-zoom-controls{
   .todo-row .todo-meta{grid-column:3!important;grid-row:1!important}
 }
 
-/* Momentum v7.50 — compact, calm growth status */
-#growthPage{max-width:1180px;margin:0 auto;padding-bottom:110px}
-.growth-dashboard{display:grid;gap:14px;padding:0 22px 30px}
-.growth-profile-card,.growth-card,.growth-month-strip{background:#fff;border:1px solid #e2ebe5;border-radius:22px;box-shadow:0 8px 24px rgba(27,70,49,.055)}
-.growth-profile-card{display:flex;align-items:center;gap:18px;padding:14px 20px;min-height:132px}
-.growth-pixel-character{flex:0 0 130px;width:130px;height:96px;background-image:url("momentum-pixel-growth.png");background-repeat:no-repeat;background-size:200% auto;background-position:left center;image-rendering:pixelated}
-.growth-pixel-character.evolved{background-position:right center}
-.growth-profile-copy{flex:1;min-width:0}.growth-profile-line{display:flex;align-items:center;gap:7px;font-size:18px;color:#163c2c}.growth-profile-line b{color:#168454}.growth-profile-copy>p{margin:4px 0 10px;color:#718078;font-size:12px}
-.growth-xp-line{display:flex;justify-content:space-between;font-size:11px;color:#77867e}.growth-xp-track,.growth-stat-card>i{display:block;overflow:hidden;background:#edf3ef;border-radius:99px}.growth-xp-track{height:7px;margin-top:5px}.growth-xp-track i,.growth-stat-card>i b{display:block;height:100%;background:linear-gradient(90deg,#7dc8a4,#19895b);border-radius:inherit;transition:width .35s ease}
-.growth-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.growth-stat-card{border:1px solid #e3ece6;background:#fff;border-radius:18px;padding:13px;text-align:left;color:#66776e}.growth-stat-card span{font-size:11px}.growth-stat-card strong{display:block;margin:5px 0;font-size:24px;color:#183e2e}.growth-stat-card>i{height:5px}
-.growth-content-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.growth-card{padding:17px}.growth-card-heading{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}.growth-card-heading h2{font-size:17px;margin:2px 0}.growth-card-heading .eyebrow{font-size:9px;margin:0}.text-action-button{border:0;background:transparent;color:#25845d;font-size:11px;padding:4px}
-.growth-skills{display:flex;flex-wrap:wrap;gap:7px}.growth-skills span{padding:7px 10px;border-radius:12px;background:#f1f7f3;color:#294b3c;font-size:12px}.growth-skills b{color:#e8a43e;margin-right:5px}.growth-skills small{color:#338762}
-.growth-evidence{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.growth-evidence span{text-align:center;background:#f7faf8;border-radius:13px;padding:10px 4px}.growth-evidence strong{display:block;color:#1b6747;font-size:17px}.growth-evidence small{font-size:9px;color:#7b8982}
-.growth-assets,.growth-achievements{display:grid;gap:7px}.growth-assets span,.growth-achievements span{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:7px;padding:8px;border-bottom:1px solid #edf2ef}.growth-assets em,.growth-achievements em{font-style:normal;font-size:12px}.growth-achievements small{font-size:10px;color:#89958f}.growth-achievements .done b{color:#19895b}
-.growth-month-strip{display:flex;align-items:center;gap:12px;padding:12px 16px;font-size:12px}.growth-month-strip strong{color:#19895b}.growth-month-strip small{flex:1;color:#79877f}.growth-month-strip button{border:0;background:#edf6f1;color:#187b53;border-radius:10px;padding:7px 10px}
-.growth-detail-tabs{display:flex;gap:5px;background:#f1f5f2;border-radius:13px;padding:4px}.growth-detail-tabs button{flex:1;border:0;background:transparent;border-radius:10px;padding:8px;font-size:11px}.growth-detail-tabs button.active{background:#fff;color:#168454;box-shadow:0 2px 8px #dfe9e3}.growth-detail-content{display:grid;gap:2px;margin-top:12px}.growth-detail-content>div{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #edf2ef}.growth-setup-form{display:grid;gap:10px;padding:14px 0;border-bottom:1px solid #e4ece7}.growth-setup-form h3{margin:0;font-size:15px}.growth-setup-form label{display:grid;gap:5px;font-size:11px;color:#66776e}.growth-setup-form input,.growth-setup-form select{height:42px;border:1px solid #dfe8e2;border-radius:12px;padding:0 12px;background:#f8faf9}.growth-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.skill-unlock-sheet{width:min(360px,calc(100vw - 30px));margin:auto;background:#fff;border-radius:24px;padding:25px;text-align:center;box-shadow:0 20px 80px #123d2c44}.skill-unlock-icon{font-size:28px;color:#e9a33d}.skill-unlock-effects{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:14px}.skill-unlock-effects span{background:#edf6f1;border-radius:99px;padding:5px 8px;font-size:10px;color:#247a55}
-@media(max-width:720px){
-  #growthPage{padding-top:0}.growth-topbar{padding-bottom:8px}.growth-topbar .sync-status{display:none}.growth-dashboard{padding:0 12px 24px;gap:10px}.growth-profile-card{min-height:106px;padding:10px 13px;gap:9px}.growth-pixel-character{flex-basis:92px;width:92px;height:76px}.growth-profile-line{font-size:15px}.growth-stat-grid{grid-template-columns:repeat(4,1fr);gap:5px}.growth-stat-card{padding:9px 7px;border-radius:14px}.growth-stat-card span{font-size:9px;white-space:nowrap}.growth-stat-card strong{font-size:19px}.growth-content-grid{grid-template-columns:1fr;gap:9px}.growth-card{padding:14px}.growth-month-strip{gap:7px}.growth-month-strip small{display:none}.mobile-bottom-nav{grid-template-columns:repeat(4,1fr)}
-}
-
 /* Momentum v7.51 final cascade */
 body.week-fullscreen #calendarPage .calendar-toolbar{height:auto!important;min-height:0!important;justify-content:flex-start!important;align-content:stretch!important}
 body.week-fullscreen #calendarPage .period-navigation,body.week-fullscreen #calendarPage .calendar-controls{flex:none!important}
 .event-progress-inline{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:9px;min-width:0;padding:5px 8px!important;border:1px solid #dce9e2!important;border-radius:13px;background:#fff}
 .event-progress-inline legend{display:contents;color:#40584e;font-size:11px;font-weight:850}.event-progress-inline .progress-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0}.event-progress-inline .progress-options button{min-width:0;min-height:31px!important;padding:3px 2px;border-width:1px;border-radius:9px;font-size:10px}.event-progress-inline .progress-options button.selected{transform:none!important;border-color:#173d2d!important;box-shadow:0 0 0 1px #173d2d inset}
-.growth-add-button{background:linear-gradient(145deg,#24a36c,#137c50)!important;color:#fff!important;border:0!important}.growth-achievements span{grid-template-columns:28px minmax(0,1fr) auto!important}.growth-state-mark,.growth-achievement-name{border:0;background:transparent;padding:0;text-align:left;color:inherit}.growth-state-mark{width:26px;height:26px;color:#87958e;font-size:19px;text-align:center}.growth-state-mark:not(:disabled){color:#16945e;cursor:pointer}.growth-achievement-name{font-size:12px}.growth-achievement-name:not(:disabled){cursor:pointer}.growth-achievement-name:not(:disabled):hover{text-decoration:underline;color:#157c51}
-.growth-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px;padding-top:6px}.growth-form-actions button{min-height:38px;padding:0 13px}.growth-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:#f2f7f4;color:#315848!important}.growth-manual-complete[hidden]{display:none!important}.growth-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.optional-label{font-weight:500;color:#91a098}
-@media(max-width:600px){.event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}.growth-setup-grid{grid-template-columns:1fr}.growth-form-actions{grid-template-columns:auto 1fr auto auto}}
+@media(max-width:600px){.event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}}
 
 /* Momentum v7.54 — keep all four primary destinations on one mobile row */
 @media(max-width:720px){
@@ -7837,17 +7808,43 @@ body.week-fullscreen #calendarPage .period-navigation,body.week-fullscreen #cale
   .mobile-nav-button{min-width:0!important;width:auto!important;grid-row:1!important}
 }
 
-/* Momentum v7.55 — calm RPG skill screen */
-.growth-view-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:min(330px,100%);margin:0 auto;padding:4px;border:1px solid #dfe9e3;border-radius:14px;background:#f3f7f4}
-.growth-view-tabs button{height:36px;border:0;border-radius:10px;background:transparent;color:#738179;font-size:12px;font-weight:800}
-.growth-view-tabs button.active{background:#fff;color:#177b52;box-shadow:0 3px 10px rgba(30,83,58,.1)}
-.growth-skill-tree-panel{padding:18px;border:1px solid #e0e9e3;border-radius:22px;background:linear-gradient(180deg,#fbfdfc,#f5f9f6);box-shadow:0 8px 24px rgba(27,70,49,.045)}
-.growth-skill-tree{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.growth-skill-branch{min-width:0}.growth-skill-branch h3{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 12px;color:#315448;font-size:12px}.growth-skill-branch h3 span{color:#188659}
-.growth-skill-path{display:grid;gap:15px;position:relative}.growth-skill-node{position:relative;display:flex;align-items:center;gap:9px;min-width:0;width:100%;min-height:58px;padding:9px 10px;border:1px solid #dfe9e3;border-radius:15px;background:#fff;text-align:left;color:#29483b;box-shadow:0 4px 12px rgba(29,70,51,.04)}
-.growth-skill-node>i{display:grid;place-items:center;flex:0 0 31px;width:31px;height:31px;border-radius:10px;background:#e7f5ed;color:#1a8b5c;font-style:normal}.growth-skill-node>span{min-width:0}.growth-skill-node strong,.growth-skill-node small{display:block}.growth-skill-node strong{font-size:12px}.growth-skill-node small{margin-top:3px;color:#75847c;font-size:9px;white-space:normal}.growth-skill-node .skill-link{position:absolute;left:24px;top:100%;width:2px;height:16px;background:#cbdcd2}
-.growth-skill-node.growing{border-style:dashed;background:#fbfdfc}.growth-skill-node.growing>i{background:#fff3d9;color:#d79a30}.growth-skill-node.locked{background:#f3f5f4;color:#94a099;box-shadow:none}.growth-skill-node.locked>i{background:#e7ebe8;color:#9da7a1}.growth-skill-node.locked .skill-link{background:#dce3df}
-.growth-content-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:720px){
-  .growth-skill-tree-panel{padding:12px 10px;overflow-x:auto}.growth-skill-tree{grid-template-columns:repeat(3,minmax(170px,1fr));gap:10px;min-width:530px}.growth-skill-node{min-height:54px}.growth-content-grid{grid-template-columns:1fr}.growth-view-tabs{width:100%}
-}
+/* Momentum v7.57 — focused life record: home / habits + goals / journal / insights */
+#calendarPage>.topbar{margin-bottom:8px!important;padding-top:0!important}
+#calendarPage>.topbar .eyebrow{margin-bottom:2px}
+#calendarPage>.topbar h1{font-size:34px}
+.quick-register-button{background:#1f9663!important;color:#fff!important;border-color:#1f9663!important;box-shadow:0 4px 12px rgba(31,150,99,.18)}
+
+.home-memo-board{max-width:1540px;margin:0 auto 10px;padding:12px 14px;border:1px solid #e0eae4;border-radius:17px;background:#fff}
+.home-memo-heading,.goal-heading,.diary-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.home-memo-heading h2,.goal-heading h2,.diary-list-heading h2{margin:2px 0 0;font-size:15px}.home-memo-list{display:flex;gap:8px;margin-top:9px;overflow:auto}.home-memo{position:relative;flex:0 0 min(280px,78vw);min-height:56px;padding:11px 34px 11px 12px;border:1px solid #eadfb5;border-radius:13px;background:#fff9dc;color:#514a34;white-space:pre-wrap;font-size:12px;line-height:1.5;text-align:left}.home-memo button{position:absolute;right:7px;top:7px;width:24px;height:24px;border:0;border-radius:8px;background:rgba(80,67,24,.07);color:#8c8059}.home-memo-empty{padding:9px 0;color:var(--soft);font-size:11px}
+
+.habit-goal-tabs{display:grid;grid-template-columns:1fr 1fr;width:min(320px,calc(100% - 24px));margin:0 auto 12px;padding:4px;border:1px solid #dfe9e3;border-radius:14px;background:#f3f7f4}.habit-goal-tabs button{height:36px;border:0;border-radius:10px;background:transparent;color:#738179;font-weight:800}.habit-goal-tabs button.active{background:#fff;color:#177b52;box-shadow:0 3px 10px rgba(30,83,58,.1)}.goal-dashboard{max-width:1040px;margin:0 auto;padding:0 22px 40px}.goal-dashboard[hidden]{display:none}.goal-heading{margin-bottom:12px}.goal-list{display:grid;gap:7px;padding:14px;border:1px solid #e2ebe5;border-radius:20px;background:#fff}.goal-list span{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:7px;padding:9px;border-bottom:1px solid #edf2ef}.goal-list small{font-size:10px;color:var(--soft)}.goal-state,.goal-name{border:0;background:transparent;padding:0;color:inherit}.goal-state{width:26px;height:26px;color:var(--green);font-size:19px}.goal-name{text-align:left;font-size:12px;cursor:pointer}.goal-list .done .goal-name{text-decoration:line-through;opacity:.55}.goal-help{margin:10px 3px;color:var(--soft);font-size:11px}.goal-form{display:grid;gap:10px}.goal-form label{display:grid;gap:5px}.goal-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.goal-manual-complete{display:flex!important;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:var(--muted)}.goal-manual-complete[hidden]{display:none!important}.goal-manual-complete input{width:18px!important;height:18px!important;margin:0!important}.goal-form-actions{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:7px}.goal-form-actions button{min-height:38px;padding:0 13px}
+
+.diary-dashboard{max-width:1040px;margin:0 auto;padding:0 22px 40px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:14px}.diary-editor-card,.diary-list-card{padding:18px;border:1px solid #e1ebe5;border-radius:21px;background:#fff;box-shadow:0 8px 24px rgba(27,70,49,.05)}.diary-editor-card{display:grid;gap:12px}.diary-editor-card label{display:grid;gap:5px}.diary-editor-card input,.diary-editor-card textarea{margin:0;background:#f8fbf9}.diary-editor-card textarea{min-height:220px;padding:13px;border:1px solid var(--line);border-radius:13px;resize:vertical;font:inherit}.diary-editor-actions{display:grid;grid-template-columns:auto 1fr auto;gap:8px}.diary-list{display:grid;gap:7px;margin-top:12px;max-height:480px;overflow:auto}.diary-entry{width:100%;padding:11px;border:1px solid #e6eee9;border-radius:13px;background:#fafcfb;text-align:left}.diary-entry strong,.diary-entry small{display:block}.diary-entry small{margin-top:4px;color:var(--soft)}.diary-entry.active{border-color:#45a77c;background:#eef8f3}.diary-empty{padding:24px 8px;text-align:center;color:var(--soft)}
+
+.month-rate-summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.month-rate-summary span{padding:4px 8px;border-radius:99px;background:#edf6f1;color:#60756b;font-size:10px}.month-rate-summary strong{color:#177b52}.weekly-metric-switch{display:flex;gap:3px;padding:3px;border-radius:10px;background:#f1f5f2}.weekly-metric-switch button{min-height:27px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:#728078;font-size:10px;font-weight:800}.weekly-metric-switch button.active{background:#fff;color:#177b52;box-shadow:0 2px 7px rgba(30,83,58,.1)}
+#statsMonthGrid .day-cell{position:relative;isolation:isolate;background:#fff!important}
+#statsMonthGrid .day-cell.outside{background:#fafcfb!important}
+#statsMonthGrid .day-topline{position:relative;z-index:3}
+#statsMonthGrid .month-day-insight{position:absolute!important;inset:0!important;display:block!important;margin:0!important;padding:0!important;z-index:1!important;pointer-events:none}
+#statsMonthGrid .month-day-area-fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(65,174,119,.16),rgba(31,150,99,.4));border-top:1px solid rgba(31,150,99,.25);transition:height .25s ease}
+#statsMonthGrid .month-day-insight>strong{position:absolute!important;right:7px!important;bottom:6px!important;z-index:2!important;color:#246849!important;font-size:10px!important}
+
+/* repeat choices read as one calm segmented control instead of a dense form */
+.event-repeat-card{background:#fbfdfc!important}.event-repeat-chips{padding:3px;border:1px solid #e0e9e4;border-radius:12px;background:#eef4f0;gap:3px!important}.event-repeat-chips button{border:0!important;background:transparent!important;box-shadow:none}.event-repeat-chips button.active{background:#fff!important;color:#147b50!important;box-shadow:0 2px 7px rgba(28,87,59,.12)!important}.event-repeat-end{padding-top:5px;border-top:1px solid #e6eee9}
+
+@media(max-width:720px){#calendarPage>.topbar{display:none}.home-memo-board{margin:0 0 8px;padding:10px 12px}.diary-dashboard{grid-template-columns:1fr;padding:0 12px 24px;gap:9px}.diary-editor-card,.diary-list-card{padding:14px}.diary-editor-card textarea{min-height:180px}.goal-dashboard{padding:0 12px 30px}.stats-month-heading{align-items:flex-start}.month-rate-summary{gap:3px}.month-rate-summary span{padding:3px 6px;font-size:9px}.weekly-metric-switch{margin-left:auto}}
+@media(max-width:600px){.goal-form-grid{grid-template-columns:1fr}.goal-form-actions{grid-template-columns:auto 1fr auto auto}}
+
+/* Momentum v7.57 — 12 independent app themes; category colors stay data-owned */
+body{background:radial-gradient(circle at 8% 0%,color-mix(in srgb,var(--theme-glow) 18%,transparent),transparent 27%),radial-gradient(circle at 92% 4%,color-mix(in srgb,var(--green) 9%,transparent),transparent 23%),var(--bg)!important}
+.quick-register-button{background:var(--green)!important;border-color:var(--green)!important;box-shadow:0 4px 12px color-mix(in srgb,var(--green) 20%,transparent)!important}
+#statsMonthGrid .month-day-area-fill{background:linear-gradient(180deg,color-mix(in srgb,var(--green) 16%,transparent),color-mix(in srgb,var(--green) 42%,transparent));border-top-color:color-mix(in srgb,var(--green) 28%,transparent)}
+#statsMonthGrid .month-day-insight>strong,.month-rate-summary strong{color:var(--green-dark)!important}.month-rate-summary span{background:var(--green-soft)}
+.habit-goal-tabs,.weekly-metric-switch{background:var(--muted);border-color:var(--line)}.habit-goal-tabs button.active,.weekly-metric-switch button.active{color:var(--green-dark)}
+.diary-entry.active{border-color:var(--green);background:var(--green-soft)}
+.event-repeat-chips button.active{color:var(--green-dark)!important}
+.theme-settings{width:100%;padding-top:12px;border-top:1px solid var(--line);text-align:left}.theme-settings-heading h2{margin:1px 0 2px;font-size:16px}.theme-settings-heading>small{display:block;color:var(--soft);font-size:9px}.theme-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;margin-top:10px}.theme-picker button{display:grid;grid-template-columns:27px minmax(0,1fr);align-items:center;gap:7px;min-height:42px;padding:6px 7px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);text-align:left;font-size:10px;font-weight:750}.theme-picker button>i{width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,var(--theme-soft) 0 48%,var(--theme-main) 50% 100%);box-shadow:inset 0 0 0 1px rgba(20,40,30,.08)}.theme-picker button.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset;background:var(--green-soft)}.account-sheet{max-height:min(760px,calc(100dvh - 24px));overflow:auto;justify-items:stretch}.account-sheet>img,.account-sheet>strong,.account-sheet>small{justify-self:center}
+.account-panel{grid-template-columns:38px 1fr}.account-panel #openSettingsButton,.account-panel #logoutButton{grid-column:auto}.account-panel #openSettingsButton{color:var(--green-dark)}
+html.glass-theme .sidebar,html.glass-theme .mobile-header,html.glass-theme .calendar-card,html.glass-theme .summary-card,html.glass-theme .stats-card,html.glass-theme .habit-list-card,html.glass-theme .habit-heatmap-card,html.glass-theme .home-memo-board,html.glass-theme .diary-editor-card,html.glass-theme .diary-list-card{background:rgba(255,255,255,.62)!important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+@media(max-width:420px){.theme-picker{grid-template-columns:1fr 1fr}.theme-picker button{font-size:9px;padding:5px}.account-sheet{max-height:100dvh}}
+@media(max-width:720px){.category-palette{grid-template-columns:repeat(6,1fr)}}

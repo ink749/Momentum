@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1f8a5b" />
   <title>Momentum</title>
-  <link rel="stylesheet" href="style.css?v=7.56" />
+  <link rel="stylesheet" href="style.css?v=7.59" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -31,14 +31,15 @@
         <div><strong>Momentum</strong><small>Build it daily.</small></div>
       </div>
       <nav>
-        <button id="calendarNavButton" class="nav-item active" type="button">▦ 캘린더</button>
+        <button id="calendarNavButton" class="nav-item active" type="button">⌂ 홈</button>
         <button id="habitNavButton" class="nav-item" type="button">◫ 습관</button>
-        <button id="growthNavButton" class="nav-item" type="button">▥ 상태</button>
+        <button id="diaryNavButton" class="nav-item" type="button">▤ 일기</button>
         <button id="statsNavButton" class="nav-item" type="button">◈ 통계</button>
       </nav>
       <div class="account-panel">
         <img id="userPhoto" alt="" />
         <div><strong id="userName"></strong><small id="userEmail"></small></div>
+        <button id="openSettingsButton" type="button">설정</button>
         <button id="logoutButton" type="button">로그아웃</button>
       </div>
     </aside>
@@ -59,6 +60,14 @@
           <button id="openEventModal" class="primary-button desktop-add" type="button">+ 일정 추가</button>
         </div>
       </header>
+
+      <section class="home-memo-board" aria-label="홈 메모지">
+        <div class="home-memo-heading">
+          <div><p class="eyebrow">MEMO</p><h2>기억할 문장</h2></div>
+          <button id="addHomeMemoButton" class="text-action-button" type="button">+ 메모</button>
+        </div>
+        <div id="homeMemoList" class="home-memo-list"></div>
+      </section>
 
       <section class="dashboard-grid">
         <section class="calendar-card">
@@ -205,7 +214,11 @@
           </div>
         </header>
 
-        <section class="habit-dashboard">
+        <div class="habit-goal-tabs" role="tablist" aria-label="습관과 목표">
+          <button class="active" type="button" data-habit-section="habits">습관</button>
+          <button type="button" data-habit-section="goals">목표</button>
+        </div>
+        <section id="habitMainPanel" class="habit-dashboard">
           <section class="habit-list-card">
             <div class="habit-section-heading">
               <div>
@@ -239,66 +252,26 @@
             </div>
           </section>
         </section>
+        <section id="goalMainPanel" class="goal-dashboard" hidden>
+          <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div><button id="openGoalButton" class="primary-button" type="button">+ 목표 추가</button></div>
+          <div id="goalList" class="goal-list"></div>
+          <p class="goal-help">완료한 목표도 기록으로 남아 언제든 다시 확인할 수 있어요.</p>
+        </section>
       </section>
 
-      <section id="growthPage" hidden>
-        <header class="topbar growth-topbar">
-          <div>
-            <p class="eyebrow">YOUR CULTIVATED GROWTH</p>
-            <h1>나의 상태</h1>
-            <p class="sync-status">캘린더에 남긴 행동이 자동으로 쌓입니다.</p>
-          </div>
-          <div class="top-actions">
-            <button id="openGrowthSetupButton" class="primary-button growth-add-button" type="button">도전과제 추가</button>
-          </div>
-        </header>
-
-        <section class="growth-dashboard">
-          <article class="growth-profile-card">
-            <div id="growthPixelCharacter" class="growth-pixel-character" role="img" aria-label="성장 중인 도트 캐릭터"></div>
-            <div class="growth-profile-copy">
-              <div class="growth-profile-line"><strong id="growthUserName">사용자</strong><span>·</span><b id="growthLevel">Lv.1</b></div>
-              <p id="growthTitle">배우며 나아가는 사람</p>
-              <div class="growth-xp-line"><span>총 XP</span><strong id="growthXpText">0 / 500</strong></div>
-              <div class="growth-xp-track"><i id="growthXpBar"></i></div>
-            </div>
+      <section id="diaryPage" hidden>
+        <header class="topbar diary-topbar"><div><p class="eyebrow">DAILY JOURNAL</p><h1>일기</h1><p class="sync-status">숫자로 설명되지 않는 오늘의 맥락을 남겨보세요.</p></div></header>
+        <section class="diary-dashboard">
+          <article class="diary-editor-card">
+            <label>날짜<input id="diaryDate" type="date" /></label>
+            <label>오늘의 한 줄<input id="diaryTitle" type="text" maxlength="80" placeholder="오늘을 한 문장으로 남겨보세요" /></label>
+            <label>기록<textarea id="diaryBody" maxlength="5000" placeholder="무엇을 했고, 무엇을 느꼈나요?"></textarea></label>
+            <div class="diary-editor-actions"><button id="deleteDiaryButton" class="danger-button" type="button">삭제</button><span></span><button id="saveDiaryButton" class="primary-button" type="button">저장</button></div>
+            <p id="diaryMessage" class="muted"></p>
           </article>
-
-          <div class="growth-view-tabs" role="tablist" aria-label="상태 화면 보기">
-            <button id="growthTreeTab" class="active" type="button" data-growth-view="tree">스킬트리</button>
-            <button id="growthStatsTab" type="button" data-growth-view="stats">능력치</button>
-          </div>
-
-          <section id="growthSkillTreePanel" class="growth-skill-tree-panel" aria-label="스킬트리">
-            <div id="growthSkillTree" class="growth-skill-tree"></div>
-          </section>
-
-          <div id="growthStatsPanel" class="growth-stat-grid" aria-label="대표 능력치" hidden>
-            <button class="growth-stat-card active" type="button" data-growth-detail="execution"><span>⚑ 실행도</span><strong id="growthExecution">0</strong><i><b id="growthExecutionBar"></b></i></button>
-            <button class="growth-stat-card" type="button" data-growth-detail="expertise"><span>▤ 전문성</span><strong id="growthExpertise">0</strong><i><b id="growthExpertiseBar"></b></i></button>
-            <button class="growth-stat-card" type="button" data-growth-detail="life"><span>♡ 생활력</span><strong id="growthLife">0</strong><i><b id="growthLifeBar"></b></i></button>
-            <button class="growth-stat-card" type="button" data-growth-detail="growth"><span>♧ 성장력</span><strong id="growthPower">0</strong><i><b id="growthPowerBar"></b></i></button>
-          </div>
-
-          <div class="growth-content-grid">
-            <article class="growth-card growth-evidence-card">
-              <div class="growth-card-heading"><div><p class="eyebrow">EVIDENCE</p><h2>성장의 증거</h2></div><button class="text-action-button" type="button" data-growth-detail="evidence">기록 보기</button></div>
-              <div id="growthEvidence" class="growth-evidence"></div>
-            </article>
-
-            <article class="growth-card growth-assets-card">
-              <div class="growth-card-heading"><div><p class="eyebrow">ASSETS</p><h2>자산</h2></div><button class="text-action-button" type="button" data-growth-detail="assets">관리</button></div>
-              <div id="growthAssets" class="growth-assets"></div>
-            </article>
-
-            <article class="growth-card growth-achievement-card">
-              <div class="growth-card-heading"><div><p class="eyebrow">ACHIEVEMENTS</p><h2>도전과제</h2></div><button class="text-action-button" type="button" data-growth-detail="achievements">도감 보기</button></div>
-              <div id="growthAchievements" class="growth-achievements"></div>
-            </article>
-          </div>
-
-          <article class="growth-month-strip"><span>이번 달 성장</span><strong id="growthMonthDelta">+0</strong><small id="growthMonthCaption">오늘의 기록을 시작해보세요.</small><button id="openGrowthDetailButton" type="button">성장 기록</button></article>
+          <article class="diary-list-card"><div class="diary-list-heading"><div><p class="eyebrow">PAST DAYS</p><h2>지난 기록</h2></div></div><div id="diaryList" class="diary-list"></div></article>
         </section>
+
       </section>
 
       <section id="statsPage" hidden>
@@ -344,6 +317,7 @@
               <div>
                 <p class="eyebrow">MONTH OVERVIEW</p>
                 <h2 id="statsMonthCalendarTitle">월간 성과</h2>
+                <div class="month-rate-summary"><span>종합 <strong id="monthRateCombined">—</strong></span><span>일정 <strong id="monthRateEvents">—</strong></span><span>습관 <strong id="monthRateHabits">—</strong></span><span>할 일 <strong id="monthRateTodos">—</strong></span></div>
               </div>
               <div class="stats-month-navigation">
                 <button id="statsPrevMonthButton" class="round-button" type="button">‹</button>
@@ -366,11 +340,12 @@
                   <p class="eyebrow">LAST 7 DAYS</p>
                   <h2 id="statsWeeklyTitle">최근 7일 완료율</h2>
                 </div>
+                <div class="weekly-metric-switch" role="tablist"><button class="active" data-weekly-metric="combined" type="button">종합</button><button data-weekly-metric="events" type="button">일정</button><button data-weekly-metric="todos" type="button">할 일</button></div>
               </div>
               <div id="weeklyProgressChart" class="weekly-progress-chart"></div>
             </section>
 
-            <section class="stats-card">
+            <section class="stats-card stats-month-summary-card" hidden>
               <div class="stats-card-heading">
                 <div>
                   <p class="eyebrow">THIS MONTH</p>
@@ -414,6 +389,8 @@
 <span id="statsChecklistLabel"></span><strong id="statsChecklistProgress">0%</strong>
 <small id="statsChecklistCount"></small><strong id="statsChecklistTotal">0개</strong>
 <strong id="statsChecklistDone">0개</strong><strong id="statsChecklistFailed">0개</strong>
+<strong id="statsTodoTotal">0개</strong><strong id="statsTodoDone">0개</strong><strong id="statsTodoCancelled">0개</strong>
+<span id="eventProgressSummary"></span><button id="emptyAdd" type="button"></button>
 </div>
 </main>
 
@@ -426,9 +403,9 @@
         <span class="mobile-nav-icon">◫</span>
         <span>습관</span>
       </button>
-      <button id="mobileGrowthNavButton" class="mobile-nav-button" type="button">
+      <button id="mobileDiaryNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">▥</span>
-        <span>상태</span>
+        <span>일기</span>
       </button>
       <button id="mobileStatsNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">◈</span>
@@ -857,44 +834,30 @@
     <div class="account-sheet">
       <img id="sheetUserPhoto" alt="" />
       <strong id="sheetUserName"></strong><small id="sheetUserEmail"></small>
+      <section class="theme-settings" aria-labelledby="themeSettingsTitle">
+        <div class="theme-settings-heading"><p class="eyebrow">THEME</p><h2 id="themeSettingsTitle">화면 테마</h2><small>카테고리 색은 그대로 유지됩니다.</small></div>
+        <div id="themePicker" class="theme-picker"></div>
+      </section>
       <button id="sheetLogoutButton" class="danger-outline-button" type="button">로그아웃</button>
       <button id="closeAccountSheet" class="secondary-button" type="button">닫기</button>
     </div>
   </div>
 
-  <div id="growthDetailModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal growth-detail-modal">
-      <div class="modal-header"><div><p class="eyebrow">GROWTH DETAIL</p><h2 id="growthDetailTitle">상태 상세</h2></div><button id="closeGrowthDetailButton" class="close-button" type="button">×</button></div>
-      <div class="growth-detail-tabs" role="tablist">
-        <button type="button" data-growth-tab="stats" class="active">능력치</button><button type="button" data-growth-tab="skills">스킬</button><button type="button" data-growth-tab="assets">자산</button><button type="button" data-growth-tab="achievements">도전과제</button>
-      </div>
-      <div id="growthDetailContent" class="growth-detail-content"></div>
-    </div>
-  </div>
-
-  <div id="growthSetupModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal growth-setup-modal">
-      <div class="modal-header"><div><p class="eyebrow">CHALLENGE</p><h2 id="growthSetupTitle">도전과제 추가</h2></div><button id="closeGrowthSetupButton" class="close-button" type="button">×</button></div>
-      <form id="growthChallengeForm" class="growth-setup-form">
-        <input id="growthChallengeId" type="hidden" />
-        <label>도전과제 이름<input id="growthChallengeName" type="text" maxlength="60" placeholder="예: 소방설비기사 취득" required /></label>
-        <label>달성 방식<select id="growthChallengeMode"><option value="date">D-day까지 달성</option><option value="count">횟수 채우기</option></select></label>
-        <div class="growth-setup-grid"><label id="growthChallengeTargetWrap" hidden>목표 횟수<input id="growthChallengeTarget" type="number" min="1" max="1000000" value="30" /></label><label>D-day<input id="growthChallengeDate" type="date" /></label></div>
-        <label id="growthChallengeCompleteWrap" class="growth-manual-complete" hidden><input id="growthChallengeComplete" type="checkbox" /> 완료로 표시</label>
-        <div class="growth-form-actions"><button id="deleteGrowthChallengeButton" class="danger-outline-button" type="button" hidden>삭제</button><span></span><button id="cancelGrowthChallengeButton" class="secondary-button" type="button">취소</button><button class="primary-button" type="submit">저장</button></div>
+  <div id="goalModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal goal-modal">
+      <div class="modal-header"><div><p class="eyebrow">GOAL</p><h2 id="goalModalTitle">목표 추가</h2></div><button id="closeGoalModal" class="close-button" type="button">×</button></div>
+      <form id="goalForm" class="goal-form">
+        <input id="goalId" type="hidden" />
+        <label>목표 이름<input id="goalName" type="text" maxlength="60" placeholder="예: 소방설비기사 취득" required /></label>
+        <label>달성 방식<select id="goalMode"><option value="date">D-day까지 달성</option><option value="count">횟수 채우기</option></select></label>
+        <div class="goal-form-grid"><label id="goalTargetWrap" hidden>목표 횟수<input id="goalTarget" type="number" min="1" max="1000000" value="30" /></label><label>D-day<input id="goalDate" type="date" /></label></div>
+        <label id="goalCompleteWrap" class="goal-manual-complete" hidden><input id="goalComplete" type="checkbox" /> 완료로 표시</label>
+        <div class="goal-form-actions"><button id="deleteGoalButton" class="danger-outline-button" type="button" hidden>삭제</button><span></span><button id="cancelGoalButton" class="secondary-button" type="button">취소</button><button class="primary-button" type="submit">저장</button></div>
       </form>
-      <p id="growthSetupMessage" class="error-message"></p>
+      <p id="goalMessage" class="error-message"></p>
     </div>
   </div>
 
-  <div id="skillUnlockModal" class="modal-backdrop" aria-hidden="true">
-    <div class="skill-unlock-sheet">
-      <span class="skill-unlock-icon">◆</span><p class="eyebrow">NEW SKILL</p><h2>새 스킬 습득</h2><strong id="skillUnlockName">전문 스킬 Lv.1</strong><p id="skillUnlockDescription">자격증 취득으로 해금되었습니다.</p>
-      <div class="skill-unlock-effects"><span>전문성 +5</span><span>기술 트리 개방</span><span>도트 장비 해금</span></div>
-      <button id="closeSkillUnlockButton" class="primary-button" type="button">확인</button>
-    </div>
-  </div>
-
-  <script type="module" src="script.js?v=7.56"></script>
+  <script type="module" src="script.js?v=7.59"></script>
 </body>
 </html>
