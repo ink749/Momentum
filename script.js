@@ -843,13 +843,34 @@ function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey
     days.push({d,planned:values.length,executed:values.reduce((sum,value)=>sum+value,0)/100});
   }
   const maxPlanned=Math.max(1,...days.map(day=>day.planned));
-  const points=days.map((day,index)=>`${50+index*100},${95-day.executed/maxPlanned*85}`).join(" ");
-  chart.innerHTML=`<svg class="workload-line" viewBox="0 0 700 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline>${days.map((day,index)=>`<circle cx="${50+index*100}" cy="${95-day.executed/maxPlanned*85}" r="3"></circle>`).join("")}</svg>`+days.map(day=>{
+  chart.innerHTML=days.map(day=>{
     const planHeight=day.planned/maxPlanned*100;
     const fill=day.planned?day.executed/day.planned*100:0;
     const executed=Number.isInteger(day.executed)?day.executed:day.executed.toFixed(1);
     return `<div class="workload-day"><span>${executed}/${day.planned}</span><div class="workload-track" style="height:${planHeight}%"><i style="height:${fill}%"></i></div><strong>${["일","월","화","수","목","금","토"][day.d.getDay()]}</strong><small>${day.d.getMonth()+1}/${day.d.getDate()}</small></div>`;
   }).join("");
+  chart._workloadDays=days;
+  if(!chart._workloadObserver){
+    chart._workloadObserver=new ResizeObserver(()=>drawWorkloadLine(chart,chart._workloadDays||[]));
+    chart._workloadObserver.observe(chart);
+  }
+  requestAnimationFrame(()=>drawWorkloadLine(chart,days));
+}
+function drawWorkloadLine(chart,days){
+  chart.querySelector(".workload-line")?.remove();
+  const chartBox=chart.getBoundingClientRect();
+  if(!chartBox.width||!chartBox.height)return;
+  const points=[...chart.querySelectorAll(".workload-track")].map((track,index)=>{
+    const box=track.getBoundingClientRect(),day=days[index];
+    const ratio=day?.planned?day.executed/day.planned:0;
+    return {x:box.left-chartBox.left+box.width/2,y:box.bottom-chartBox.top-box.height*ratio};
+  });
+  if(!points.length)return;
+  const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");
+  svg.classList.add("workload-line");svg.setAttribute("viewBox",`0 0 ${chartBox.width} ${chartBox.height}`);svg.setAttribute("aria-hidden","true");
+  const line=document.createElementNS(ns,"polyline");line.setAttribute("points",points.map(point=>`${point.x},${point.y}`).join(" "));svg.appendChild(line);
+  points.forEach(point=>{const dot=document.createElementNS(ns,"circle");dot.setAttribute("cx",point.x);dot.setAttribute("cy",point.y);dot.setAttribute("r","5");svg.appendChild(dot)});
+  chart.appendChild(svg);
 }
 function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   el.weeklyProgressChart.innerHTML="";
