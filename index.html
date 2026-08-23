@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1f8a5b" />
   <title>Momentum</title>
-  <link rel="stylesheet" href="style.css?v=7.59" />
+  <link rel="stylesheet" href="style.css?v=7.61" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -39,14 +39,12 @@
       <div class="account-panel">
         <img id="userPhoto" alt="" />
         <div><strong id="userName"></strong><small id="userEmail"></small></div>
-        <button id="openSettingsButton" type="button">설정</button>
         <button id="logoutButton" type="button">로그아웃</button>
       </div>
     </aside>
 
     <header class="mobile-header">
       <div class="mobile-brand"><span class="brand-mark small">M</span><strong>Momentum</strong></div>
-      <button id="mobileUserButton" class="avatar-button" type="button"><img id="mobileUserPhoto" alt="" /></button>
     </header>
 
     <main class="main-area">
@@ -63,7 +61,7 @@
 
       <section class="home-memo-board" aria-label="홈 메모지">
         <div class="home-memo-heading">
-          <div><p class="eyebrow">MEMO</p><h2>기억할 문장</h2></div>
+          <p class="eyebrow">MEMO</p>
           <button id="addHomeMemoButton" class="text-action-button" type="button">+ 메모</button>
         </div>
         <div id="homeMemoList" class="home-memo-list"></div>
@@ -282,6 +280,7 @@
             <p class="sync-status">일정과 습관의 진행 상황을 한눈에 확인하세요.</p>
           </div>
           <div class="top-actions">
+            <button id="statsSettingsButton" class="top-settings-button" type="button" aria-label="설정" title="설정">⚙</button>
             <button id="openSearchButton" class="stats-search-button" type="button" aria-label="검색" title="검색">⌕</button>
             <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
           </div>
@@ -858,6 +857,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.59"></script>
+  <script type="module" src="script.js?v=7.61"></script>
 </body>
 </html>

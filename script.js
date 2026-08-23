@@ -140,8 +140,8 @@ function clearSnapshotRenderSkip(kind){
 const el = {
   loading:$("loadingScreen"), login:$("loginScreen"), app:$("app"), loginButton:$("googleLoginButton"), loginError:$("loginError"),
   logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
-  mobilePhoto:$("mobileUserPhoto"), sheetPhoto:$("sheetUserPhoto"), sheetName:$("sheetUserName"), sheetEmail:$("sheetUserEmail"),
-  mobileUser:$("mobileUserButton"), accountSheet:$("accountSheet"), closeSheet:$("closeAccountSheet"),
+  sheetPhoto:$("sheetUserPhoto"), sheetName:$("sheetUserName"), sheetEmail:$("sheetUserEmail"),
+  accountSheet:$("accountSheet"), closeSheet:$("closeAccountSheet"),
   statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
@@ -1984,7 +1984,7 @@ async function saveProfile(user){
 }
 function fillUser(user){
   const photo=user.photoURL||"",name=user.displayName||"사용자",email=user.email||"";
-  [el.userPhoto,el.mobilePhoto,el.sheetPhoto].forEach(i=>{i.src=photo;i.alt=`${name} 프로필`});
+  [el.userPhoto,el.sheetPhoto].forEach(i=>{i.src=photo;i.alt=`${name} 프로필`});
   el.userName.textContent=name;el.userEmail.textContent=email;el.sheetName.textContent=name;el.sheetEmail.textContent=email;
 }
 function progressStructuralSignature(record){
@@ -7253,8 +7253,8 @@ el.repeatDeleteDialog.onclick=event=>{
   if(event.target===el.repeatDeleteDialog)closeRepeatDeleteDialog();
 };
 $("progressOptions").onclick=e=>{const b=e.target.closest("button[data-value]");if(b)setProgress(b.dataset.value)};el.modal.onclick=e=>{if(e.target===el.modal)closeModal()};
-el.mobileUser.onclick=openSheet;el.closeSheet.onclick=closeSheet;el.accountSheet.onclick=e=>{if(e.target===el.accountSheet)closeSheet()};
-$("openSettingsButton").onclick=openSheet;
+el.closeSheet.onclick=closeSheet;el.accountSheet.onclick=e=>{if(e.target===el.accountSheet)closeSheet()};
+$("statsSettingsButton").onclick=openSheet;
 
 
 el.calendarNav.onclick=()=>navigateToPage("calendar");
@@ -7672,7 +7672,7 @@ function writePersonalItems(kind,items){localStorage.setItem(personalStorageKey(
 function renderHomeMemos(){
   const list=$("homeMemoList");if(!list)return;
   const items=readPersonalItems("memos");
-  list.innerHTML=items.length?items.map(item=>`<article class="home-memo" data-memo-id="${item.id}" tabindex="0">${escapeHtml(item.text)}<button type="button" aria-label="메모 삭제">×</button></article>`).join(""):'<p class="home-memo-empty">명언, 다짐, 잊고 싶지 않은 문장을 고정해보세요.</p>';
+  list.innerHTML=items.map(item=>`<article class="home-memo" data-memo-id="${item.id}" tabindex="0">${escapeHtml(item.text)}<button type="button" aria-label="메모 삭제">×</button></article>`).join("");
 }
 function addHomeMemo(){
   const text=prompt("홈에 고정할 메모를 적어주세요.");if(!text?.trim())return;
