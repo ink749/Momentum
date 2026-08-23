@@ -98,7 +98,7 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  goalProfile:{challenges:[]}, unsubscribeGoals:null
+  goalProfile:{challenges:[]}, unsubscribeGoals:null, editingGoalChecklist:[]
 };
 
 const $ = (id) => document.getElementById(id);
@@ -197,7 +197,7 @@ const el = {
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
   mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
-  goalList:$("goalList"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalDate:$("goalDate"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
+  goalList:$("goalList"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalDate:$("goalDate"), goalMemo:$("goalMemo"), goalChecklistItems:$("goalChecklistItems"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -1598,10 +1598,9 @@ function createHeatmapHabitBlock(habit,className){
   title.onclick=()=>openHabitEdit(habit);
   const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
   const challenge=(state.goalProfile.challenges||[]).find(item=>item.habitId===habit.id&&item.mode==="count");
-  const nextMilestone=[3,15,30,70,100,150].find(value=>value>achieved)||Math.ceil((achieved+1)/50)*50;
   const progress=document.createElement("span");
   progress.className="heatmap-habit-progress";
-  progress.textContent=challenge?`${achieved} / ${challenge.target}`:`누적 ${achieved}회 · 다음 보상 ${nextMilestone}회`;
+  progress.textContent=challenge?`${achieved} / ${challenge.target}`:`누적 ${achieved}회`;
   heading.append(title,progress);
   block.appendChild(heading);
 
@@ -1979,9 +1978,11 @@ function goalProgress(goal){
 function goalStatus(goal){
   if(goal.complete)return "달성";
   const count=goal.mode==="count"?`${goal.count} / ${goal.target}`:"";
-  if(!goal.dueDate)return count||"진행 중";
+  const checklist=goal.checklist||[],checked=checklist.filter(item=>item.done).length;
+  const checklistText=checklist.length?`체크 ${checked}/${checklist.length}`:"";
+  if(!goal.dueDate)return [count,checklistText].filter(Boolean).join(" · ")||"진행 중";
   const days=Math.round((parseDateKey(goal.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
-  return [count,days>0?`D-${days}`:days===0?"오늘":"기한 지남"].filter(Boolean).join(" · ");
+  return [count,checklistText,days>0?`D-${days}`:days===0?"오늘":"기한 지남"].filter(Boolean).join(" · ");
 }
 function renderGoals(){
   const goals=(state.goalProfile.challenges||[]).map(goalProgress);
@@ -1994,7 +1995,10 @@ function listenGoals(user){
 async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
 function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
 function openGoal(goal=null){
-  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalDate.value=goal?.dueDate||"";el.goalComplete.checked=Boolean(goal&&goalProgress(goal).complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
+  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalDate.value=goal?.dueDate||"";el.goalMemo.value=goal?.memo||"";state.editingGoalChecklist=(goal?.checklist||[]).map(item=>({...item}));renderGoalChecklistEditor();el.goalComplete.checked=Boolean(goal&&goalProgress(goal).complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
+}
+function renderGoalChecklistEditor(){
+  el.goalChecklistItems.innerHTML=state.editingGoalChecklist.map((item,index)=>`<div class="goal-checklist-row" data-goal-check-index="${index}"><input type="checkbox" ${item.done?"checked":""} aria-label="완료"><input type="text" maxlength="100" value="${escapeHtml(item.text||"")}" placeholder="체크할 항목"><button type="button" aria-label="항목 삭제">×</button></div>`).join("");
 }
 function syncGoalMode(){el.goalTargetWrap.hidden=el.goalMode.value!=="count";if(el.goalId.value)el.goalCompleteWrap.hidden=false}
 async function removeGoal(id){
@@ -7301,6 +7305,10 @@ $("openGoalButton").onclick=()=>openGoal();
 $("closeGoalModal").onclick=$("cancelGoalButton").onclick=()=>toggleGoalModal(false);
 el.goalModal.onclick=event=>{if(event.target===el.goalModal)toggleGoalModal(false)};
 el.goalMode.onchange=syncGoalMode;
+$("addGoalChecklistButton").onclick=()=>{state.editingGoalChecklist.push({id:crypto.randomUUID(),text:"",done:false});renderGoalChecklistEditor();el.goalChecklistItems.querySelector(".goal-checklist-row:last-child input[type=text]")?.focus()};
+el.goalChecklistItems.oninput=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row)return;const item=state.editingGoalChecklist[Number(row.dataset.goalCheckIndex)];if(event.target.matches("input[type=text]"))item.text=event.target.value};
+el.goalChecklistItems.onchange=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row)return;const item=state.editingGoalChecklist[Number(row.dataset.goalCheckIndex)];if(event.target.matches("input[type=checkbox]"))item.done=event.target.checked};
+el.goalChecklistItems.onclick=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row||!event.target.closest("button"))return;state.editingGoalChecklist.splice(Number(row.dataset.goalCheckIndex),1);renderGoalChecklistEditor()};
 el.goalList.onclick=async event=>{
   const row=event.target.closest("[data-goal-id]");if(!row)return;
   const goal=(state.goalProfile.challenges||[]).find(item=>item.id===row.dataset.goalId);if(!goal)return;
@@ -7308,14 +7316,14 @@ el.goalList.onclick=async event=>{
     const completed=!goalProgress(goal).complete;
     await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,completed,manualIncomplete:!completed}:item));return;
   }
-  if(event.target.closest(".goal-name"))openGoal(goal);
+  openGoal(goal);
 };
 el.deleteGoalButton.onclick=()=>removeGoal(el.goalId.value);
 el.goalForm.onsubmit=async event=>{
   event.preventDefault();
   const id=el.goalId.value||crypto.randomUUID();
   const previous=(state.goalProfile.challenges||[]).find(item=>item.id===id);
-  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null;
+  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null,memo=el.goalMemo.value.trim(),checklist=state.editingGoalChecklist.map(item=>({...item,text:item.text.trim()})).filter(item=>item.text);
   let habitId=previous?.habitId||null;
   try{
     if(mode==="count"){
@@ -7327,7 +7335,7 @@ el.goalForm.onsubmit=async event=>{
       await deleteDoc(doc(db,"users",state.user.uid,"habits",habitId));habitId=null;
     }
     const completed=el.goalComplete.checked;
-    const next={id,name,mode,target,dueDate,habitId,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const next={id,name,mode,target,dueDate,habitId,memo,checklist,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
     const challenges=previous?state.goalProfile.challenges.map(item=>item.id===id?next:item):[...(state.goalProfile.challenges||[]),next];
     await saveGoals(challenges);toggleGoalModal(false);
   }catch(error){console.error(error);el.goalMessage.textContent="목표를 저장하지 못했습니다."}
