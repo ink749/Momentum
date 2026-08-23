@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1f8a5b" />
   <title>Momentum</title>
-  <link rel="stylesheet" href="style.css?v=7.61" />
+  <link rel="stylesheet" href="style.css?v=7.62" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -43,10 +43,6 @@
       </div>
     </aside>
 
-    <header class="mobile-header">
-      <div class="mobile-brand"><span class="brand-mark small">M</span><strong>Momentum</strong></div>
-    </header>
-
     <main class="main-area">
       <section id="calendarPage">
       <header class="topbar">
@@ -62,9 +58,8 @@
       <section class="home-memo-board" aria-label="홈 메모지">
         <div class="home-memo-heading">
           <p class="eyebrow">MEMO</p>
-          <button id="addHomeMemoButton" class="text-action-button" type="button">+ 메모</button>
         </div>
-        <div id="homeMemoList" class="home-memo-list"></div>
+        <button id="homeMemoList" class="home-memo-list" type="button" aria-label="메모 열기"></button>
       </section>
 
       <section class="dashboard-grid">
@@ -258,7 +253,7 @@
       </section>
 
       <section id="diaryPage" hidden>
-        <header class="topbar diary-topbar"><div><p class="eyebrow">DAILY JOURNAL</p><h1>일기</h1><p class="sync-status">숫자로 설명되지 않는 오늘의 맥락을 남겨보세요.</p></div></header>
+        <header class="topbar diary-topbar"><div><h1>일기</h1></div></header>
         <section class="diary-dashboard">
           <article class="diary-editor-card">
             <label>날짜<input id="diaryDate" type="date" /></label>
@@ -267,7 +262,7 @@
             <div class="diary-editor-actions"><button id="deleteDiaryButton" class="danger-button" type="button">삭제</button><span></span><button id="saveDiaryButton" class="primary-button" type="button">저장</button></div>
             <p id="diaryMessage" class="muted"></p>
           </article>
-          <article class="diary-list-card"><div class="diary-list-heading"><div><p class="eyebrow">PAST DAYS</p><h2>지난 기록</h2></div></div><div id="diaryList" class="diary-list"></div></article>
+          <article class="diary-list-card"><div class="diary-list-heading"><div><h2>지난 기록</h2></div></div><div id="diaryList" class="diary-list"></div></article>
         </section>
 
       </section>
@@ -275,40 +270,41 @@
       <section id="statsPage" hidden>
         <header class="topbar">
           <div>
-            <p class="eyebrow">MOMENTUM INSIGHTS</p>
             <h1>통계</h1>
-            <p class="sync-status">일정과 습관의 진행 상황을 한눈에 확인하세요.</p>
           </div>
           <div class="top-actions">
-            <button id="statsSettingsButton" class="top-settings-button" type="button" aria-label="설정" title="설정">⚙</button>
             <button id="openSearchButton" class="stats-search-button" type="button" aria-label="검색" title="검색">⌕</button>
             <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
+            <button id="statsSettingsButton" class="top-settings-button" type="button" aria-label="설정" title="설정">⚙</button>
           </div>
         </header>
 
         <section class="stats-dashboard">
-          <div class="stats-metrics">
+          <p class="stats-intro">완료율은 계획을 지킨 비율이고, 실행량은 실제로 해낸 양입니다.</p>
+          <div class="stats-metrics stats-core-metrics">
             <article class="stats-metric-card">
-              <span id="statsDayEventLabel">오늘 일정 완료율</span>
+              <span id="statsDayEventLabel">이번 달 종합 완료율</span>
               <strong id="statsTodayEventProgress">0%</strong>
-              <small id="statsTodayEventCount">일정 0개</small>
+              <small id="statsTodayEventCount">계획을 지킨 비율</small>
             </article>
             <article class="stats-metric-card">
-              <span id="statsDayHabitLabel">오늘 습관 완료율</span>
-              <strong id="statsTodayHabitProgress">0%</strong>
-              <small id="statsTodayHabitCount">습관 0개</small>
+              <span id="statsDayHabitLabel">이번 달 계획량</span>
+              <strong id="statsTodayHabitProgress">0</strong>
+              <small id="statsTodayHabitCount">예정된 전체 항목</small>
             </article>
             <article class="stats-metric-card">
-              <span id="statsMonthCombinedLabel">이번 달 종합 완료율</span>
-              <strong id="statsMonthCombinedProgress">0%</strong>
-              <small>일정과 습관 평균</small>
-            </article>
-            <article class="stats-metric-card">
-              <span id="statsTodoLabel">이번 달 할 일 완료율</span>
-              <strong id="statsTodoProgress">0%</strong>
-              <small id="statsTodoCount">완료 0 / 전체 0</small>
+              <span id="statsMonthCombinedLabel">이번 달 실행량</span>
+              <strong id="statsMonthCombinedProgress">0</strong>
+              <small id="statsTodoCount">부분 완료를 포함한 실행량</small>
             </article>
           </div>
+
+          <section class="stats-card workload-card">
+            <div class="stats-card-heading">
+              <div><h2>최근 7일 계획량과 실행량</h2><small>막대의 전체 높이는 계획량, 색으로 채워진 부분은 실제 실행량입니다.</small></div>
+            </div>
+            <div id="workloadChart" class="workload-chart"></div>
+          </section>
 
 
           <section class="stats-card stats-month-calendar-card">
@@ -831,14 +827,24 @@
 
   <div id="accountSheet" class="sheet-backdrop" aria-hidden="true">
     <div class="account-sheet">
-      <img id="sheetUserPhoto" alt="" />
-      <strong id="sheetUserName"></strong><small id="sheetUserEmail"></small>
+      <div class="sheet-account-row">
+        <img id="sheetUserPhoto" alt="" />
+        <div><strong id="sheetUserName"></strong><small id="sheetUserEmail"></small></div>
+        <button id="sheetLogoutButton" class="danger-outline-button" type="button">로그아웃</button>
+      </div>
       <section class="theme-settings" aria-labelledby="themeSettingsTitle">
         <div class="theme-settings-heading"><p class="eyebrow">THEME</p><h2 id="themeSettingsTitle">화면 테마</h2><small>카테고리 색은 그대로 유지됩니다.</small></div>
         <div id="themePicker" class="theme-picker"></div>
       </section>
-      <button id="sheetLogoutButton" class="danger-outline-button" type="button">로그아웃</button>
       <button id="closeAccountSheet" class="secondary-button" type="button">닫기</button>
+    </div>
+  </div>
+
+  <div id="homeMemoModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal home-memo-modal">
+      <div class="modal-header"><h2>MEMO</h2><button id="closeHomeMemoModal" class="close-button" type="button" aria-label="닫기">×</button></div>
+      <textarea id="homeMemoInput" maxlength="500" placeholder="메모를 입력하세요"></textarea>
+      <div class="home-memo-modal-actions"><button id="deleteHomeMemoButton" class="danger-outline-button" type="button">삭제</button><button id="saveHomeMemoButton" class="primary-button" type="button">저장</button></div>
     </div>
   </div>
 
@@ -857,6 +863,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.61"></script>
+  <script type="module" src="script.js?v=7.62"></script>
 </body>
 </html>

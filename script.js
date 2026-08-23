@@ -227,7 +227,7 @@ const el = {
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
   deleteTodoButton:$("deleteTodoButton"),
-  statsTodoLabel:$("statsTodoLabel"), statsTodoProgress:$("statsTodoProgress"), statsTodoCount:$("statsTodoCount"),
+  statsTodoCount:$("statsTodoCount"),
   statsTodoTotal:$("statsTodoTotal"), statsTodoDone:$("statsTodoDone"), statsTodoCancelled:$("statsTodoCancelled"),
   statsTodoAverage:$("statsTodoAverage"),
   mobileEventActionSheet:$("mobileEventActionSheet"),
@@ -738,9 +738,6 @@ function habitMonthAverage(habit,keys){
 }
 function renderStats(){
   const selectedDate=parseDateKey(state.statsDate||dateKey(new Date()));
-  const selectedKey=dateKey(selectedDate);
-  const todayKey=dateKey(new Date());
-  const isToday=selectedKey===todayKey;
   const dayName=`${selectedDate.getMonth()+1}월 ${selectedDate.getDate()}일`;
 
   if(
@@ -749,13 +746,6 @@ function renderStats(){
   ){
     state.currentMonth=startOfMonth(selectedDate);
   }
-
-  const dayEvents=allEventsForDate(selectedKey);
-  const dayHabits=activeHabitsOn(selectedKey);
-  const dayEventAvg=average(dayEvents);
-  const dayHabitAvg=habitAverageForDate(selectedKey);
-  const dayCombined=combinedProgressForDate(selectedKey);
-
 
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
@@ -799,22 +789,18 @@ function renderStats(){
     ?Math.round(monthCombinedValues.reduce((a,b)=>a+b,0)/monthCombinedValues.length)
     :0;
 
-  const mobileStats=window.matchMedia("(max-width:720px)").matches;
-  el.statsDayEventLabel.textContent=mobileStats?`${selectedDate.getMonth()+1}월 종합`:`${monthText} 종합 완료율`;
-  el.statsDayHabitLabel.textContent=mobileStats?"일정":`${monthText} 일정 완료율`;
-  el.statsMonthCombinedLabel.textContent=mobileStats?"습관":`${monthText} 습관 완료율`;
-  if(el.statsTodoLabel)el.statsTodoLabel.textContent=mobileStats?"할 일":`${monthText} 할 일 완료율`;
-
+  const plannedVolume=monthCombinedValues.length;
+  const executedVolume=monthCombinedValues.reduce((sum,value)=>sum+value,0)/100;
+  el.statsDayEventLabel.textContent=`${selectedDate.getMonth()+1}월 종합 완료율`;
+  el.statsDayHabitLabel.textContent=`${selectedDate.getMonth()+1}월 계획량`;
+  el.statsMonthCombinedLabel.textContent=`${selectedDate.getMonth()+1}월 실행량`;
   el.statsTodayEventProgress.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
-  el.statsTodayEventCount.textContent="일정 + 할 일 + 습관";
-  el.statsTodayHabitProgress.textContent=monthEventOccurrences.length?`${monthEventAvg}%`:"—";
-  el.statsTodayHabitCount.textContent=`일정 ${monthEventOccurrences.length}개`;
-  el.statsMonthCombinedProgress.textContent=monthHabitValues.length?`${monthHabitAvg}%`:"—";
-  const monthHabitCountLabel=el.statsMonthCombinedProgress.nextElementSibling;
-  if(monthHabitCountLabel)monthHabitCountLabel.textContent=`활성 습관 ${activeMonthHabits.length}개`;
-  if(el.statsTodoProgress)el.statsTodoProgress.textContent=todoTotal?`${todoProgress}%`:"—";
+  el.statsTodayEventCount.textContent="일정·습관·할 일을 함께 계산";
+  el.statsTodayHabitProgress.textContent=`${plannedVolume}`;
+  el.statsTodayHabitCount.textContent="예정된 전체 항목";
+  el.statsMonthCombinedProgress.textContent=plannedVolume?`${Number.isInteger(executedVolume)?executedVolume:executedVolume.toFixed(1)}`:"—";
   if(el.statsTodoAverage)el.statsTodoAverage.textContent=todoTotal?`${todoProgress}%`:"—";
-  if(el.statsTodoCount)el.statsTodoCount.textContent=`완료 ${todoDone} / 전체 ${todoTotal}`;
+  if(el.statsTodoCount)el.statsTodoCount.textContent="부분 완료를 포함한 실행량";
 
   const monthRateCombined=$("monthRateCombined"),monthRateEvents=$("monthRateEvents"),monthRateHabits=$("monthRateHabits"),monthRateTodos=$("monthRateTodos");
   if(monthRateCombined)monthRateCombined.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
@@ -839,9 +825,30 @@ function renderStats(){
   if(el.statsTodoCancelled)el.statsTodoCancelled.textContent=`${todoCancelled}개`;
 
   renderMonth();
+  renderWorkloadChart(selectedDate);
   renderWeeklyProgress(selectedDate);
   renderCategoryAchievement(keys);
   renderHabitRanking(keys);
+}
+function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
+  const chart=$("workloadChart");if(!chart)return;
+  const days=[];
+  for(let offset=6;offset>=0;offset--){
+    const d=addDays(referenceDate,-offset),key=dateKey(d);
+    const values=[
+      ...allEventsForDate(key).map(item=>Number(item.progress||0)),
+      ...activeHabitsOn(key).map(item=>habitProgress(item.id,key)),
+      ...todosForDate(key).map(item=>item.status==="done"?100:0)
+    ];
+    days.push({d,planned:values.length,executed:values.reduce((sum,value)=>sum+value,0)/100});
+  }
+  const maxPlanned=Math.max(1,...days.map(day=>day.planned));
+  chart.innerHTML=days.map(day=>{
+    const planHeight=day.planned/maxPlanned*100;
+    const fill=day.planned?day.executed/day.planned*100:0;
+    const executed=Number.isInteger(day.executed)?day.executed:day.executed.toFixed(1);
+    return `<div class="workload-day"><span>${executed}/${day.planned}</span><div class="workload-track" style="height:${planHeight}%"><i style="height:${fill}%"></i></div><strong>${["일","월","화","수","목","금","토"][day.d.getDay()]}</strong><small>${day.d.getMonth()+1}/${day.d.getDate()}</small></div>`;
+  }).join("");
 }
 function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   el.weeklyProgressChart.innerHTML="";
@@ -7671,22 +7678,20 @@ function writePersonalItems(kind,items){localStorage.setItem(personalStorageKey(
 
 function renderHomeMemos(){
   const list=$("homeMemoList");if(!list)return;
-  const items=readPersonalItems("memos");
-  list.innerHTML=items.map(item=>`<article class="home-memo" data-memo-id="${item.id}" tabindex="0">${escapeHtml(item.text)}<button type="button" aria-label="메모 삭제">×</button></article>`).join("");
+  const item=readPersonalItems("memos")[0];
+  list.textContent=item?.text||"";
+  list.classList.toggle("empty",!item?.text);
 }
-function addHomeMemo(){
-  const text=prompt("홈에 고정할 메모를 적어주세요.");if(!text?.trim())return;
-  const items=readPersonalItems("memos");items.unshift({id:String(Date.now()),text:text.trim()});writePersonalItems("memos",items.slice(0,20));renderHomeMemos();
+function openHomeMemo(){
+  const modal=$("homeMemoModal"),input=$("homeMemoInput"),item=readPersonalItems("memos")[0];
+  input.value=item?.text||"";modal.classList.add("show");modal.setAttribute("aria-hidden","false");requestAnimationFrame(()=>input.focus());
 }
-$("addHomeMemoButton")?.addEventListener("click",addHomeMemo);
-$("homeMemoList")?.addEventListener("click",event=>{
-  const card=event.target.closest(".home-memo");if(!card)return;
-  const items=readPersonalItems("memos");
-  if(event.target.closest("button")){writePersonalItems("memos",items.filter(item=>item.id!==card.dataset.memoId));renderHomeMemos();return}
-  const item=items.find(entry=>entry.id===card.dataset.memoId);if(!item)return;
-  const text=prompt("메모 수정",item.text);if(text===null)return;
-  item.text=text.trim();writePersonalItems("memos",items.filter(entry=>entry.text));renderHomeMemos();
-});
+function closeHomeMemo(){const modal=$("homeMemoModal");modal.classList.remove("show");modal.setAttribute("aria-hidden","true")}
+$("homeMemoList")?.addEventListener("click",openHomeMemo);
+$("closeHomeMemoModal")?.addEventListener("click",closeHomeMemo);
+$("homeMemoModal")?.addEventListener("click",event=>{if(event.target===$("homeMemoModal"))closeHomeMemo()});
+$("saveHomeMemoButton")?.addEventListener("click",()=>{const text=$("homeMemoInput").value.trim();writePersonalItems("memos",text?[{id:"home",text}]:[]);renderHomeMemos();closeHomeMemo()});
+$("deleteHomeMemoButton")?.addEventListener("click",()=>{writePersonalItems("memos",[]);renderHomeMemos();closeHomeMemo()});
 
 function diaryElements(){return {date:$("diaryDate"),title:$("diaryTitle"),body:$("diaryBody"),list:$("diaryList"),message:$("diaryMessage")}}
 function renderDiary(){
