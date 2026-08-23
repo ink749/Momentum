@@ -843,7 +843,8 @@ function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey
     days.push({d,planned:values.length,executed:values.reduce((sum,value)=>sum+value,0)/100});
   }
   const maxPlanned=Math.max(1,...days.map(day=>day.planned));
-  chart.innerHTML=days.map(day=>{
+  const points=days.map((day,index)=>`${50+index*100},${95-day.executed/maxPlanned*85}`).join(" ");
+  chart.innerHTML=`<svg class="workload-line" viewBox="0 0 700 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline>${days.map((day,index)=>`<circle cx="${50+index*100}" cy="${95-day.executed/maxPlanned*85}" r="3"></circle>`).join("")}</svg>`+days.map(day=>{
     const planHeight=day.planned/maxPlanned*100;
     const fill=day.planned?day.executed/day.planned*100:0;
     const executed=Number.isInteger(day.executed)?day.executed:day.executed.toFixed(1);
@@ -864,8 +865,9 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
         :[...events.map(item=>Number(item.progress||0)),...habits.map(item=>habitProgress(item.id,key)),...todos.map(item=>item.status==="done"?100:0)];
     const hasItems=values.length>0;
     const value=hasItems?Math.round(values.reduce((sum,item)=>sum+item,0)/values.length):0;
+    const todoRatio=metric==="todos"&&todos.length?`<small>${todos.filter(item=>item.status==="done").length}/${todos.length}</small>`:"";
     const col=document.createElement("div");col.className="weekly-chart-day";
-    col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
+    col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}${todoRatio}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
     el.weeklyProgressChart.appendChild(col);
   }
 }
@@ -7684,7 +7686,7 @@ function renderHomeMemos(){
 }
 function openHomeMemo(){
   const modal=$("homeMemoModal"),input=$("homeMemoInput"),item=readPersonalItems("memos")[0];
-  input.value=item?.text||"";modal.classList.add("show");modal.setAttribute("aria-hidden","false");requestAnimationFrame(()=>input.focus());
+  input.value=item?.text||"";modal.classList.add("show");modal.setAttribute("aria-hidden","false");
 }
 function closeHomeMemo(){const modal=$("homeMemoModal");modal.classList.remove("show");modal.setAttribute("aria-hidden","true")}
 $("homeMemoList")?.addEventListener("click",openHomeMemo);
