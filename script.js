@@ -1975,7 +1975,13 @@ function goalProgress(goal){
   const legacyCount=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
   const count=Math.max(Number(goal.currentCount||0),legacyCount);
   const reached=goal.mode==="count"?count>=Number(goal.target||1):false;
-  return {...goal,count,complete:!goal.manualIncomplete&&(Boolean(goal.completed)||reached)};
+  return {...goal,count,reached,complete:Boolean(goal.completed)};
+}
+function goalCanDecide(goal){
+  if(goal.complete)return true;
+  const today=dateKey(new Date());
+  if(goal.dueDate)return today>=goal.dueDate;
+  return goal.mode==="count"&&goal.reached;
 }
 function goalStatus(goal){
   if(goal.complete)return "달성";
@@ -1987,7 +1993,7 @@ function goalStatus(goal){
 }
 function renderGoals(){
   const goals=(state.goalProfile.challenges||[]).map(goalProgress);
-  const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}"><button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"완료"}">${goal.complete?"✓":"◇"}</button><button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<button class="goal-count-control" type="button" aria-label="현재 횟수 수정">${goal.count} / ${goal.target}</button>`:""}</span>`).join("");
+  const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}">${goalCanDecide(goal)?`<button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"달성 여부 선택"}">${goal.complete?"✓":"◇"}</button>`:`<i class="goal-state-placeholder" aria-hidden="true"></i>`}<button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<span class="goal-count-control" aria-label="현재 ${goal.count}, 목표 ${goal.target}"><button type="button" data-goal-count-step="-1" aria-label="횟수 1 감소">−1</button><b>${goal.count}/${goal.target}</b><button type="button" data-goal-count-step="1" aria-label="횟수 1 증가">+1</button></span>`:""}</span>`).join("");
   el.goalList.innerHTML=rows(goals)||'<p class="empty-state">아직 목표가 없습니다. 목표 화면에서 추가해보세요.</p>';
   const active=goals.filter(goal=>!goal.complete),preview=(active.length?active:goals).slice(0,4);
   el.homeGoalPreview.innerHTML=rows(preview)||'<p class="empty-state">등록된 목표가 없습니다.</p>';
@@ -7326,22 +7332,19 @@ el.goalChecklistItems.onclick=event=>{const row=event.target.closest("[data-goal
 async function handleGoalListClick(event){
   const row=event.target.closest("[data-goal-id]");if(!row)return;
   const goal=(state.goalProfile.challenges||[]).find(item=>item.id===row.dataset.goalId);if(!goal)return;
-  if(event.target.closest(".goal-count-control")){
-    const entered=prompt("현재 횟수를 입력하세요",String(goalProgress(goal).count));
-    if(entered===null)return;
-    const numeric=Number(entered);
-    if(!Number.isFinite(numeric)||numeric<0){alert("0 이상의 숫자를 입력해주세요.");return}
-    const count=Math.floor(numeric);
+  const countStep=event.target.closest("[data-goal-count-step]");
+  if(countStep){
+    const count=Math.max(0,goalProgress(goal).count+Number(countStep.dataset.goalCountStep));
     await unlinkLegacyGoalHabit(goal);
-    const reached=count>=Number(goal.target||1);
-    const next={...goal,currentCount:count,habitId:null,completed:reached,manualIncomplete:false};
+    const next={...goal,currentCount:count,habitId:null};
     await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?next:item));return;
   }
   if(event.target.closest(".goal-state")){
+    if(!goalCanDecide(goalProgress(goal)))return;
     const completed=!goalProgress(goal).complete;
     await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,completed,manualIncomplete:!completed}:item));return;
   }
-  openGoal(goal);
+  if(event.target.closest(".goal-name"))openGoal(goal);
 }
 el.goalList.onclick=handleGoalListClick;
 el.homeGoalPreview.onclick=handleGoalListClick;
