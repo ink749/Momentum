@@ -197,7 +197,7 @@ const el = {
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
   mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
-  goalList:$("goalList"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalDate:$("goalDate"), goalMemo:$("goalMemo"), goalChecklistItems:$("goalChecklistItems"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
+  goalList:$("goalList"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalCurrent:$("goalCurrent"), goalCurrentWrap:$("goalCurrentWrap"), goalDate:$("goalDate"), goalMemo:$("goalMemo"), goalChecklistItems:$("goalChecklistItems"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -1377,7 +1377,8 @@ function renderPage(){
   }
   el.mobileAdd.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
 
-  if(habitMode){renderHabits();renderGoals();}
+  if(calendarMode)renderGoals();
+  if(habitMode)renderHabits();
   if(diaryMode)renderDiary();
   if(statsMode)renderStats();
 }
@@ -1954,7 +1955,7 @@ function listenHabits(user){
   if(state.unsubscribeHabits)state.unsubscribeHabits();
   if(state.unsubscribeHabitLogs)state.unsubscribeHabitLogs();
   const habitsQuery=query(collection(db,"users",user.uid,"habits"),orderBy("startDate"));
-  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
+  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()})).filter(habit=>!habit.challengeId);renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
   state.unsubscribeHabitLogs=onSnapshot(collection(db,"users",user.uid,"habitLogs"),snap=>{
     state.habitLogs={};
     snap.docs.forEach(d=>{state.habitLogs[d.id]={id:d.id,...d.data()}});
@@ -1971,7 +1972,8 @@ function listenHabits(user){
 
 function goalProfileRef(){return doc(db,"users",state.user.uid,"growth","profile")}
 function goalProgress(goal){
-  const count=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
+  const legacyCount=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
+  const count=Math.max(Number(goal.currentCount||0),legacyCount);
   const reached=goal.mode==="count"?count>=Number(goal.target||1):false;
   return {...goal,count,complete:!goal.manualIncomplete&&(Boolean(goal.completed)||reached)};
 }
@@ -1986,7 +1988,7 @@ function goalStatus(goal){
 }
 function renderGoals(){
   const goals=(state.goalProfile.challenges||[]).map(goalProgress);
-  el.goalList.innerHTML=goals.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}"><button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"완료"}">${goal.complete?"✓":"◇"}</button><button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small></span>`).join("")||'<p class="empty-state">아직 목표가 없습니다. 이루고 싶은 것을 추가해보세요.</p>';
+  el.goalList.innerHTML=goals.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}"><button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"완료"}">${goal.complete?"✓":"◇"}</button><button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?'<b class="goal-count-actions"><button class="goal-decrement" type="button" aria-label="횟수 1회 빼기">−1</button><button class="goal-increment" type="button" aria-label="횟수 1회 추가">+1</button></b>':""}</span>`).join("")||'<p class="empty-state">아직 목표가 없습니다.</p>';
 }
 function listenGoals(user){
   state.unsubscribeGoals?.();
@@ -1995,15 +1997,21 @@ function listenGoals(user){
 async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
 function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
 function openGoal(goal=null){
-  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalDate.value=goal?.dueDate||"";el.goalMemo.value=goal?.memo||"";state.editingGoalChecklist=(goal?.checklist||[]).map(item=>({...item}));renderGoalChecklistEditor();el.goalComplete.checked=Boolean(goal&&goalProgress(goal).complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
+  const progress=goal?goalProgress(goal):null;
+  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalCurrent.value=progress?.count||0;el.goalDate.value=goal?.dueDate||"";el.goalMemo.value=goal?.memo||"";state.editingGoalChecklist=(goal?.checklist||[]).map(item=>({...item}));renderGoalChecklistEditor();el.goalComplete.checked=Boolean(progress?.complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
 }
 function renderGoalChecklistEditor(){
   el.goalChecklistItems.innerHTML=state.editingGoalChecklist.map((item,index)=>`<div class="goal-checklist-row" data-goal-check-index="${index}"><input type="checkbox" ${item.done?"checked":""} aria-label="완료"><input type="text" maxlength="100" value="${escapeHtml(item.text||"")}" placeholder="체크할 항목"><button type="button" aria-label="항목 삭제">×</button></div>`).join("");
 }
-function syncGoalMode(){el.goalTargetWrap.hidden=el.goalMode.value!=="count";if(el.goalId.value)el.goalCompleteWrap.hidden=false}
+function syncGoalMode(){const countMode=el.goalMode.value==="count";el.goalTargetWrap.hidden=!countMode;el.goalCurrentWrap.hidden=!countMode;if(el.goalId.value)el.goalCompleteWrap.hidden=false}
+async function unlinkLegacyGoalHabit(goal){
+  if(!goal?.habitId)return;
+  await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
+  await deleteDoc(doc(db,"users",state.user.uid,"habits",goal.habitId));
+}
 async function removeGoal(id){
   const goal=(state.goalProfile.challenges||[]).find(item=>item.id===id);if(!goal)return;
-  if(goal.habitId){await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));await deleteDoc(doc(db,"users",state.user.uid,"habits",goal.habitId))}
+  await unlinkLegacyGoalHabit(goal);
   await saveGoals((state.goalProfile.challenges||[]).filter(item=>item.id!==id));toggleGoalModal(false);
 }
 
@@ -7301,7 +7309,6 @@ el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileDiaryNav.onclick=()=>navigateToPage("diary");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
-$("openGoalButton").onclick=()=>openGoal();
 $("closeGoalModal").onclick=$("cancelGoalButton").onclick=()=>toggleGoalModal(false);
 el.goalModal.onclick=event=>{if(event.target===el.goalModal)toggleGoalModal(false)};
 el.goalMode.onchange=syncGoalMode;
@@ -7312,6 +7319,14 @@ el.goalChecklistItems.onclick=event=>{const row=event.target.closest("[data-goal
 el.goalList.onclick=async event=>{
   const row=event.target.closest("[data-goal-id]");if(!row)return;
   const goal=(state.goalProfile.challenges||[]).find(item=>item.id===row.dataset.goalId);if(!goal)return;
+  if(event.target.closest(".goal-increment,.goal-decrement")){
+    const delta=event.target.closest(".goal-decrement")?-1:1;
+    const count=Math.max(0,goalProgress(goal).count+delta);
+    await unlinkLegacyGoalHabit(goal);
+    const reached=count>=Number(goal.target||1);
+    const next={...goal,currentCount:count,habitId:null,completed:reached,manualIncomplete:false};
+    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?next:item));return;
+  }
   if(event.target.closest(".goal-state")){
     const completed=!goalProgress(goal).complete;
     await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,completed,manualIncomplete:!completed}:item));return;
@@ -7323,19 +7338,11 @@ el.goalForm.onsubmit=async event=>{
   event.preventDefault();
   const id=el.goalId.value||crypto.randomUUID();
   const previous=(state.goalProfile.challenges||[]).find(item=>item.id===id);
-  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null,memo=el.goalMemo.value.trim(),checklist=state.editingGoalChecklist.map(item=>({...item,text:item.text.trim()})).filter(item=>item.text);
-  let habitId=previous?.habitId||null;
+  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null,currentCount=mode==="count"?Math.max(0,Number(el.goalCurrent.value||0)):0,memo=el.goalMemo.value.trim(),checklist=state.editingGoalChecklist.map(item=>({...item,text:item.text.trim()})).filter(item=>item.text);
   try{
-    if(mode==="count"){
-      const habitData={name,startDate:previous?.createdDate||dateKey(new Date()),repeat:"daily",endDate:dueDate||"",challengeId:id,updatedAt:serverTimestamp()};
-      if(habitId)await setDoc(doc(db,"users",state.user.uid,"habits",habitId),habitData,{merge:true});
-      else habitId=(await addDoc(collection(db,"users",state.user.uid,"habits"),{...habitData,createdAt:serverTimestamp()})).id;
-    }else if(habitId){
-      await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
-      await deleteDoc(doc(db,"users",state.user.uid,"habits",habitId));habitId=null;
-    }
+    await unlinkLegacyGoalHabit(previous);
     const completed=el.goalComplete.checked;
-    const next={id,name,mode,target,dueDate,habitId,memo,checklist,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const next={id,name,mode,target,currentCount,dueDate,habitId:null,memo,checklist,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
     const challenges=previous?state.goalProfile.challenges.map(item=>item.id===id?next:item):[...(state.goalProfile.challenges||[]),next];
     await saveGoals(challenges);toggleGoalModal(false);
   }catch(error){console.error(error);el.goalMessage.textContent="목표를 저장하지 못했습니다."}
@@ -7742,12 +7749,6 @@ $("diaryDate")?.addEventListener("change",renderDiary);$("saveDiaryButton")?.add
 $("deleteDiaryButton")?.addEventListener("click",()=>{const d=diaryElements();if(!d.date.value||!confirm("이 날짜의 일기를 삭제할까요?"))return;writePersonalItems("diaries",readPersonalItems("diaries").filter(item=>item.date!==d.date.value));renderDiary()});
 $("diaryList")?.addEventListener("click",event=>{const button=event.target.closest("[data-diary-date]");if(!button)return;$("diaryDate").value=button.dataset.diaryDate;renderDiary()});
 
-document.querySelectorAll("[data-habit-section]").forEach(button=>button.addEventListener("click",()=>{
-  document.querySelectorAll("[data-habit-section]").forEach(item=>item.classList.toggle("active",item===button));
-  const goals=button.dataset.habitSection==="goals";$("habitMainPanel").hidden=goals;$("goalMainPanel").hidden=!goals;
-  $("openHabitModal").hidden=goals;$("habitTodayButton").hidden=goals;
-  if(goals)renderGoals();
-}));
 document.querySelectorAll("[data-weekly-metric]").forEach(button=>button.addEventListener("click",()=>{
   state.weeklyMetric=button.dataset.weeklyMetric;document.querySelectorAll("[data-weekly-metric]").forEach(item=>item.classList.toggle("active",item===button));renderStats();
 }));
