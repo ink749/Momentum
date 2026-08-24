@@ -1975,16 +1975,19 @@ function goalProgress(goal){
   const legacyCount=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
   const count=Math.max(Number(goal.currentCount||0),legacyCount);
   const reached=goal.mode==="count"?count>=Number(goal.target||1):false;
-  return {...goal,count,reached,complete:Boolean(goal.completed)};
+  const outcome=goal.outcome||(goal.completed?"complete":"neutral");
+  return {...goal,count,reached,outcome,complete:outcome==="complete",failed:outcome==="failed"};
 }
 function goalCanDecide(goal){
-  if(goal.complete)return true;
+  if(goal.complete||goal.failed)return true;
   const today=dateKey(new Date());
-  if(goal.dueDate)return today>=goal.dueDate;
-  return goal.mode==="count"&&goal.reached;
+  const dueReached=Boolean(goal.dueDate&&today>=goal.dueDate);
+  const countReached=goal.mode==="count"&&goal.reached;
+  return dueReached||countReached;
 }
 function goalStatus(goal){
   if(goal.complete)return "달성";
+  if(goal.failed)return "미달성";
   const checklist=goal.checklist||[],checked=checklist.filter(item=>item.done).length;
   const checklistText=checklist.length?`체크 ${checked}/${checklist.length}`:"";
   if(!goal.dueDate)return checklistText||"진행 중";
@@ -1993,7 +1996,7 @@ function goalStatus(goal){
 }
 function renderGoals(){
   const goals=(state.goalProfile.challenges||[]).map(goalProgress);
-  const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":""}" data-goal-id="${goal.id}">${goalCanDecide(goal)?`<button class="goal-state" type="button" aria-label="${goal.complete?"완료 취소":"달성 여부 선택"}">${goal.complete?"✓":"◇"}</button>`:`<i class="goal-state-placeholder" aria-hidden="true"></i>`}<button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<span class="goal-count-control" aria-label="현재 ${goal.count}, 목표 ${goal.target}"><button type="button" data-goal-count-step="-1" aria-label="횟수 1 감소">−1</button><b>${goal.count}/${goal.target}</b><button type="button" data-goal-count-step="1" aria-label="횟수 1 증가">+1</button></span>`:""}</span>`).join("");
+  const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":goal.failed?"failed":""}" data-goal-id="${goal.id}">${goalCanDecide(goal)?`<button class="goal-state" type="button" aria-label="달성 상태 변경">${goal.complete?"✓":goal.failed?"X":"◇"}</button>`:`<i class="goal-state-placeholder" aria-hidden="true"></i>`}<button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<span class="goal-count-control" aria-label="현재 ${goal.count}, 목표 ${goal.target}"><button type="button" data-goal-count-step="-1" aria-label="횟수 1 감소">−1</button><b>${goal.count}/${goal.target}</b><button type="button" data-goal-count-step="1" aria-label="횟수 1 증가">+1</button></span>`:""}</span>`).join("");
   el.goalList.innerHTML=rows(goals)||'<p class="empty-state">아직 목표가 없습니다. 목표 화면에서 추가해보세요.</p>';
   const active=goals.filter(goal=>!goal.complete),preview=(active.length?active:goals).slice(0,4);
   el.homeGoalPreview.innerHTML=rows(preview)||'<p class="empty-state">등록된 목표가 없습니다.</p>';
@@ -7340,9 +7343,9 @@ async function handleGoalListClick(event){
     await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?next:item));return;
   }
   if(event.target.closest(".goal-state")){
-    if(!goalCanDecide(goalProgress(goal)))return;
-    const completed=!goalProgress(goal).complete;
-    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,completed,manualIncomplete:!completed}:item));return;
+    const progress=goalProgress(goal);if(!goalCanDecide(progress))return;
+    const outcome=progress.outcome==="neutral"?"failed":progress.outcome==="failed"?"complete":"neutral";
+    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,outcome,completed:outcome==="complete",manualIncomplete:false}:item));return;
   }
   if(event.target.closest(".goal-name"))openGoal(goal);
 }
@@ -7357,7 +7360,8 @@ el.goalForm.onsubmit=async event=>{
   try{
     await unlinkLegacyGoalHabit(previous);
     const completed=el.goalComplete.checked;
-    const next={id,name,mode,target,currentCount,dueDate,habitId:null,memo,checklist,completed,manualIncomplete:!completed&&Boolean(previous&&(previous.manualIncomplete||goalProgress(previous).complete)),createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
+    const outcome=completed?"complete":previous?.outcome==="failed"?"failed":"neutral";
+    const next={id,name,mode,target,currentCount,dueDate,habitId:null,memo,checklist,outcome,completed,manualIncomplete:false,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
     const challenges=previous?state.goalProfile.challenges.map(item=>item.id===id?next:item):[...(state.goalProfile.challenges||[]),next];
     await saveGoals(challenges);toggleGoalModal(false);
   }catch(error){console.error(error);el.goalMessage.textContent="목표를 저장하지 못했습니다."}
