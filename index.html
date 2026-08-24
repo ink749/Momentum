@@ -7,8 +7,8 @@
   <title>Momentum</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.66" />
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=7.70" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -61,11 +61,6 @@
       <section class="home-memo-board" aria-label="홈 메모지">
         <p class="eyebrow">MEMO</p>
         <button id="homeMemoList" class="home-memo-list" type="button" aria-label="메모 열기"></button>
-      </section>
-
-      <section id="goalMainPanel" class="home-goal-board" aria-label="목표">
-        <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div></div>
-        <div id="goalList" class="goal-list"></div>
       </section>
 
       <section class="dashboard-grid">
@@ -201,6 +196,11 @@
       </section>
       </section>
 
+      <section class="home-goal-board" aria-label="목표 미리보기">
+        <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div><button id="homeGoalMoreButton" class="text-action-button" type="button">모든 목표 보기</button></div>
+        <div id="homeGoalPreview" class="goal-list home-goal-preview"></div>
+      </section>
+
       <section id="habitPage" hidden>
         <header class="topbar">
           <div>
@@ -213,6 +213,10 @@
           </div>
         </header>
 
+        <div class="habit-goal-tabs" role="tablist" aria-label="습관과 목표">
+          <button class="active" type="button" data-habit-section="habits">습관</button>
+          <button type="button" data-habit-section="goals">목표</button>
+        </div>
         <section id="habitMainPanel" class="habit-dashboard">
           <section class="habit-list-card">
             <div class="habit-section-heading">
@@ -246,6 +250,11 @@
               <span>0%</span><i data-level="0"></i><i data-level="25"></i><i data-level="50"></i><i data-level="75"></i><i data-level="100"></i><span>100%</span>
             </div>
           </section>
+        </section>
+        <section id="goalMainPanel" class="goal-dashboard" hidden>
+          <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div><button id="openGoalButton" class="primary-button" type="button">+ 목표 추가</button></div>
+          <div id="goalList" class="goal-list"></div>
+          <p class="goal-help">달성한 목표도 기록으로 남아 언제든 다시 확인할 수 있어요.</p>
         </section>
       </section>
 
@@ -865,6 +874,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.66"></script>
+  <script type="module" src="script.js?v=7.70"></script>
 </body>
 </html>
