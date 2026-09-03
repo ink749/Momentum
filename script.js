@@ -65,6 +65,7 @@ const state = {
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   todoOverviewMonth:startOfMonth(new Date()),
+  todoBacklogView:false,
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
   editingChecklist:[],
@@ -170,6 +171,7 @@ const el = {
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
   repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
+  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), includeInStats:$("eventIncludeInStats"),
   editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
   editRangeFields:$("eventEditRangeFields"), editRangeStart:$("eventEditRangeStart"),
   editRangeEnd:$("eventEditRangeEnd"),
@@ -193,6 +195,7 @@ const el = {
   habitTodayLabel:$("habitTodayLabel"), habitList:$("habitList"), habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
+  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
   mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
@@ -224,6 +227,7 @@ const el = {
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"), todoModeSwitch:$("todoModeSwitch"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
+  todoBacklog:$("todoBacklog"), todoBacklogButton:$("todoBacklogButton"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
   deleteTodoButton:$("deleteTodoButton"),
@@ -350,7 +354,7 @@ function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 function escapeHtml(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
 function average(items){return items.length?Math.round(items.reduce((s,e)=>s+Number(e.progress||0),0)/items.length):0}
 function step(v){if(v>=88)return 100;if(v>=63)return 75;if(v>=38)return 50;if(v>=13)return 25;return 0}
-function repeatLabel(r){return {daily:"매일",weekdays:"평일",weekends:"주말",weekly:"매주",monthly:"매월"}[r]||""}
+function repeatLabel(r){return {daily:"매일",weekdays:"평일",weekends:"주말",weekly:"매주",monthly:"매월",yearly:"매년"}[r]||""}
 function categoryById(id){
   return state.categories.find(category=>category.id===id)
     ||state.categories.find(category=>category.id==="other")
@@ -474,9 +478,22 @@ function isRepeatStartOn(event,key){
 
   const days=Math.round((target-start)/86400000);
 
-  if(repeat==="weekly")return days%7===0;
+  if(repeat==="weekly"){
+    const selected=Array.isArray(event.repeatWeekdays)&&event.repeatWeekdays.length
+      ?event.repeatWeekdays.map(Number)
+      :[start.getDay()];
+    return selected.includes(target.getDay());
+  }
   if(repeat==="monthly"){
-    return target.getDate()===start.getDate();
+    const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+    return target.getDate()===Math.min(start.getDate(),lastDay);
+  }
+  if(repeat==="yearly"){
+    const targetFebruaryLastDay=new Date(target.getFullYear(),2,0).getDate();
+    if(start.getMonth()===1&&start.getDate()===29&&targetFebruaryLastDay<29){
+      return target.getMonth()===1&&target.getDate()===28;
+    }
+    return target.getMonth()===start.getMonth()&&target.getDate()===start.getDate();
   }
 
   return false;
@@ -685,13 +702,13 @@ function habitIsActive(habit,key){
 
   const days=Math.round((target-start)/86400000);
 
-  if(repeat==="weekly"){
-    return days%7===0;
-  }
+  if(repeat==="weekly")return days%7===0;
 
   if(repeat==="monthly"){
-    return target.getDate()===start.getDate();
+    const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+    return target.getDate()===Math.min(start.getDate(),lastDay);
   }
+  if(repeat==="yearly")return target.getMonth()===start.getMonth()&&target.getDate()===start.getDate();
 
   return true;
 }
@@ -750,7 +767,7 @@ function renderStats(){
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
   const keys=monthKeys(monthAnchor);
-  const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
+  const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key)).filter(event=>event.includeInStats!==false);
   const monthEventAvg=average(monthEventOccurrences);
 
   const monthTodos=todoCompletionForKeys(keys);
@@ -829,6 +846,54 @@ function renderStats(){
   renderWeeklyProgress(selectedDate);
   renderCategoryAchievement(keys);
   renderHabitRanking(keys);
+  renderEvaluationSplit(keys);
+}
+function renderEvaluationSplit(keys){
+  const root=$("evaluationSplitStats");if(!root)return;
+  const types=[
+    {id:"action",name:"실행과제",description:"성장을 위해 의식적으로 실행한 일정"},
+    {id:"routine",name:"고정생활",description:"취침·출근 등 생활 구조를 유지한 일정"},
+    {id:"general",name:"일반일정",description:"약속·행사 등 참고용 일정"}
+  ];
+  root.innerHTML=types.map(type=>{
+    const items=keys.flatMap(key=>allEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id&&event.includeInStats!==false);
+    const value=average(items);
+    return `<article><span>${type.name}</span><strong>${items.length?`${value}%`:"—"}</strong><small>${type.description} · ${items.length}개</small><div class="evaluation-bar"><i style="width:${items.length?value:0}%"></i></div></article>`;
+  }).join("");
+}
+
+function reportData(){
+  const reference=parseDateKey(state.statsDate||dateKey(new Date()));
+  const end=reference,start=addDays(end,-6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
+  const events=keys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
+  const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
+  const todos=keys.flatMap(key=>todosForDate(key));
+  const byType=id=>events.filter(item=>(item.evaluationType||"action")===id);
+  const values=[...events.map(item=>Number(item.progress||0)),...habits.map(item=>item.progress),...todos.map(item=>item.status==="done"?100:0)];
+  return {reference,start,end,keys,events,habits,todos,values,byType};
+}
+function openDetailedReport(){
+  const modal=$("detailedReportModal"),content=$("detailedReportContent"),data=reportData();
+  const rate=items=>items.length?Math.round(items.reduce((sum,item)=>sum+Number(item.progress||0),0)/items.length):0;
+  const action=data.byType("action"),routine=data.byType("routine"),general=data.byType("general");
+  const totalRate=data.values.length?Math.round(data.values.reduce((a,b)=>a+b,0)/data.values.length):0;
+  const dayRows=data.keys.map(key=>{
+    const dayEvents=allEventsForDate(key).filter(item=>item.includeInStats!==false),dayHabits=activeHabitsOn(key),dayTodos=todosForDate(key);
+    const vals=[...dayEvents.map(item=>Number(item.progress||0)),...dayHabits.map(item=>habitProgress(item.id,key)),...dayTodos.map(item=>item.status==="done"?100:0)];
+    const value=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0,d=parseDateKey(key);
+    return `<tr><td>${d.getMonth()+1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})</td><td>${dayEvents.length+dayHabits.length+dayTodos.length}</td><td>${vals.length?`${value}%`:"—"}</td></tr>`;
+  }).join("");
+  content.innerHTML=`<section class="report-summary"><article><span>종합 완료율</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>계획량</span><strong>${data.values.length}</strong></article><article><span>환산 실행량</span><strong>${(data.values.reduce((a,b)=>a+b,0)/100).toFixed(1)}</strong></article></section>
+    <section><h3>일정 성격별 평가</h3><div class="report-type-grid"><p><b>실행과제 ${action.length?`${rate(action)}%`:"—"}</b><span>${action.length}개 평가</span></p><p><b>고정생활 ${routine.length?`${rate(routine)}%`:"—"}</b><span>${routine.length}개 평가</span></p><p><b>일반일정 ${general.length?`${rate(general)}%`:"—"}</b><span>${general.length}개 평가</span></p></div></section>
+    <section><h3>일별 근거</h3><table><thead><tr><th>날짜</th><th>계획량</th><th>완료율</th></tr></thead><tbody>${dayRows}</tbody></table></section>
+    <section class="report-method"><h3>계산 방식</h3><p>완료율 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 할 일 완료는 100%, 미완료·취소는 0%로 계산합니다. 일정은 사용자가 지정한 0·25·50·75·100%를 사용하고, ‘평가 제외’ 일정은 보고서 계산에서 제외합니다.</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+  $("detailedReportTitle").textContent=`${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()} 주간 보고서`;
+  modal.classList.add("show");modal.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
+}
+function closeDetailedReport(){const modal=$("detailedReportModal");modal.classList.remove("show");modal.setAttribute("aria-hidden","true");document.body.style.overflow=""}
+function downloadDetailedReport(){
+  const html=`<!doctype html><meta charset="utf-8"><title>${escapeHtml($("detailedReportTitle").textContent)}</title><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;color:#24312b}article,section{margin:20px 0}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}</style><h1>${escapeHtml($("detailedReportTitle").textContent)}</h1>${$("detailedReportContent").innerHTML}`;
+  const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),a=document.createElement("a");a.href=url;a.download=`momentum-report-${state.statsDate}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   const chart=$("workloadChart");if(!chart)return;
@@ -836,7 +901,7 @@ function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey
   for(let offset=6;offset>=0;offset--){
     const d=addDays(referenceDate,-offset),key=dateKey(d);
     const values=[
-      ...allEventsForDate(key).map(item=>Number(item.progress||0)),
+      ...allEventsForDate(key).filter(item=>item.includeInStats!==false).map(item=>Number(item.progress||0)),
       ...activeHabitsOn(key).map(item=>habitProgress(item.id,key)),
       ...todosForDate(key).map(item=>item.status==="done"?100:0)
     ];
@@ -877,7 +942,7 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
   const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
     const d=addDays(today,-offset),key=dateKey(d);
-    const events=allEventsForDate(key),todos=todosForDate(key),habits=activeHabitsOn(key);
+    const events=allEventsForDate(key).filter(item=>item.includeInStats!==false),todos=todosForDate(key),habits=activeHabitsOn(key);
     const metric=state.weeklyMetric||"combined";
     const values=metric==="events"
       ?events.map(item=>Number(item.progress||0))
@@ -900,7 +965,7 @@ function renderCategoryAchievement(keys){
 
     keys.forEach(key=>{
       allEventsForDate(key)
-        .filter(event=>eventCategory(event)===category.id)
+        .filter(event=>event.includeInStats!==false&&eventCategory(event)===category.id)
         .forEach(event=>occurrences.push(event));
     });
 
@@ -1401,7 +1466,11 @@ function renderHabitList(){
     item.className="habit-item";
     item.dataset.habitId=habit.id;
     const streak=habitStreak(habit);
-    item.innerHTML=`<div class="habit-item-top"><div class="habit-item-title"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일</small></div><button class="habit-edit-button" type="button">수정</button></div>`;
+    const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
+    const target=Number(habit.targetCount||0);
+    const due=habit.showDday&&habit.endDate?` · ${formatHabitDday(habit.endDate)}`:"";
+    const count=target?` · ${achieved}/${target}회`:"";
+    item.innerHTML=`<div class="habit-item-top"><div class="habit-item-title"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일${count}${due}</small></div><button class="habit-edit-button" type="button">수정</button></div>`;
     item.querySelector(".habit-edit-button").onclick=()=>openHabitEdit(habit);
     const progressButton=document.createElement("button");
     progressButton.type="button";
@@ -1422,6 +1491,10 @@ function renderHabitList(){
     };
     item.appendChild(progressButton);el.habitList.appendChild(item);
   });
+}
+function formatHabitDday(endDate){
+  const days=Math.round((parseDateKey(endDate)-parseDateKey(dateKey(new Date())))/86400000);
+  return days>0?`D-${days}`:days===0?"D-day":`D+${Math.abs(days)}`;
 }
 function nextHabitProgressValue(value){
   const values=[0,25,50,75,100];
@@ -1491,6 +1564,9 @@ function bindHeatmapCell(cell,habit,key){
     cell.style.background=COLORS[next];
     cell.dataset.progress=String(next);
     cell.title=`${habit.name} · ${formatHeatmapDate(key)} · ${next}%`;
+    showHeatmapTooltip(cell,habit,key,next);
+    clearTimeout(cell._progressTipTimer);
+    cell._progressTipTimer=setTimeout(hideHeatmapTooltip,1050);
     setHabitProgress(habit.id,key,next,{optimistic:true});
   });
 
@@ -1598,10 +1674,10 @@ function createHeatmapHabitBlock(habit,className){
   title.textContent=habit.name;
   title.onclick=()=>openHabitEdit(habit);
   const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
-  const challenge=(state.goalProfile.challenges||[]).find(item=>item.habitId===habit.id&&item.mode==="count");
+  const target=Number(habit.targetCount||0);
   const progress=document.createElement("span");
   progress.className="heatmap-habit-progress";
-  progress.textContent=challenge?`${achieved} / ${challenge.target}`:`누적 ${achieved}회`;
+  progress.textContent=target?`${achieved} / ${target}`:`누적 ${achieved}회`;
   heading.append(title,progress);
   block.appendChild(heading);
 
@@ -1733,6 +1809,9 @@ function resetHabitForm(){
   el.habitStartDate.value=dateKey(new Date());
   el.habitRepeat.value="daily";
   el.habitEndDate.value="";
+  el.habitShowDday.checked=false;
+  el.habitShowOnHome.checked=true;
+  el.habitTargetCount.value="";
 }
 function openHabitCreate(){haptic(12);resetHabitForm();el.habitModalEyebrow.textContent="NEW HABIT";el.habitModalTitle.textContent="습관 추가";el.deleteHabitButton.hidden=true;showHabitModal()}
 function openHabitEdit(habit){
@@ -1742,6 +1821,9 @@ function openHabitEdit(habit){
   el.habitStartDate.value=habit.startDate;
   el.habitRepeat.value=habit.repeat||"daily";
   el.habitEndDate.value=habit.endDate||"";
+  el.habitShowDday.checked=Boolean(habit.showDday);
+  el.habitShowOnHome.checked=habit.showOnHome!==false;
+  el.habitTargetCount.value=habit.targetCount||"";
   el.habitModalEyebrow.textContent="EDIT HABIT";
   el.habitModalTitle.textContent="습관 수정";
   el.deleteHabitButton.hidden=false;
@@ -1772,6 +1854,9 @@ async function submitHabit(event){
   const startDate=el.habitStartDate.value;
   const repeat=el.habitRepeat.value||"daily";
   const endDate=el.habitEndDate.value||"";
+  const showDday=Boolean(el.habitShowDday.checked);
+  const showOnHome=Boolean(el.habitShowOnHome.checked);
+  const targetCount=el.habitTargetCount.value?Math.max(1,Number(el.habitTargetCount.value)):null;
 
   if(!state.user||!name||!startDate)return;
 
@@ -1779,11 +1864,15 @@ async function submitHabit(event){
     el.habitFormError.textContent="종료일은 시작일보다 빠를 수 없습니다.";
     return;
   }
+  if(showDday&&!endDate){
+    el.habitFormError.textContent="D-day를 표시하려면 종료일을 지정하세요.";
+    return;
+  }
 
   const ref=collection(db,"users",state.user.uid,"habits");
 
   try{
-    const data={name,startDate,repeat,endDate,updatedAt:serverTimestamp()};
+    const data={name,startDate,repeat,endDate,showDday,showOnHome,targetCount,updatedAt:serverTimestamp()};
 
     if(el.habitId.value){
       const habitId=el.habitId.value;
@@ -1867,17 +1956,14 @@ function updateHabitProgressDom(habitId,key,progress){
       }
     }
 
-    const previewRow=el.selectedHabitPreview?.querySelector(
-      `.selected-habit-row[data-habit-id="${CSS.escape(habitId)}"]`
-    );
+  }
+  if(key===state.selectedDateKey){
+    const previewRow=el.selectedHabitPreview?.querySelector(`.selected-habit-row[data-habit-id="${CSS.escape(habitId)}"]`);
     const previewProgress=previewRow?.querySelector(".selected-habit-progress");
-    if(previewProgress){
-      previewProgress.textContent=`${numericProgress}%`;
-      previewProgress.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`);
-    }
-
+    if(previewProgress){previewProgress.textContent=`${numericProgress}%`;previewProgress.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`)}
     updateSelectedProgressMetrics(key);
   }
+  if(state.activePage==="stats")renderStats();
 }
 async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
   if(!state.user)return;
@@ -1995,11 +2081,12 @@ function goalStatus(goal){
   return [checklistText,days>0?`D-${days}`:days===0?"오늘":"기한 지남"].filter(Boolean).join(" · ");
 }
 function renderGoals(){
+  if(!el.goalList&&!el.homeGoalPreview)return;
   const goals=(state.goalProfile.challenges||[]).map(goalProgress);
   const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":goal.failed?"failed":""}" data-goal-id="${goal.id}">${goalCanDecide(goal)?`<button class="goal-state" type="button" aria-label="달성 상태 변경">${goal.complete?"✓":goal.failed?"X":"◇"}</button>`:`<i class="goal-state-placeholder" aria-hidden="true"></i>`}<button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<span class="goal-count-control" aria-label="현재 ${goal.count}, 목표 ${goal.target}"><button type="button" data-goal-count-step="-1" aria-label="횟수 1 감소">−1</button><b>${goal.count}/${goal.target}</b><button type="button" data-goal-count-step="1" aria-label="횟수 1 증가">+1</button></span>`:""}</span>`).join("");
-  el.goalList.innerHTML=rows(goals)||'<p class="empty-state">아직 목표가 없습니다. 목표 화면에서 추가해보세요.</p>';
+  if(el.goalList)el.goalList.innerHTML=rows(goals)||'<p class="empty-state">아직 목표가 없습니다.</p>';
   const active=goals.filter(goal=>!goal.complete),preview=(active.length?active:goals).slice(0,4);
-  el.homeGoalPreview.innerHTML=rows(preview)||'<p class="empty-state">등록된 목표가 없습니다.</p>';
+  if(el.homeGoalPreview)el.homeGoalPreview.innerHTML=rows(preview)||'<p class="empty-state">등록된 목표가 없습니다.</p>';
 }
 function listenGoals(user){
   state.unsubscribeGoals?.();
@@ -2885,7 +2972,7 @@ function applyWeekZoom(){
 
   const zoom=visibleDays<=3?125:visibleDays<=7?100:visibleDays<=10?75:55;
   const rowHeight=state.weekFit
-    ?(mobile?36:40)
+    ?Math.max(18,Math.floor((window.innerHeight-(mobile?150:170))/24))
     :Math.max(mobile?21:20,Math.round((mobile?36:40)*(0.54+0.46*zoom/100)));
 
   document.documentElement.style.setProperty(
@@ -2999,6 +3086,7 @@ function renderWeek(){
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
       block.style.width=`calc(100% / ${columnCount} - 2px)`;
       block.style.background=COLORS[event.progress]||COLORS[0];
+      block.title=`${event.title} · ${eventDisplayStart(event)}–${eventDisplayEnd(event)} · ${Number(event.progress||0)}%`;
       block.style.setProperty(
         "--event-category-color",
         categoryColor(eventCategory(event))
@@ -3074,6 +3162,14 @@ function renderWeek(){
 
       column.appendChild(currentLine);
     }
+
+    [6,12,18].forEach(hour=>{
+      const marker=document.createElement("span");
+      marker.className="week-inline-time";
+      marker.style.top=`calc(var(--week-row-height) * ${hour})`;
+      marker.textContent=`${pad(hour)}:00`;
+      column.appendChild(marker);
+    });
 
     bodyTrack.appendChild(column);
   }
@@ -3214,7 +3310,7 @@ function googleWeekPointerMinutes(column,clientY){
     0,
     Math.min(
       23*60+30,
-      Math.round(((clientY-rect.top)/rowHeight*60)/30)*30
+      Math.floor(((clientY-rect.top)/rowHeight*60)/30)*30
     )
   );
 }
@@ -3359,7 +3455,7 @@ function weekPointerMinutes(column,clientY){
     0,
     Math.min(
       23*60+30,
-      Math.round(((clientY-rect.top)/rowHeight*60)/30)*30
+      Math.floor(((clientY-rect.top)/rowHeight*60)/30)*30
     )
   );
 }
@@ -3948,7 +4044,7 @@ function todoLogKey(todoId,key){
   return `${todoId}_${String(key).replaceAll("-","")}`;
 }
 function todoOccursOn(todo,key){
-  if(!todo?.date||key<todo.date)return false;
+  if(todo?.backlog||!todo?.date||key<todo.date)return false;
 
   const repeat=todo.repeat||"none";
   if(repeat==="none")return key===todo.date;
@@ -4077,6 +4173,15 @@ function setImportance(kind,value){
 function importanceMark(important){
   return important?'<span class="important-star" aria-label="중요">★</span> ':"";
 }
+function syncTodoBacklogForm(){
+  if(!el.todoBacklog)return;
+  const backlog=el.todoBacklog.checked;
+  el.todoDate.required=!backlog;
+  el.todoDate.disabled=backlog;
+  el.todoRepeat.disabled=backlog;
+  el.todoDate.closest("label").classList.toggle("field-disabled",backlog);
+  el.todoRepeat.closest("label").classList.toggle("field-disabled",backlog);
+}
 function resetTodoForm(date=state.selectedDateKey){
   el.todoForm.reset();
   el.todoEditId.value="";
@@ -4084,6 +4189,8 @@ function resetTodoForm(date=state.selectedDateKey){
   el.todoDate.value=date||dateKey(new Date());
   el.todoRepeat.value="none";
   el.todoMemo.value="";
+  if(el.todoBacklog)el.todoBacklog.checked=state.todoBacklogView;
+  syncTodoBacklogForm();
   setImportance("todo",false);
   state.editingTodoChecklist=[];
   el.todoFormError.textContent="";
@@ -4125,6 +4232,8 @@ function openTodoEdit(todo){
   el.todoDate.value=todo.date;
   el.todoRepeat.value=todo.repeat||"none";
   el.todoMemo.value=todo.memo||"";
+  if(el.todoBacklog)el.todoBacklog.checked=Boolean(todo.backlog);
+  syncTodoBacklogForm();
   setImportance("todo",Boolean(todo.important));
   state.editingTodoChecklist=normalizeChecklist(todo.checklist).map(item=>({...item}));
   renderTodoChecklistEditor();
@@ -4144,15 +4253,16 @@ async function submitTodoForm(event){
   const repeat=el.todoRepeat.value||"none";
   const memo=el.todoMemo.value.trim();
   const important=Boolean(state.todoImportant);
+  const backlog=Boolean(el.todoBacklog?.checked);
   const checklist=normalizedTodoChecklist();
 
-  if(!text||!date){
+  if(!text||(!date&&!backlog)){
     el.todoFormError.textContent="이름과 날짜를 입력하세요.";
     return;
   }
 
   const data={
-    text,date,repeat,memo,checklist,important,
+    text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,
     status:"pending",
     rolledFrom:"",
     rolledTo:"",
@@ -4170,7 +4280,7 @@ async function submitTodoForm(event){
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",id),
         {
-          text,date,repeat,memo,checklist,important,
+          text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,
           ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
           updatedAt:serverTimestamp()
         }
@@ -4278,10 +4388,12 @@ function renderTodos(){
   if(!el.todoList)return;
   const key=state.selectedDateKey;
   const d=parseDateKey(key);
-  const items=todosForDate(key);
+  const items=state.todoBacklogView
+    ?state.todos.filter(todo=>todo.backlog).sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0))
+    :todosForDate(key);
 
   if(el.todoSelectedDateLabel){
-    el.todoSelectedDateLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
+    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"언젠가 할 일":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
   }
 
   el.todoList.innerHTML="";
@@ -4291,7 +4403,7 @@ function renderTodos(){
     const empty=document.createElement("button");
     empty.type="button";
     empty.className="todo-empty todo-empty-button";
-    empty.textContent="등록된 할 일이 없습니다. 눌러서 추가";
+    empty.textContent=state.todoBacklogView?"보관한 할 일이 없습니다. 눌러서 추가":"등록된 할 일이 없습니다. 눌러서 추가";
     empty.onclick=()=>openTodoCreate(key);
     el.todoList.appendChild(empty);
     return;
@@ -4850,8 +4962,9 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
         :(isToday?"오늘의 기록을 시작해보세요.":"이날의 기록을 시작해보세요.");
   }
 }
-function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
+function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=>habit.showOnHome!==false)){
   if(!el.selectedHabitPreview)return;
+  habits=habits.filter(habit=>habit.showOnHome!==false);
   el.selectedHabitPreview.innerHTML="";
 
   if(!habits.length){
@@ -4861,12 +4974,15 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key)){
 
   habits.slice(0,4).forEach(habit=>{
     const progress=habitProgress(habit.id,key);
+    const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
+    const target=Number(habit.targetCount||0);
+    const habitMeta=[repeatLabel(habit.repeat||"daily")||"매일",target?`${achieved}/${target}회`:"",habit.showDday&&habit.endDate?formatHabitDday(habit.endDate):""].filter(Boolean).join(" · ");
     const row=document.createElement("button");
     row.type="button";
     row.className="selected-habit-row";
     row.dataset.habitId=habit.id;
     row.innerHTML=`
-      <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${repeatLabel(habit.repeat||"daily")||"매일"}</small></span>
+      <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${habitMeta}</small></span>
       <span class="selected-habit-progress" style="--habit-progress:${progress*3.6}deg">${progress}%</span>
     `;
     row.onclick=()=>{
@@ -5274,6 +5390,10 @@ function resetForm(){
   el.endDate.value=dateKey(new Date());
   el.category.value=state.categories[0]?.id||"other";
   el.repeat.value="none";
+  setSelectedRepeatWeekdays([]);
+  if(el.repeatWeekdays)el.repeatWeekdays.hidden=true;
+  if(el.evaluationType)el.evaluationType.value="action";
+  if(el.includeInStats)el.includeInStats.checked=true;
   el.repeatEndDate.value="";
   el.repeatEndWrap.hidden=true;
   el.editScopeSection.hidden=true;
@@ -5333,6 +5453,8 @@ function openEdit(event){
   el.eventOccurrenceDate.value=occurrenceStart;
   el.title.value=event.title;
   el.category.value=eventCategory(event);
+  if(el.evaluationType)el.evaluationType.value=event.evaluationType||"action";
+  if(el.includeInStats)el.includeInStats.checked=event.includeInStats!==false;
   el.date.value=recurring
     ?occurrenceStart
     :event.date;
@@ -5342,6 +5464,8 @@ function openEdit(event){
     event.endTime||defaultEndTime(event.time)
   );
   el.repeat.value=event.repeat||"none";
+  setSelectedRepeatWeekdays(event.repeatWeekdays||[parseDateKey(occurrenceStart).getDay()]);
+  if(el.repeatWeekdays)el.repeatWeekdays.hidden=el.repeat.value!=="weekly";
   el.repeatEndDate.value=event.repeatEndDate||"";
   el.repeatEndWrap.hidden=(event.repeat||"none")==="none";
   el.memo.value=event.memo||"";
@@ -5354,7 +5478,7 @@ function openEdit(event){
   state.editingOriginalEventData=currentEventFormData();
   if(recurring){
     el.editScopeSection.hidden=false;
-    el.editScope.value="range";
+    el.editScope.value="single";
     el.editRangeStart.value=occurrenceStart;
     el.editRangeEnd.value=occurrenceStart;
     updateEditScopeControls();
@@ -6281,7 +6405,18 @@ function setupMondayFirstDatePicker(){
 
 function updateRepeatControls(){
   el.repeatEndWrap.hidden=(el.repeat.value||"none")==="none";
+  if(el.repeatWeekdays)el.repeatWeekdays.hidden=el.repeat.value!=="weekly";
+  if(el.repeat.value==="weekly"&&!selectedRepeatWeekdays().length){
+    setSelectedRepeatWeekdays([parseDateKey(el.date.value||dateKey(new Date())).getDay()]);
+  }
   syncCompactEventForm();
+}
+function selectedRepeatWeekdays(){
+  return [...(el.repeatWeekdays?.querySelectorAll("button.active")||[])].map(button=>Number(button.dataset.weekday));
+}
+function setSelectedRepeatWeekdays(days=[]){
+  const selected=days.map(Number);
+  el.repeatWeekdays?.querySelectorAll("[data-weekday]").forEach(button=>button.classList.toggle("active",selected.includes(Number(button.dataset.weekday))));
 }
 function updateEditScopeControls(){
   if(!el.editScope)return;
@@ -6301,8 +6436,8 @@ function syncCompactEventForm(){
     el.repeatSetEndButton.classList.toggle("active",hasEnd);
     el.repeatEndDate.classList.toggle("has-value",hasEnd);
   }
-  const scopeLabels={range:"기간 지정",single:"선택한 날짜만",future:"이 날짜부터",all:"전체 반복 일정"};
-  if(el.editScopeSummary)el.editScopeSummary.textContent=scopeLabels[el.editScope?.value]||"기간 지정";
+  const scopeLabels={single:"선택한 날짜만",future:"이 날짜부터",all:"전체 반복 일정"};
+  if(el.editScopeSummary)el.editScopeSummary.textContent=scopeLabels[el.editScope?.value]||"선택한 날짜만";
   if(el.memoSummary)el.memoSummary.textContent=el.memo.value.trim()?"작성됨":"추가";
   if(el.checklistSummaryText)el.checklistSummaryText.textContent=`${state.editingChecklist.length}개`;
 }
@@ -6316,6 +6451,9 @@ function currentEventFormData(){
     endTime:el.endTime.value,
     repeat:el.repeat.value||"none",
     repeatEndDate:el.repeat.value==="none"?"":el.repeatEndDate.value,
+    repeatWeekdays:el.repeat.value==="weekly"?selectedRepeatWeekdays():[],
+    evaluationType:el.evaluationType?.value||"action",
+    includeInStats:el.includeInStats?.checked!==false,
     memo:el.memo.value.trim(),
     checklist:normalizeChecklist(state.editingChecklist),
     important:Boolean(state.eventImportant)
@@ -6785,6 +6923,9 @@ async function submit(event){
   const endTime=el.endTime.value;
   const repeat=el.repeat.value;
   const repeatEndDate=repeat==="none"?"":el.repeatEndDate.value;
+  const repeatWeekdays=repeat==="weekly"?selectedRepeatWeekdays():[];
+  const evaluationType=el.evaluationType?.value||"action";
+  const includeInStats=el.includeInStats?.checked!==false;
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
@@ -6804,6 +6945,10 @@ async function submit(event){
     el.formError.textContent="반복 종료일은 시작 날짜보다 빠를 수 없습니다.";
     return;
   }
+  if(repeat==="weekly"&&!repeatWeekdays.length){
+    el.formError.textContent="반복할 요일을 하나 이상 선택하세요.";
+    return;
+  }
 
   const eventsRef=collection(db,"users",state.user.uid,"events");
 
@@ -6821,6 +6966,9 @@ async function submit(event){
         endTime,
         repeat,
         repeatEndDate,
+        repeatWeekdays,
+        evaluationType,
+        includeInStats,
         memo,
         checklist,
         important,
@@ -6880,6 +7028,9 @@ async function submit(event){
         endTime,
         repeat,
         repeatEndDate,
+        repeatWeekdays,
+        evaluationType,
+        includeInStats,
         memo,
         checklist,
         important,
@@ -7197,13 +7348,14 @@ el.weekBtn.onclick=()=>{
   requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
 };
 el.selectedHabitMoreButton.onclick=()=>navigateToPage("habit");
-$("homeGoalMoreButton").onclick=()=>{
-  navigateToPage("habit");
-  document.querySelector('[data-habit-section="goals"]')?.click();
-};
 el.weekZoomOut.onclick=()=>changeWeekZoom(-10);
 el.weekZoomIn.onclick=()=>changeWeekZoom(10);
 el.weekZoomValue.onclick=resetWeekToFit;
+$("weekFitButton")?.addEventListener("click",()=>{
+  state.weekFit=!state.weekFit;
+  applyWeekZoom();
+  renderWeek();
+});
 el.periodLabel.onclick=openDatePickerModal;
 el.closeDatePicker.onclick=closeDatePickerModal;
 el.datePickerModal.addEventListener("click",event=>{
@@ -7319,12 +7471,25 @@ el.habitNav.onclick=()=>navigateToPage("habit");
 el.diaryNav.onclick=()=>navigateToPage("diary");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
+$("openDetailedReportButton")?.addEventListener("click",openDetailedReport);
+$("closeDetailedReportButton")?.addEventListener("click",closeDetailedReport);
+$("detailedReportModal")?.addEventListener("click",event=>{if(event.target===$("detailedReportModal"))closeDetailedReport()});
+$("printDetailedReportButton")?.addEventListener("click",()=>window.print());
+$("downloadDetailedReportButton")?.addEventListener("click",downloadDetailedReport);
+el.todoBacklogButton?.addEventListener("click",()=>{
+  state.todoBacklogView=!state.todoBacklogView;
+  el.todoBacklogButton.classList.toggle("active",state.todoBacklogView);
+  renderTodos();
+});
+el.todoBacklog?.addEventListener("change",()=>{
+  syncTodoBacklogForm();
+});
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileDiaryNav.onclick=()=>navigateToPage("diary");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
-$("openGoalButton").onclick=()=>openGoal();
+$("openGoalButton")?.addEventListener("click",()=>openGoal());
 $("closeGoalModal").onclick=$("cancelGoalButton").onclick=()=>toggleGoalModal(false);
 el.goalModal.onclick=event=>{if(event.target===el.goalModal)toggleGoalModal(false)};
 el.goalMode.onchange=syncGoalMode;
@@ -7349,8 +7514,8 @@ async function handleGoalListClick(event){
   }
   if(event.target.closest(".goal-name"))openGoal(goal);
 }
-el.goalList.onclick=handleGoalListClick;
-el.homeGoalPreview.onclick=handleGoalListClick;
+if(el.goalList)el.goalList.onclick=handleGoalListClick;
+if(el.homeGoalPreview)el.homeGoalPreview.onclick=handleGoalListClick;
 el.deleteGoalButton.onclick=()=>removeGoal(el.goalId.value);
 el.goalForm.onsubmit=async event=>{
   event.preventDefault();
@@ -7435,6 +7600,11 @@ el.repeatChips?.addEventListener("click",event=>{
   if(!button)return;
   el.repeat.value=button.dataset.repeat;
   el.repeat.dispatchEvent(new Event("change",{bubbles:true}));
+});
+el.repeatWeekdays?.addEventListener("click",event=>{
+  const button=event.target.closest("[data-weekday]");
+  if(!button)return;
+  button.classList.toggle("active");
 });
 el.repeatNoEndButton?.addEventListener("click",()=>{
   el.repeatEndDate.value="";
@@ -7820,7 +7990,6 @@ onAuthStateChanged(auth,async user=>{
     listen(user);
     listenHabits(user);
     listenTodos(user);
-    listenGoals(user);
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");

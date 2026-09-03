@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.72" />
+  <link rel="stylesheet" href="style.css?v=7.73" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -76,7 +76,7 @@
                 <button id="weekZoomOut" class="zoom-button" type="button" aria-label="더 많은 날짜 보기">−</button>
                 <button id="weekZoomValue" class="zoom-value" type="button" title="7일 보기로 되돌리기">7일</button>
                 <button id="weekZoomIn" class="zoom-button" type="button" aria-label="더 적은 날짜 보기">＋</button>
-                
+                <button id="weekFitButton" class="zoom-value" type="button" title="한 주 전체를 세로로 맞춰 보기">한 화면</button>
               </div>
               <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
               <button id="weekAddEventButton" class="week-add-event-button" type="button">+ 일정 추가</button>
@@ -118,6 +118,7 @@
                 <h3 id="todoSelectedDateLabel">할 일 목록</h3>
               </div>
               <div class="todo-date-nav">
+                <button id="todoBacklogButton" class="todo-overview-button" type="button">할 일 보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
                 <button id="todoPrevDateButton" class="round-button todo-date-button" type="button" aria-label="이전 날짜">‹</button>
                 <span id="todoDayCount" class="todo-day-count">0개</span>
@@ -193,10 +194,6 @@
         </section>
 
       </section>
-      <section class="home-goal-board" aria-label="목표 미리보기">
-        <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div><button id="homeGoalMoreButton" class="text-action-button" type="button">모든 목표 보기</button></div>
-        <div id="homeGoalPreview" class="goal-list home-goal-preview"></div>
-      </section>
       </section>
 
       <section id="habitPage" hidden>
@@ -211,10 +208,6 @@
           </div>
         </header>
 
-        <div class="habit-goal-tabs" role="tablist" aria-label="습관과 목표">
-          <button class="active" type="button" data-habit-section="habits">습관</button>
-          <button type="button" data-habit-section="goals">목표</button>
-        </div>
         <section id="habitMainPanel" class="habit-dashboard">
           <section class="habit-list-card">
             <div class="habit-section-heading">
@@ -249,11 +242,6 @@
             </div>
           </section>
         </section>
-        <section id="goalMainPanel" class="goal-dashboard" hidden>
-          <div class="goal-heading"><div><p class="eyebrow">GOALS</p><h2>목표</h2></div><button id="openGoalButton" class="primary-button" type="button">+ 목표 추가</button></div>
-          <div id="goalList" class="goal-list"></div>
-          <p class="goal-help">달성한 목표도 기록으로 남아 언제든 다시 확인할 수 있어요.</p>
-        </section>
       </section>
 
       <section id="diaryPage" hidden>
@@ -277,6 +265,7 @@
             <h1>통계</h1>
           </div>
           <div class="top-actions">
+            <button id="openDetailedReportButton" class="secondary-button" type="button">상세 보고서</button>
             <button id="openSearchButton" class="stats-search-button" type="button" aria-label="검색" title="검색">⌕</button>
             <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
             <button id="statsSettingsButton" class="top-settings-button" type="button" aria-label="설정" title="설정">⚙</button>
@@ -302,6 +291,10 @@
               <small id="statsTodoCount">부분 완료를 포함한 실행량</small>
             </article>
           </div>
+          <section class="stats-card evaluation-split-card">
+            <div class="stats-card-heading"><div><h2>일정 성격별 성취</h2><small>고정생활은 생활 안정성, 실행과제는 의식적인 성장 행동으로 따로 계산합니다.</small></div></div>
+            <div id="evaluationSplitStats" class="evaluation-split-stats"></div>
+          </section>
 
           <section class="stats-card workload-card">
             <div class="stats-card-heading">
@@ -444,6 +437,20 @@
     </div>
   </div>
 
+  <div id="detailedReportModal" class="modal-backdrop report-modal-backdrop" aria-hidden="true">
+    <article class="modal detailed-report" id="detailedReportSheet">
+      <header class="report-header">
+        <div><p class="eyebrow">MOMENTUM REPORT</p><h2 id="detailedReportTitle">상세 통계 보고서</h2></div>
+        <button id="closeDetailedReportButton" class="close-button" type="button">×</button>
+      </header>
+      <div id="detailedReportContent"></div>
+      <footer class="report-actions">
+        <button id="printDetailedReportButton" class="secondary-button" type="button">인쇄·PDF 저장</button>
+        <button id="downloadDetailedReportButton" class="primary-button" type="button">보고서 다운로드</button>
+      </footer>
+    </article>
+  </div>
+
   <div id="datePickerModal" class="modal-backdrop date-picker-backdrop" aria-hidden="true">
     <div class="modal date-picker-modal" role="dialog" aria-modal="true" aria-labelledby="datePickerTitle">
       <div class="date-picker-heading">
@@ -495,6 +502,16 @@
         <label class="event-category-field">카테고리
           <select id="eventCategory"></select>
         </label>
+        <div class="event-evaluation-row">
+          <label>일정 성격
+            <select id="eventEvaluationType">
+              <option value="action">실행과제</option>
+              <option value="routine">고정생활</option>
+              <option value="general">일반일정</option>
+            </select>
+          </label>
+          <label class="check-option"><input id="eventIncludeInStats" type="checkbox" checked /> 평가에 포함</label>
+        </div>
         <section class="event-datetime-card">
           <span class="form-section-label">날짜 및 시간</span>
           <div class="event-datetime-line"><strong>시작</strong><label><span class="sr-only">시작 날짜</span>
@@ -524,13 +541,15 @@
             <select id="eventRepeat" class="compact-native-select" aria-label="반복 방식">
               <option value="none">안 함</option>
               <option value="daily">매일</option>
-              <option value="weekdays">평일만</option>
-              <option value="weekends">주말만</option>
               <option value="weekly">매주</option>
               <option value="monthly">매월</option>
+              <option value="yearly">매년</option>
             </select>
           <div id="eventRepeatChips" class="event-repeat-chips" aria-label="반복 방식">
-            <button type="button" data-repeat="none">안 함</button><button type="button" data-repeat="daily">매일</button><button type="button" data-repeat="weekdays">평일</button><button type="button" data-repeat="weekends">주말</button><button type="button" data-repeat="weekly">매주</button><button type="button" data-repeat="monthly">매월</button>
+            <button type="button" data-repeat="none">안 함</button><button type="button" data-repeat="daily">매일</button><button type="button" data-repeat="weekly">매주</button><button type="button" data-repeat="monthly">매월</button><button type="button" data-repeat="yearly">매년</button>
+          </div>
+          <div id="eventRepeatWeekdays" class="weekday-circle-picker" hidden aria-label="반복 요일">
+            <button type="button" data-weekday="1">월</button><button type="button" data-weekday="2">화</button><button type="button" data-weekday="3">수</button><button type="button" data-weekday="4">목</button><button type="button" data-weekday="5">금</button><button type="button" data-weekday="6">토</button><button type="button" data-weekday="0">일</button>
           </div>
           <div id="eventRepeatEndWrap" class="event-repeat-end" hidden>
             <span>반복 종료</span>
@@ -542,7 +561,7 @@
 
         <section id="eventEditScopeSection" class="event-edit-scope-summary" hidden>
           <button id="eventEditScopeSummaryButton" type="button">
-            <span>수정 범위</span><strong id="eventEditScopeSummary">기간 지정</strong><span aria-hidden="true">›</span>
+            <span>수정 범위</span><strong id="eventEditScopeSummary">선택한 날짜만</strong><span aria-hidden="true">›</span>
           </button>
           <div id="eventEditScopeSheet" class="event-scope-sheet-backdrop" hidden>
             <div class="event-scope-sheet" role="dialog" aria-modal="true" aria-labelledby="eventScopeTitle">
@@ -550,13 +569,12 @@
               <small>변경한 내용만 선택한 범위에 적용됩니다.</small>
           <label>적용 범위
             <select id="eventEditScope">
-              <option value="range">기간 지정</option>
               <option value="single">선택한 날짜만</option>
               <option value="future">선택한 날짜 이후</option>
               <option value="all">전체 반복 일정</option>
             </select>
           </label>
-          <div id="eventEditRangeFields" class="event-edit-range-fields">
+          <div id="eventEditRangeFields" class="event-edit-range-fields" hidden>
             <label>시작일
               <input id="eventEditRangeStart" type="date" />
             </label>
@@ -643,6 +661,7 @@
             <option value="monthly">매월</option>
           </select>
         </label>
+        <label class="check-option"><input id="todoBacklog" type="checkbox" /> 날짜 없이 할 일 보관함에 쌓아두기</label>
         <label>메모
           <textarea id="todoMemo" maxlength="500" rows="2" placeholder="할 일에 필요한 내용을 적어두세요."></textarea>
         </label>
@@ -780,6 +799,13 @@
         <label>종료일
           <input id="habitEndDate" type="date" />
         </label>
+        <div class="habit-option-grid">
+          <label class="check-option"><input id="habitShowDday" type="checkbox" /> 홈과 습관에 D-day 표시</label>
+          <label class="check-option"><input id="habitShowOnHome" type="checkbox" checked /> 홈 화면에 표시</label>
+        </div>
+        <label>목표 횟수 <span class="field-help">선택 사항 · 반복과 별도로 누적 횟수를 셉니다.</span>
+          <input id="habitTargetCount" type="number" min="1" max="1000000" placeholder="예: 30" />
+        </label>
         <p id="habitFormError" class="error-message"></p>
         <div class="modal-actions">
           <button id="deleteHabitButton" class="danger-button" type="button" hidden>삭제</button>
@@ -872,6 +898,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.72"></script>
+  <script type="module" src="script.js?v=7.73"></script>
 </body>
 </html>
