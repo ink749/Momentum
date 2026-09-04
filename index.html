@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.73" />
+  <link rel="stylesheet" href="style.css?v=7.75" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -31,7 +31,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-mark">M</div>
-        <div><strong>Momentum</strong><small>Build it daily.</small></div>
+        <div><strong>Momentum</strong></div>
       </div>
       <nav>
         <button id="calendarNavButton" class="nav-item active" type="button">⌂ 홈</button>
@@ -95,6 +95,7 @@
                 <p id="selectedViewEyebrow" class="eyebrow">TODAY</p>
                 <span id="selectedDateLabel"></span>
               </div>
+              <button id="selectedAddEventButton" class="secondary-button selected-add-event-button" type="button">+ 일정 추가</button>
               <h3 id="selectedDateTitle" class="visually-hidden">오늘 일정</h3>
             </div>
             <section class="quick-add-bar" aria-label="빠른 일정 입력">
@@ -118,7 +119,7 @@
                 <h3 id="todoSelectedDateLabel">할 일 목록</h3>
               </div>
               <div class="todo-date-nav">
-                <button id="todoBacklogButton" class="todo-overview-button" type="button">할 일 보관함</button>
+                <button id="todoBacklogButton" class="todo-overview-button" type="button">보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
                 <button id="todoPrevDateButton" class="round-button todo-date-button" type="button" aria-label="이전 날짜">‹</button>
                 <span id="todoDayCount" class="todo-day-count">0개</span>
@@ -292,13 +293,13 @@
             </article>
           </div>
           <section class="stats-card evaluation-split-card">
-            <div class="stats-card-heading"><div><h2>일정 성격별 성취</h2><small>고정생활은 생활 안정성, 실행과제는 의식적인 성장 행동으로 따로 계산합니다.</small></div></div>
+            <div class="stats-card-heading"><div><h2>일정 성격별 성취</h2></div></div>
             <div id="evaluationSplitStats" class="evaluation-split-stats"></div>
           </section>
 
           <section class="stats-card workload-card">
             <div class="stats-card-heading">
-              <div><h2>최근 7일 계획량과 실행량</h2><small>막대의 전체 높이는 계획량, 색으로 채워진 부분은 실제 실행량입니다.</small></div>
+              <div><h2>최근 7일 계획량과 실행량</h2></div>
             </div>
             <div id="workloadChart" class="workload-chart"></div>
           </section>
@@ -405,7 +406,6 @@
       </button>
     </nav>
 
-    <button id="mobileAddButton" class="floating-add" type="button" aria-label="추가">+</button>
   </div>
 
 
@@ -566,7 +566,6 @@
           <div id="eventEditScopeSheet" class="event-scope-sheet-backdrop" hidden>
             <div class="event-scope-sheet" role="dialog" aria-modal="true" aria-labelledby="eventScopeTitle">
               <div class="event-scope-sheet-header"><strong id="eventScopeTitle">수정할 반복 일정 범위</strong><button id="closeEventScopeSheet" type="button" aria-label="닫기">×</button></div>
-              <small>변경한 내용만 선택한 범위에 적용됩니다.</small>
           <label>적용 범위
             <select id="eventEditScope">
               <option value="single">선택한 날짜만</option>
@@ -863,7 +862,7 @@
         <button id="sheetLogoutButton" class="danger-outline-button" type="button">로그아웃</button>
       </div>
       <section class="theme-settings" aria-labelledby="themeSettingsTitle">
-        <div class="theme-settings-heading"><p class="eyebrow">THEME</p><h2 id="themeSettingsTitle">화면 테마</h2><small>카테고리 색은 그대로 유지됩니다.</small></div>
+        <div class="theme-settings-heading"><p class="eyebrow">THEME</p><h2 id="themeSettingsTitle">화면 테마</h2></div>
         <div id="themePicker" class="theme-picker"></div>
       </section>
       <button id="closeAccountSheet" class="secondary-button" type="button">닫기</button>
@@ -898,6 +897,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.73"></script>
+  <script type="module" src="script.js?v=7.75"></script>
 </body>
 </html>

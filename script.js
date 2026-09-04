@@ -858,7 +858,7 @@ function renderEvaluationSplit(keys){
   root.innerHTML=types.map(type=>{
     const items=keys.flatMap(key=>allEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id&&event.includeInStats!==false);
     const value=average(items);
-    return `<article><span>${type.name}</span><strong>${items.length?`${value}%`:"—"}</strong><small>${type.description} · ${items.length}개</small><div class="evaluation-bar"><i style="width:${items.length?value:0}%"></i></div></article>`;
+    return `<article><span>${type.name}</span><strong>${items.length?`${value}%`:"—"}</strong><div class="evaluation-bar"><i style="width:${items.length?value:0}%"></i></div></article>`;
   }).join("");
 }
 
@@ -1421,10 +1421,10 @@ function renderPage(){
   el.mobileDiaryNav.classList.toggle("active",diaryMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
-  el.mobileAdd.hidden=
-    statsMode||diaryMode
-    ||(calendarMode&&state.currentView==="week");
-  el.mobileAdd.classList.toggle("habit-mode",habitMode);
+  if(el.mobileAdd){
+    el.mobileAdd.hidden=statsMode||diaryMode||(calendarMode&&state.currentView==="week");
+    el.mobileAdd.classList.toggle("habit-mode",habitMode);
+  }
 
   document.body.classList.toggle(
     "week-fullscreen",
@@ -1440,7 +1440,7 @@ function renderPage(){
         ||window.matchMedia("(max-width:720px)").matches
       );
   }
-  el.mobileAdd.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
+  el.mobileAdd?.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
 
   if(calendarMode)renderGoals();
   if(habitMode)renderHabits();
@@ -1457,7 +1457,7 @@ function renderHabitList(){
   el.habitList.innerHTML="";
   const active=state.habits.filter(h=>!h.archived&&habitIsActive(h,state.selectedHabitDateKey));
   if(!active.length){
-    el.habitList.innerHTML='<div class="habit-empty">등록된 습관이 없습니다.<br>오른쪽 아래 + 버튼을 눌러 시작하세요.</div>';
+    el.habitList.innerHTML='<div class="habit-empty">등록된 습관이 없습니다.<br>상단의 습관 추가를 눌러 시작하세요.</div>';
     return;
   }
   active.forEach(habit=>{
@@ -1470,8 +1470,8 @@ function renderHabitList(){
     const target=Number(habit.targetCount||0);
     const due=habit.showDday&&habit.endDate?` · ${formatHabitDday(habit.endDate)}`:"";
     const count=target?` · ${achieved}/${target}회`:"";
-    item.innerHTML=`<div class="habit-item-top"><div class="habit-item-title"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일${count}${due}</small></div><button class="habit-edit-button" type="button">수정</button></div>`;
-    item.querySelector(".habit-edit-button").onclick=()=>openHabitEdit(habit);
+    item.innerHTML=`<div class="habit-item-top"><button class="habit-item-title habit-name-edit" type="button"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일${count}${due}</small></button></div>`;
+    item.querySelector(".habit-name-edit").onclick=()=>openHabitEdit(habit);
     const progressButton=document.createElement("button");
     progressButton.type="button";
     progressButton.className="habit-progress-cycle";
@@ -1518,7 +1518,7 @@ function getHeatmapTooltip(){
 }
 function showHeatmapTooltip(cell,habit,key,value){
   const tooltip=getHeatmapTooltip();
-  tooltip.innerHTML=`<strong>${escapeHtml(habit.name)}</strong><span>${formatHeatmapDate(key)}</span><b>${value}%</b>`;
+  tooltip.innerHTML=`<b>${value}%</b>`;
   tooltip.hidden=false;
 
   const rect=cell.getBoundingClientRect();
@@ -3086,7 +3086,9 @@ function renderWeek(){
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
       block.style.width=`calc(100% / ${columnCount} - 2px)`;
       block.style.background=COLORS[event.progress]||COLORS[0];
-      block.title=`${event.title} · ${eventDisplayStart(event)}–${eventDisplayEnd(event)} · ${Number(event.progress||0)}%`;
+      if(window.matchMedia("(hover:hover) and (pointer:fine)").matches){
+        block.title=`${event.title} · ${eventDisplayStart(event)}–${eventDisplayEnd(event)} · ${Number(event.progress||0)}%`;
+      }
       block.style.setProperty(
         "--event-category-color",
         categoryColor(eventCategory(event))
@@ -4393,7 +4395,7 @@ function renderTodos(){
     :todosForDate(key);
 
   if(el.todoSelectedDateLabel){
-    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"언젠가 할 일":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
+    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"할 일 보관함":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
   }
 
   el.todoList.innerHTML="";
@@ -4977,15 +4979,15 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=
     const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
     const target=Number(habit.targetCount||0);
     const habitMeta=[repeatLabel(habit.repeat||"daily")||"매일",target?`${achieved}/${target}회`:"",habit.showDday&&habit.endDate?formatHabitDday(habit.endDate):""].filter(Boolean).join(" · ");
-    const row=document.createElement("button");
-    row.type="button";
+    const row=document.createElement("article");
     row.className="selected-habit-row";
     row.dataset.habitId=habit.id;
     row.innerHTML=`
-      <span class="selected-habit-name"><strong>${escapeHtml(habit.name)}</strong><small>${habitMeta}</small></span>
-      <span class="selected-habit-progress" style="--habit-progress:${progress*3.6}deg">${progress}%</span>
+      <button class="selected-habit-name" type="button"><strong>${escapeHtml(habit.name)}</strong><small>${habitMeta}</small></button>
+      <button class="selected-habit-progress" type="button" style="--habit-progress:${progress*3.6}deg">${progress}%</button>
     `;
-    row.onclick=()=>{
+    row.querySelector(".selected-habit-name").onclick=()=>openHabitEdit(habit);
+    row.querySelector(".selected-habit-progress").onclick=()=>{
       setHabitProgress(
         habit.id,
         key,
@@ -7424,6 +7426,7 @@ el.dayViewNext.onclick=()=>{
 };
 
 $("openEventModal").onclick=()=>openCreate();
+$("selectedAddEventButton")?.addEventListener("click",()=>openCreate(state.selectedDateKey));
 $("weekAddEventButton").onclick=()=>openCreate(
   state.selectedDateKey||dateKey(new Date())
 );
@@ -7434,7 +7437,7 @@ $("todoEventModeTab").onclick=()=>{
 };
 $("todoModeFromEventTab").onclick=()=>switchCreateModal("todo");
 addHorizontalSwipe(el.modal,()=>switchCreateModal("todo"),()=>{});
-el.mobileAdd.onclick=()=>{
+if(el.mobileAdd)el.mobileAdd.onclick=()=>{
   if(state.activePage==="habit"){
     openHabitCreate();
     return;
