@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.75" />
+  <link rel="stylesheet" href="style.css?v=7.76" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -89,6 +89,11 @@
 
           
 <section id="selectedView" class="selected-view-panel">
+          <div class="selected-date-capsule" aria-label="선택한 날짜 변경">
+            <button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button>
+            <strong id="todoSelectedDateLabel">오늘</strong>
+            <button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button>
+          </div>
           <section class="summary-card">
             <div class="summary-heading selected-day-heading">
               <div class="selected-day-heading-line">
@@ -116,14 +121,12 @@
             <div class="selected-todo-heading">
               <div>
                 <p class="eyebrow">TO DO</p>
-                <h3 id="todoSelectedDateLabel">할 일 목록</h3>
+                <h3>할 일</h3>
               </div>
               <div class="todo-date-nav">
                 <button id="todoBacklogButton" class="todo-overview-button" type="button">보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
-                <button id="todoPrevDateButton" class="round-button todo-date-button" type="button" aria-label="이전 날짜">‹</button>
                 <span id="todoDayCount" class="todo-day-count">0개</span>
-                <button id="todoNextDateButton" class="round-button todo-date-button" type="button" aria-label="다음 날짜">›</button>
               </div>
             </div>
             <div class="todo-add-row">
@@ -210,20 +213,6 @@
         </header>
 
         <section id="habitMainPanel" class="habit-dashboard">
-          <section class="habit-list-card">
-            <div class="habit-section-heading">
-              <div>
-                <p class="eyebrow">TODAY</p>
-                <h2 id="habitTodayLabel">오늘의 습관</h2>
-              </div>
-              <div class="habit-date-navigation">
-                <button id="prevHabitDate" class="round-button" type="button">‹</button>
-                <button id="nextHabitDate" class="round-button" type="button">›</button>
-              </div>
-            </div>
-            <div id="habitList" class="habit-list"></div>
-          </section>
-
           <section class="habit-heatmap-card">
             <div class="habit-section-heading">
               <div>
@@ -295,6 +284,23 @@
           <section class="stats-card evaluation-split-card">
             <div class="stats-card-heading"><div><h2>일정 성격별 성취</h2></div></div>
             <div id="evaluationSplitStats" class="evaluation-split-stats"></div>
+          </section>
+
+          <section class="stats-card four-week-card">
+            <div class="stats-card-heading"><div><h2>최근 4주 변화</h2></div></div>
+            <div id="fourWeekChange" class="four-week-change"></div>
+          </section>
+
+          <section class="stats-card yearly-direction-card">
+            <div class="stats-card-heading"><div><h2 id="yearlyDirectionTitle">올해와 분기 목표</h2></div></div>
+            <label>올해 목표<textarea id="annualDirectionInput" rows="3" maxlength="1000" placeholder="올해 이루려는 결과를 적어주세요"></textarea></label>
+            <div class="quarter-direction-grid">
+              <label>1분기<textarea data-quarter-goal="0" rows="2" maxlength="500"></textarea></label>
+              <label>2분기<textarea data-quarter-goal="1" rows="2" maxlength="500"></textarea></label>
+              <label>3분기<textarea data-quarter-goal="2" rows="2" maxlength="500"></textarea></label>
+              <label>4분기<textarea data-quarter-goal="3" rows="2" maxlength="500"></textarea></label>
+            </div>
+            <div class="direction-actions"><span id="directionSaveMessage"></span><button id="saveDirectionGoalsButton" class="primary-button" type="button">목표 저장</button></div>
           </section>
 
           <section class="stats-card workload-card">
@@ -444,10 +450,6 @@
         <button id="closeDetailedReportButton" class="close-button" type="button">×</button>
       </header>
       <div id="detailedReportContent"></div>
-      <footer class="report-actions">
-        <button id="printDetailedReportButton" class="secondary-button" type="button">인쇄·PDF 저장</button>
-        <button id="downloadDetailedReportButton" class="primary-button" type="button">보고서 다운로드</button>
-      </footer>
     </article>
   </div>
 
@@ -608,6 +610,18 @@
             <button type="button" data-value="100">100%</button>
           </div>
         </fieldset>
+        <section class="event-actual-time-card">
+          <span class="form-section-label">실제 이행 시간</span>
+          <div class="actual-time-grid">
+            <label>실제 시작<input id="eventActualStart" type="time" step="300" /></label>
+            <label>실제 종료<input id="eventActualEnd" type="time" step="300" /></label>
+          </div>
+          <div class="actual-time-actions">
+            <button id="copyPlannedTimeButton" class="secondary-button compact-button" type="button">계획시간과 동일</button>
+            <button id="clearActualTimeButton" class="text-action-button" type="button">실제시간 지우기</button>
+            <strong id="actualDurationPreview">미기록</strong>
+          </div>
+        </section>
         <p id="formError" class="error-message"></p>
         <div class="modal-actions event-modal-actions">
           <div class="event-delete-actions">
@@ -897,6 +911,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.75"></script>
+  <script type="module" src="script.js?v=7.76"></script>
 </body>
 </html>

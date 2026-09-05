@@ -99,7 +99,7 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  goalProfile:{challenges:[]}, unsubscribeGoals:null, editingGoalChecklist:[]
+  goalProfile:{challenges:[],directionGoals:{}}, unsubscribeGoals:null, editingGoalChecklist:[]
 };
 
 const $ = (id) => document.getElementById(id);
@@ -166,6 +166,7 @@ const el = {
   eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), eventImportantButton:$("eventImportantButton"), category:$("eventCategory"),
   date:$("eventDate"), endDate:$("eventEndDate"),
   startClock:$("eventStartClock"), endClock:$("eventEndClock"),
+  actualStart:$("eventActualStart"), actualEnd:$("eventActualEnd"), actualDurationPreview:$("actualDurationPreview"),
   time:$("eventTime"), endTime:$("eventEndTime"),
   startHour:$("eventStartHour"), startMinute:$("eventStartMinute"),
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
@@ -580,6 +581,7 @@ function occurrenceInstancesForDate(event,key){
       occurrenceStart<targetEnd
       &&occurrenceEnd>targetStart
     ){
+      const occurrenceLog=state.eventLogs[eventLogKey(event.id,candidateKey)]||{};
       instances.push({
         ...effectiveEvent,
         occurrenceDate:candidateKey,
@@ -589,7 +591,9 @@ function occurrenceInstancesForDate(event,key){
         progress:eventOccurrenceProgress(
           event,
           candidateKey
-        )
+        ),
+        actualStart:occurrenceLog.actualStart||"",
+        actualEnd:occurrenceLog.actualEnd||""
       });
     }
   }
@@ -655,6 +659,16 @@ function eventDisplayEnd(event){
   return event.displayEndTime
     ||event.endTime
     ||defaultEndTime(eventDisplayStart(event));
+}
+function eventActualMinutes(event){
+  if(!event?.actualStart||!event?.actualEnd)return null;
+  const start=timeToMinutes(event.actualStart),end=timeToMinutes(event.actualEnd);
+  return end>start?end-start:null;
+}
+function formatDuration(minutes){
+  if(minutes===null||minutes===undefined)return "미기록";
+  const hours=Math.floor(minutes/60),rest=minutes%60;
+  return [hours?`${hours}시간`:"",rest?`${rest}분`:""].filter(Boolean).join(" ")||"0분";
 }
 function eventsForCalendarDate(key){
   return eventsForDate(key).map(event=>{
@@ -847,6 +861,60 @@ function renderStats(){
   renderCategoryAchievement(keys);
   renderHabitRanking(keys);
   renderEvaluationSplit(keys);
+  renderFourWeekChange(selectedDate);
+  renderDirectionGoals(selectedDate.getFullYear());
+}
+function rangeSummary(keys){
+  const events=keys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
+  const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>habitProgress(habit.id,key)));
+  const todos=keys.flatMap(key=>todosForDate(key));
+  const values=[...events.map(item=>Number(item.progress||0)),...habits,...todos.map(item=>item.status==="done"?100:0)];
+  const actualMinutes=events.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0);
+  const recordedActual=events.filter(item=>eventActualMinutes(item)!==null).length;
+  return {
+    events,habits,todos,values,
+    rate:values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null,
+    planned:values.length,
+    executed:values.reduce((a,b)=>a+b,0)/100,
+    actualMinutes,recordedActual
+  };
+}
+function formatRateChange(current,previous){
+  if(current===null||previous===null)return "—";
+  const difference=current-previous;
+  return `${difference>0?"+":""}${difference}%p`;
+}
+function renderFourWeekChange(referenceDate){
+  const root=$("fourWeekChange");if(!root)return;
+  const currentStart=startOfWeek(referenceDate);
+  const weeks=Array.from({length:4},(_,index)=>{
+    const start=addDays(currentStart,(index-3)*7);
+    const keys=Array.from({length:7},(__,day)=>dateKey(addDays(start,day))).filter(key=>index<3||key<=dateKey(new Date()));
+    return {start,end:addDays(start,6),summary:rangeSummary(keys),current:index===3};
+  });
+  root.innerHTML=weeks.map((week,index)=>`<article class="four-week-item${week.current?" current":""}"><span>${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}–${week.end.getMonth()+1}/${week.end.getDate()}`}</span><strong>${week.summary.rate===null?"—":`${week.summary.rate}%`} <i>${index?formatRateChange(week.summary.rate,weeks[index-1].summary.rate):""}</i></strong><div class="four-week-bar"><i style="height:${week.summary.rate||0}%"></i></div><small>실행 ${Number.isInteger(week.summary.executed)?week.summary.executed:week.summary.executed.toFixed(1)}/${week.summary.planned} · 실제 ${week.summary.recordedActual?formatDuration(week.summary.actualMinutes):"미기록"}</small></article>`).join("");
+}
+function directionGoalsForYear(year){
+  const saved=state.goalProfile.directionGoals?.[String(year)]||{};
+  return {annual:saved.annual||"",quarters:Array.from({length:4},(_,i)=>saved.quarters?.[i]||"")};
+}
+function renderDirectionGoals(year=new Date().getFullYear()){
+  const annual=$("annualDirectionInput");if(!annual)return;
+  const goals=directionGoalsForYear(year);
+  $("yearlyDirectionTitle").textContent=`${year}년 목표`;
+  annual.value=goals.annual;
+  document.querySelectorAll("[data-quarter-goal]").forEach(input=>{input.value=goals.quarters[Number(input.dataset.quarterGoal)]||""});
+}
+async function saveDirectionGoals(){
+  if(!state.user)return;
+  const year=String(parseDateKey(state.statsDate||dateKey(new Date())).getFullYear());
+  const directionGoals={...(state.goalProfile.directionGoals||{}),[year]:{
+    annual:$("annualDirectionInput").value.trim(),
+    quarters:[...document.querySelectorAll("[data-quarter-goal]")].map(input=>input.value.trim())
+  }};
+  state.goalProfile={...state.goalProfile,directionGoals};
+  await setDoc(goalProfileRef(),{directionGoals},{merge:true});
+  const message=$("directionSaveMessage");message.textContent="저장됨";setTimeout(()=>{message.textContent=""},1400);
 }
 function renderEvaluationSplit(keys){
   const root=$("evaluationSplitStats");if(!root)return;
@@ -864,37 +932,57 @@ function renderEvaluationSplit(keys){
 
 function reportData(){
   const reference=parseDateKey(state.statsDate||dateKey(new Date()));
-  const end=reference,start=addDays(end,-6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
-  const events=keys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
-  const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
-  const todos=keys.flatMap(key=>todosForDate(key));
+  const start=startOfWeek(reference),end=addDays(start,6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
+  const todayKey=dateKey(new Date());
+  const analysisKeys=end<parseDateKey(todayKey)?keys:keys.filter(key=>key<=todayKey);
+  const events=analysisKeys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
+  const habits=analysisKeys.flatMap(key=>activeHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
+  const todos=analysisKeys.flatMap(key=>todosForDate(key));
   const byType=id=>events.filter(item=>(item.evaluationType||"action")===id);
   const values=[...events.map(item=>Number(item.progress||0)),...habits.map(item=>item.progress),...todos.map(item=>item.status==="done"?100:0)];
-  return {reference,start,end,keys,events,habits,todos,values,byType};
+  return {reference,start,end,keys,analysisKeys,events,habits,todos,values,byType};
 }
 function openDetailedReport(){
   const modal=$("detailedReportModal"),content=$("detailedReportContent"),data=reportData();
   const rate=items=>items.length?Math.round(items.reduce((sum,item)=>sum+Number(item.progress||0),0)/items.length):0;
   const action=data.byType("action"),routine=data.byType("routine"),general=data.byType("general");
   const totalRate=data.values.length?Math.round(data.values.reduce((a,b)=>a+b,0)/data.values.length):0;
-  const dayRows=data.keys.map(key=>{
-    const dayEvents=allEventsForDate(key).filter(item=>item.includeInStats!==false),dayHabits=activeHabitsOn(key),dayTodos=todosForDate(key);
-    const vals=[...dayEvents.map(item=>Number(item.progress||0)),...dayHabits.map(item=>habitProgress(item.id,key)),...dayTodos.map(item=>item.status==="done"?100:0)];
-    const value=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0,d=parseDateKey(key);
-    return `<tr><td>${d.getMonth()+1}/${d.getDate()} (${["일","월","화","수","목","금","토"][d.getDay()]})</td><td>${dayEvents.length+dayHabits.length+dayTodos.length}</td><td>${vals.length?`${value}%`:"—"}</td></tr>`;
+  const weekSummary=rangeSummary(data.analysisKeys);
+  const plannedMinutes=data.events.reduce((sum,item)=>sum+Math.max(0,timeToMinutes(eventDisplayEnd(item))-timeToMinutes(eventDisplayStart(item))),0);
+  const distribution=[0,25,50,75,100].map(value=>`${value}% ${data.values.filter(item=>Number(item)===value).length}개`).join(" · ");
+  const typeCard=(name,items)=>`<p><b>${name} ${items.length?`${rate(items)}%`:"—"}</b><span>${items.length}개 · 실제 ${items.some(item=>eventActualMinutes(item)!==null)?formatDuration(items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0)):"미기록"}</span></p>`;
+  const weekBoard=data.keys.map(key=>{
+    const date=parseDateKey(key),items=allEventsForDate(key);
+    return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>${Number(item.progress||0)}% · ${item.actualStart&&item.actualEnd?`실제 ${item.actualStart}–${item.actualEnd}`:"실제 미기록"}</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
   }).join("");
-  content.innerHTML=`<section class="report-summary"><article><span>종합 완료율</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>계획량</span><strong>${data.values.length}</strong></article><article><span>환산 실행량</span><strong>${(data.values.reduce((a,b)=>a+b,0)/100).toFixed(1)}</strong></article></section>
-    <section><h3>일정 성격별 평가</h3><div class="report-type-grid"><p><b>실행과제 ${action.length?`${rate(action)}%`:"—"}</b><span>${action.length}개 평가</span></p><p><b>고정생활 ${routine.length?`${rate(routine)}%`:"—"}</b><span>${routine.length}개 평가</span></p><p><b>일반일정 ${general.length?`${rate(general)}%`:"—"}</b><span>${general.length}개 평가</span></p></div></section>
-    <section><h3>일별 근거</h3><table><thead><tr><th>날짜</th><th>계획량</th><th>완료율</th></tr></thead><tbody>${dayRows}</tbody></table></section>
-    <section class="report-method"><h3>계산 방식</h3><p>완료율 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 할 일 완료는 100%, 미완료·취소는 0%로 계산합니다. 일정은 사용자가 지정한 0·25·50·75·100%를 사용하고, ‘평가 제외’ 일정은 보고서 계산에서 제외합니다.</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+  const categoryRows=state.categories.map(category=>{
+    const items=data.events.filter(event=>eventCategory(event)===category.id);
+    if(!items.length)return "";
+    const actual=items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0),recorded=items.filter(item=>eventActualMinutes(item)!==null).length;
+    return `<tr><td>${escapeHtml(category.name)}</td><td>${items.length}</td><td>${rate(items)}%</td><td>${recorded?formatDuration(actual):"미기록"}</td></tr>`;
+  }).join("");
+  const eventRows=data.keys.flatMap(key=>allEventsForDate(key).map(item=>({key,item}))).map(({key,item})=>`<tr><td>${key.slice(5)}</td><td>${escapeHtml(item.title)}</td><td>${({action:"실행과제",routine:"고정생활",general:"일반일정"})[item.evaluationType||"action"]}</td><td>${escapeHtml(categoryLabel(eventCategory(item)))}</td><td>${eventDisplayStart(item)}–${eventDisplayEnd(item)}</td><td>${item.actualStart&&item.actualEnd?`${item.actualStart}–${item.actualEnd} (${formatDuration(eventActualMinutes(item))})`:"미기록"}</td><td>${Number(item.progress||0)}%</td><td>${item.includeInStats===false?"제외":"포함"}</td></tr>`).join("");
+  const year=data.reference.getFullYear(),goals=directionGoalsForYear(year);
+  const todayKey=dateKey(new Date());
+  const monthSummaries=Array.from({length:12},(_,month)=>rangeSummary(monthKeys(new Date(year,month,1)).filter(key=>key<=todayKey)));
+  const monthRows=monthSummaries.map((summary,month)=>`<tr><td>${month+1}월</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${month?formatRateChange(summary.rate,monthSummaries[month-1].rate):"—"}</td><td>${summary.planned}</td><td>${summary.recordedActual?formatDuration(summary.actualMinutes):"미기록"}</td></tr>`).join("");
+  const quarterSummaries=Array.from({length:4},(_,quarter)=>{
+    const keys=[];for(let month=quarter*3;month<quarter*3+3;month++)keys.push(...monthKeys(new Date(year,month,1)));
+    return rangeSummary(keys.filter(key=>key<=todayKey));
+  });
+  const quarterRows=quarterSummaries.map((summary,quarter)=>`<tr><td>${quarter+1}분기</td><td>${escapeHtml(goals.quarters[quarter]||"미설정").replace(/\n/g,"<br>")}</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${quarter?formatRateChange(summary.rate,quarterSummaries[quarter-1].rate):"—"}</td><td>${summary.recordedActual?formatDuration(summary.actualMinutes):"미기록"}</td></tr>`).join("");
+  content.innerHTML=`<section><h3>이번 주 일정</h3><div class="report-week-board">${weekBoard}</div></section>
+    <section class="report-summary"><article><span>종합 수행률</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>계획량 / 환산 실행량</span><strong>${data.values.length} / ${(data.values.reduce((a,b)=>a+b,0)/100).toFixed(1)}</strong></article><article><span>계획시간 / 실제시간</span><strong>${formatDuration(plannedMinutes)} / ${weekSummary.recordedActual?formatDuration(weekSummary.actualMinutes):"미기록"}</strong></article></section>
+    <section><h3>일정 성격별 평가</h3><div class="report-type-grid">${typeCard("실행과제",action)}${typeCard("고정생활",routine)}${typeCard("일반일정",general)}</div></section>
+    <section><h3>카테고리별 근거</h3><table><thead><tr><th>카테고리</th><th>일정</th><th>수행률</th><th>실제시간</th></tr></thead><tbody>${categoryRows||"<tr><td colspan='4'>기록 없음</td></tr>"}</tbody></table></section>
+    <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th><th>실제시간</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
+    <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>계획량</th><th>실제시간</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
+    <section><h3>일정별 상세 내역</h3><div class="report-scroll"><table><thead><tr><th>날짜</th><th>일정</th><th>성격</th><th>카테고리</th><th>계획시간</th><th>실제시간</th><th>수행률</th><th>평가</th></tr></thead><tbody>${eventRows||"<tr><td colspan='8'>일정 없음</td></tr>"}</tbody></table></div></section>
+    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 일정은 0·25·50·75·100%, 완료한 할 일은 100%, 그 외 할 일은 0%로 계산합니다. 실제시간은 사용자가 실제 시작·종료를 모두 기록한 일정만 합산하며, 빈 값은 0분이 아닌 미기록입니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 실제시간 기록 ${weekSummary.recordedActual}/${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
   $("detailedReportTitle").textContent=`${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()} 주간 보고서`;
   modal.classList.add("show");modal.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
 }
 function closeDetailedReport(){const modal=$("detailedReportModal");modal.classList.remove("show");modal.setAttribute("aria-hidden","true");document.body.style.overflow=""}
-function downloadDetailedReport(){
-  const html=`<!doctype html><meta charset="utf-8"><title>${escapeHtml($("detailedReportTitle").textContent)}</title><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;color:#24312b}article,section{margin:20px 0}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}</style><h1>${escapeHtml($("detailedReportTitle").textContent)}</h1>${$("detailedReportContent").innerHTML}`;
-  const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})),a=document.createElement("a");a.href=url;a.download=`momentum-report-${state.statsDate}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
 function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey(new Date()))){
   const chart=$("workloadChart");if(!chart)return;
   const days=[];
@@ -1448,10 +1536,10 @@ function renderPage(){
   if(statsMode)renderStats();
 }
 function renderHabits(){
-  renderHabitList();
   renderHabitHeatmap();
 }
 function renderHabitList(){
+  if(!el.habitList||!el.habitTodayLabel)return;
   const d=parseDateKey(state.selectedHabitDateKey);
   el.habitTodayLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 습관`;
   el.habitList.innerHTML="";
@@ -1547,6 +1635,7 @@ function bindHeatmapCell(cell,habit,key){
   cell.dataset.habitId=habit.id;
   cell.dataset.date=key;
   cell.dataset.progress=String(habitProgress(habit.id,key));
+  cell.classList.toggle("is-today",key===dateKey(new Date()));
   cell.style.background=COLORS[habitProgress(habit.id,key)];
   refreshTitle();
 
@@ -1943,7 +2032,7 @@ function updateHabitProgressDom(habitId,key,progress){
   });
 
   // HEATMAP과 하루 화면의 순환 완료율을 즉시 동기화합니다.
-  if(key===state.selectedHabitDateKey){
+  if(key===state.selectedHabitDateKey&&el.habitList){
     const card=el.habitList.querySelector(
       `.habit-item[data-habit-id="${CSS.escape(habitId)}"]`
     );
@@ -2090,7 +2179,7 @@ function renderGoals(){
 }
 function listenGoals(user){
   state.unsubscribeGoals?.();
-  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],...(snap.exists()?snap.data():{})};renderGoals()},error=>console.error("목표를 불러오지 못했습니다.",error));
+  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],directionGoals:{},...(snap.exists()?snap.data():{})};renderGoals();if(state.activePage==="stats")renderDirectionGoals(parseDateKey(state.statsDate).getFullYear())},error=>console.error("목표를 불러오지 못했습니다.",error));
 }
 async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
 function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
@@ -3085,9 +3174,10 @@ function renderWeek(){
       block.style.height=`calc(var(--week-row-height) * ${duration/60})`;
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
       block.style.width=`calc(100% / ${columnCount} - 2px)`;
-      block.style.background=COLORS[event.progress]||COLORS[0];
+      block.style.background=COLORS[0];
       if(window.matchMedia("(hover:hover) and (pointer:fine)").matches){
-        block.title=`${event.title} · ${eventDisplayStart(event)}–${eventDisplayEnd(event)} · ${Number(event.progress||0)}%`;
+        const actual=event.actualStart&&event.actualEnd?` · 실제 ${event.actualStart}–${event.actualEnd}`:" · 실제시간 미기록";
+        block.title=`${event.title} · 계획 ${eventDisplayStart(event)}–${eventDisplayEnd(event)}${actual} · ${Number(event.progress||0)}%`;
       }
       block.style.setProperty(
         "--event-category-color",
@@ -3111,7 +3201,9 @@ function renderWeek(){
         :"";
 
       block.innerHTML=`
+        <i class="week-event-water" style="height:${Number(event.progress||0)}%"></i>
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
+        <small class="week-event-actual">${event.actualStart&&event.actualEnd?`실제 ${event.actualStart}–${event.actualEnd}`:"실제 미기록"} · ${Number(event.progress||0)}%</small>
         ${checklistHtml}
       `;
 
@@ -4395,7 +4487,7 @@ function renderTodos(){
     :todosForDate(key);
 
   if(el.todoSelectedDateLabel){
-    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"할 일 보관함":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]}) 할 일`;
+    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"할 일 보관함":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
   }
 
   el.todoList.innerHTML="";
@@ -4850,7 +4942,10 @@ function renderSelected(){
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
+      const actualText=event.actualStart&&event.actualEnd
+        ?`실제 ${event.actualStart}–${event.actualEnd} · ${formatDuration(eventActualMinutes(event))}`
+        :"실제시간 미기록";
+      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><small class="selected-event-actual">${actualText}</small>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
 
       const summary=checklistSummary(event);
       if(summary){
@@ -5021,6 +5116,14 @@ function renderSummary(){
 }
 
 function setProgress(v){state.selectedProgress=Number(v);document.querySelectorAll("#progressOptions button").forEach(b=>{const p=Number(b.dataset.value);b.classList.toggle("selected",p===state.selectedProgress);b.style.background=COLORS[p];b.style.color=p<=25?"#557066":"#fff"});if(el.progressSummary)el.progressSummary.textContent=`${state.selectedProgress}%`}
+
+function updateActualDurationPreview(){
+  if(!el.actualDurationPreview)return;
+  const start=el.actualStart?.value||"",end=el.actualEnd?.value||"";
+  if(!start||!end){el.actualDurationPreview.textContent="미기록";return}
+  const minutes=timeToMinutes(end)-timeToMinutes(start);
+  el.actualDurationPreview.textContent=minutes>0?formatDuration(minutes):"시간 확인 필요";
+}
 
 function normalizeChecklist(items){
   if(!Array.isArray(items))return [];
@@ -5408,6 +5511,9 @@ function resetForm(){
   state.editingChecklist=[];
   el.formError.textContent="";
   setProgress(0);
+  if(el.actualStart)el.actualStart.value="";
+  if(el.actualEnd)el.actualEnd.value="";
+  updateActualDurationPreview();
   renderChecklistEditor();
   syncCompactEventForm();
 }
@@ -5497,6 +5603,9 @@ function openEdit(event){
   if(modeSwitch)modeSwitch.hidden=true;
 
   setProgress(event.progress);
+  if(el.actualStart)el.actualStart.value=event.actualStart||"";
+  if(el.actualEnd)el.actualEnd.value=event.actualEnd||"";
+  updateActualDurationPreview();
   syncCompactEventForm();
   showModal();
 }
@@ -6886,7 +6995,7 @@ async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef})
   });
 }
 
-async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress){
+async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress,actualStart="",actualEnd=""){
   const logId=eventLogKey(eventId,occurrenceDate);
   const numericProgress=Number(progress||0);
 
@@ -6895,7 +7004,9 @@ async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress){
     id:logId,
     eventId,
     date:occurrenceDate,
-    progress:numericProgress
+    progress:numericProgress,
+    actualStart,
+    actualEnd
   };
   skipSnapshotRenders("Event",2);
 
@@ -6905,6 +7016,8 @@ async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress){
       eventId,
       date:occurrenceDate,
       progress:numericProgress,
+      actualStart,
+      actualEnd,
       updatedAt:serverTimestamp()
     },
     {merge:true}
@@ -6933,6 +7046,8 @@ async function submit(event){
   const checklist=normalizeChecklist(state.editingChecklist);
   const eventId=el.eventId.value;
   const occurrenceDate=el.eventOccurrenceDate.value||date;
+  const actualStart=el.actualStart?.value||"";
+  const actualEnd=el.actualEnd?.value||"";
 
   if(!title||!date||!endDate||!time||!endTime)return;
 
@@ -6949,6 +7064,14 @@ async function submit(event){
   }
   if(repeat==="weekly"&&!repeatWeekdays.length){
     el.formError.textContent="반복할 요일을 하나 이상 선택하세요.";
+    return;
+  }
+  if(Boolean(actualStart)!==Boolean(actualEnd)){
+    el.formError.textContent="실제 시작시간과 종료시간을 모두 입력하거나 모두 비워주세요.";
+    return;
+  }
+  if(actualStart&&timeToMinutes(actualEnd)<=timeToMinutes(actualStart)){
+    el.formError.textContent="실제 종료시간은 실제 시작시간보다 늦어야 합니다.";
     return;
   }
 
@@ -6974,6 +7097,8 @@ async function submit(event){
         memo,
         checklist,
         important,
+        actualStart:repeat==="none"?actualStart:"",
+        actualEnd:repeat==="none"?actualEnd:"",
         updatedAt:serverTimestamp()
       };
 
@@ -6991,7 +7116,9 @@ async function submit(event){
         await saveRecurringOccurrenceProgress(
           source.id,
           occurrenceDate,
-          state.selectedProgress
+          state.selectedProgress,
+          actualStart,
+          actualEnd
         );
         await finishEventSave(occurrenceDate);
         return;
@@ -7036,6 +7163,8 @@ async function submit(event){
         memo,
         checklist,
         important,
+        actualStart:repeat==="none"?actualStart:"",
+        actualEnd:repeat==="none"?actualEnd:"",
         progress:repeat==="none"?state.selectedProgress:0,
         createdAt:serverTimestamp(),
         updatedAt:serverTimestamp()
@@ -7047,7 +7176,7 @@ async function submit(event){
         );
       });
 
-      if(repeat!=="none"&&state.selectedProgress>0){
+      if(repeat!=="none"&&(state.selectedProgress>0||actualStart||actualEnd)){
         await setDoc(
           doc(
             db,
@@ -7060,6 +7189,8 @@ async function submit(event){
             eventId:created.id,
             date,
             progress:state.selectedProgress,
+            actualStart,
+            actualEnd,
             updatedAt:serverTimestamp()
           }
         );
@@ -7477,8 +7608,7 @@ el.openSearchButton.onclick=openSearchModal;
 $("openDetailedReportButton")?.addEventListener("click",openDetailedReport);
 $("closeDetailedReportButton")?.addEventListener("click",closeDetailedReport);
 $("detailedReportModal")?.addEventListener("click",event=>{if(event.target===$("detailedReportModal"))closeDetailedReport()});
-$("printDetailedReportButton")?.addEventListener("click",()=>window.print());
-$("downloadDetailedReportButton")?.addEventListener("click",downloadDetailedReport);
+$("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals().catch(error=>{console.error(error);$("directionSaveMessage").textContent="저장 실패"}));
 el.todoBacklogButton?.addEventListener("click",()=>{
   state.todoBacklogView=!state.todoBacklogView;
   el.todoBacklogButton.classList.toggle("active",state.todoBacklogView);
@@ -7638,6 +7768,17 @@ el.endDate.addEventListener("change",()=>{
     el.endDate.value=el.date.value;
   }
 });
+[el.actualStart,el.actualEnd].forEach(input=>input?.addEventListener("change",updateActualDurationPreview));
+$("copyPlannedTimeButton")?.addEventListener("click",()=>{
+  el.actualStart.value=el.time.value||el.startClock.value;
+  el.actualEnd.value=el.endTime.value||el.endClock.value;
+  updateActualDurationPreview();
+});
+$("clearActualTimeButton")?.addEventListener("click",()=>{
+  el.actualStart.value="";
+  el.actualEnd.value="";
+  updateActualDurationPreview();
+});
 el.repeat.addEventListener("change",updateRepeatControls);
 el.editScope.addEventListener("change",updateEditScopeControls);
 el.editRangeStart.addEventListener("change",()=>{
@@ -7778,8 +7919,6 @@ el.habitEndDate.addEventListener("click",()=>{
 });
 el.habitModal.onclick=e=>{if(e.target===el.habitModal)closeHabitModal()};
 $("habitTodayButton").onclick=()=>{const today=new Date();state.selectedHabitDateKey=dateKey(today);state.habitMonth=startOfMonth(today);renderHabits()};
-$("prevHabitDate").onclick=()=>{state.selectedHabitDateKey=dateKey(addDays(parseDateKey(state.selectedHabitDateKey),-1));renderHabits()};
-$("nextHabitDate").onclick=()=>{state.selectedHabitDateKey=dateKey(addDays(parseDateKey(state.selectedHabitDateKey),1));renderHabits()};
 $("prevHabitMonth").onclick=()=>{state.habitMonth=new Date(state.habitMonth.getFullYear(),state.habitMonth.getMonth()-1,1);renderHabitHeatmap()};
 $("nextHabitMonth").onclick=()=>{state.habitMonth=new Date(state.habitMonth.getFullYear(),state.habitMonth.getMonth()+1,1);renderHabitHeatmap()};
 
@@ -7966,7 +8105,7 @@ await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
-    state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};
+    state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};state.goalProfile={challenges:[],directionGoals:{}};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
@@ -7993,6 +8132,7 @@ onAuthStateChanged(auth,async user=>{
     listen(user);
     listenHabits(user);
     listenTodos(user);
+    listenGoals(user);
   }catch(error){
     console.error(error);
     alert("Firebase에 연결하지 못했습니다.");
