@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.76" />
+  <link rel="stylesheet" href="style.css?v=7.77" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -76,8 +76,8 @@
                 <button id="weekZoomOut" class="zoom-button" type="button" aria-label="더 많은 날짜 보기">−</button>
                 <button id="weekZoomValue" class="zoom-value" type="button" title="7일 보기로 되돌리기">7일</button>
                 <button id="weekZoomIn" class="zoom-button" type="button" aria-label="더 적은 날짜 보기">＋</button>
-                <button id="weekFitButton" class="zoom-value" type="button" title="한 주 전체를 세로로 맞춰 보기">한 화면</button>
               </div>
+              <button id="weekFitButton" class="week-fit-icon" type="button" title="한 주 전체를 한 화면에 보기" aria-label="한 주 전체를 한 화면에 보기" hidden>⛶</button>
               <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
               <button id="weekAddEventButton" class="week-add-event-button" type="button">+ 일정 추가</button>
               <div class="view-switch">
@@ -89,17 +89,12 @@
 
           
 <section id="selectedView" class="selected-view-panel">
-          <div class="selected-date-capsule" aria-label="선택한 날짜 변경">
-            <button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button>
-            <strong id="todoSelectedDateLabel">오늘</strong>
-            <button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button>
-          </div>
           <section class="summary-card">
             <div class="summary-heading selected-day-heading">
               <div class="selected-day-heading-line">
                 <p id="selectedViewEyebrow" class="eyebrow">TODAY</p>
-                <span id="selectedDateLabel"></span>
               </div>
+              <div class="card-date-navigation"><button id="todayPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="selectedDateLabel"></strong><button id="todayNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <button id="selectedAddEventButton" class="secondary-button selected-add-event-button" type="button">+ 일정 추가</button>
               <h3 id="selectedDateTitle" class="visually-hidden">오늘 일정</h3>
             </div>
@@ -123,6 +118,7 @@
                 <p class="eyebrow">TO DO</p>
                 <h3>할 일</h3>
               </div>
+              <div class="card-date-navigation"><button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="todoSelectedDateLabel">오늘</strong><button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <div class="todo-date-nav">
                 <button id="todoBacklogButton" class="todo-overview-button" type="button">보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
@@ -140,6 +136,7 @@
             <section class="summary-card selected-habit-preview-card">
               <div class="selected-preview-heading">
                 <div><p class="eyebrow">HABITS</p><h3>습관</h3></div>
+                <div class="card-date-navigation"><button id="homeHabitPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="homeHabitDateLabel">오늘</strong><button id="homeHabitNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
                 <button id="selectedHabitMoreButton" class="text-action-button" type="button">모든 습관 보기</button>
               </div>
               <div id="selectedHabitPreview" class="selected-habit-preview"></div>
@@ -231,6 +228,17 @@
               <span>0%</span><i data-level="0"></i><i data-level="25"></i><i data-level="50"></i><i data-level="75"></i><i data-level="100"></i><span>100%</span>
             </div>
           </section>
+          <section class="yearly-direction-card habit-direction-card">
+            <div class="habit-section-heading"><div><p class="eyebrow">DIRECTION</p><h2 id="yearlyDirectionTitle">올해와 분기 목표</h2></div></div>
+            <label>올해 목표<textarea id="annualDirectionInput" rows="3" maxlength="1000" placeholder="올해 이루려는 결과를 적어주세요"></textarea></label>
+            <div class="quarter-direction-grid">
+              <label>1분기<textarea data-quarter-goal="0" rows="2" maxlength="500"></textarea></label>
+              <label>2분기<textarea data-quarter-goal="1" rows="2" maxlength="500"></textarea></label>
+              <label>3분기<textarea data-quarter-goal="2" rows="2" maxlength="500"></textarea></label>
+              <label>4분기<textarea data-quarter-goal="3" rows="2" maxlength="500"></textarea></label>
+            </div>
+            <div class="direction-actions"><span id="directionSaveMessage"></span><button id="saveDirectionGoalsButton" class="primary-button" type="button">목표 저장</button></div>
+          </section>
         </section>
       </section>
 
@@ -289,18 +297,6 @@
           <section class="stats-card four-week-card">
             <div class="stats-card-heading"><div><h2>최근 4주 변화</h2></div></div>
             <div id="fourWeekChange" class="four-week-change"></div>
-          </section>
-
-          <section class="stats-card yearly-direction-card">
-            <div class="stats-card-heading"><div><h2 id="yearlyDirectionTitle">올해와 분기 목표</h2></div></div>
-            <label>올해 목표<textarea id="annualDirectionInput" rows="3" maxlength="1000" placeholder="올해 이루려는 결과를 적어주세요"></textarea></label>
-            <div class="quarter-direction-grid">
-              <label>1분기<textarea data-quarter-goal="0" rows="2" maxlength="500"></textarea></label>
-              <label>2분기<textarea data-quarter-goal="1" rows="2" maxlength="500"></textarea></label>
-              <label>3분기<textarea data-quarter-goal="2" rows="2" maxlength="500"></textarea></label>
-              <label>4분기<textarea data-quarter-goal="3" rows="2" maxlength="500"></textarea></label>
-            </div>
-            <div class="direction-actions"><span id="directionSaveMessage"></span><button id="saveDirectionGoalsButton" class="primary-button" type="button">목표 저장</button></div>
           </section>
 
           <section class="stats-card workload-card">
@@ -449,6 +445,11 @@
         <div><p class="eyebrow">MOMENTUM REPORT</p><h2 id="detailedReportTitle">상세 통계 보고서</h2></div>
         <button id="closeDetailedReportButton" class="close-button" type="button">×</button>
       </header>
+      <nav class="report-week-navigation" aria-label="주간 보고서 이동">
+        <button id="reportPrevWeekButton" type="button">‹ 이전 주</button>
+        <button id="reportThisWeekButton" type="button">이번 주</button>
+        <button id="reportNextWeekButton" type="button">다음 주 ›</button>
+      </nav>
       <div id="detailedReportContent"></div>
     </article>
   </div>
@@ -501,9 +502,6 @@
     <button id="eventImportantButton" class="importance-toggle" type="button" aria-pressed="false" aria-label="중요 일정 표시">☆</button>
   </span>
 </label>
-        <label class="event-category-field">카테고리
-          <select id="eventCategory"></select>
-        </label>
         <div class="event-evaluation-row">
           <label>일정 성격
             <select id="eventEvaluationType">
@@ -513,6 +511,9 @@
             </select>
           </label>
           <label class="check-option"><input id="eventIncludeInStats" type="checkbox" checked /> 평가에 포함</label>
+          <label class="event-category-field">카테고리
+            <select id="eventCategory"></select>
+          </label>
         </div>
         <section class="event-datetime-card">
           <span class="form-section-label">날짜 및 시간</span>
@@ -613,8 +614,8 @@
         <section class="event-actual-time-card">
           <span class="form-section-label">실제 이행 시간</span>
           <div class="actual-time-grid">
-            <label>실제 시작<input id="eventActualStart" type="time" step="300" /></label>
-            <label>실제 종료<input id="eventActualEnd" type="time" step="300" /></label>
+            <label>실제 시작<input id="eventActualStart" class="wheel-time-input" type="text" inputmode="none" readonly /></label>
+            <label>실제 종료<input id="eventActualEnd" class="wheel-time-input" type="text" inputmode="none" readonly /></label>
           </div>
           <div class="actual-time-actions">
             <button id="copyPlannedTimeButton" class="secondary-button compact-button" type="button">계획시간과 동일</button>
@@ -911,6 +912,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.76"></script>
+  <script type="module" src="script.js?v=7.77"></script>
 </body>
 </html>

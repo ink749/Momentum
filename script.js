@@ -60,7 +60,7 @@ const state = {
   selectedDateKey:dateKey(new Date()), selectedProgress:0, unsubscribe:null,
   weekZoom:100, weekFit:false, weekVisibleDays:7,
   activePage:"calendar",
-  statsDate:dateKey(new Date()), statsInsightDate:null,
+  statsDate:dateKey(new Date()), statsInsightDate:null, reportWeekOffset:0,
   habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
@@ -146,6 +146,8 @@ const el = {
   statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
+  todayPrevDateButton:$("todayPrevDateButton"), todayNextDateButton:$("todayNextDateButton"),
+  homeHabitPrevDateButton:$("homeHabitPrevDateButton"), homeHabitNextDateButton:$("homeHabitNextDateButton"), homeHabitDateLabel:$("homeHabitDateLabel"),
   datePickerModal:$("datePickerModal"), datePickerGrid:$("datePickerGrid"),
   datePickerYear:$("datePickerYear"), datePickerMonth:$("datePickerMonth"),
   closeDatePicker:$("closeDatePicker"), datePickerPrevMonth:$("datePickerPrevMonth"),
@@ -665,6 +667,14 @@ function eventActualMinutes(event){
   const start=timeToMinutes(event.actualStart),end=timeToMinutes(event.actualEnd);
   return end>start?end-start:null;
 }
+function eventActualLabel(event,{short=false}={}){
+  if(event?.actualStart&&event?.actualEnd){
+    return short
+      ?`실제 ${event.actualStart}–${event.actualEnd}`
+      :`실제 ${event.actualStart}–${event.actualEnd} · ${formatDuration(eventActualMinutes(event))}`;
+  }
+  return Number(event?.progress||0)>0?"실제시간 미기록":"미이행";
+}
 function formatDuration(minutes){
   if(minutes===null||minutes===undefined)return "미기록";
   const hours=Math.floor(minutes/60),rest=minutes%60;
@@ -862,7 +872,6 @@ function renderStats(){
   renderHabitRanking(keys);
   renderEvaluationSplit(keys);
   renderFourWeekChange(selectedDate);
-  renderDirectionGoals(selectedDate.getFullYear());
 }
 function rangeSummary(keys){
   const events=keys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
@@ -892,7 +901,16 @@ function renderFourWeekChange(referenceDate){
     const keys=Array.from({length:7},(__,day)=>dateKey(addDays(start,day))).filter(key=>index<3||key<=dateKey(new Date()));
     return {start,end:addDays(start,6),summary:rangeSummary(keys),current:index===3};
   });
-  root.innerHTML=weeks.map((week,index)=>`<article class="four-week-item${week.current?" current":""}"><span>${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}–${week.end.getMonth()+1}/${week.end.getDate()}`}</span><strong>${week.summary.rate===null?"—":`${week.summary.rate}%`} <i>${index?formatRateChange(week.summary.rate,weeks[index-1].summary.rate):""}</i></strong><div class="four-week-bar"><i style="height:${week.summary.rate||0}%"></i></div><small>실행 ${Number.isInteger(week.summary.executed)?week.summary.executed:week.summary.executed.toFixed(1)}/${week.summary.planned} · 실제 ${week.summary.recordedActual?formatDuration(week.summary.actualMinutes):"미기록"}</small></article>`).join("");
+  const maxActual=Math.max(60,...weeks.map(week=>week.summary.actualMinutes));
+  const points=weeks.map((week,index)=>week.summary.recordedActual?`${55+index*100},${145-week.summary.actualMinutes/maxActual*112}`:null).filter(Boolean).join(" ");
+  const svgWeeks=weeks.map((week,index)=>{
+    const x=33+index*100,rate=week.summary.rate||0,y=145-rate*1.12;
+    const color=COLORS[[0,25,50,75,100].reduce((best,value)=>Math.abs(value-rate)<Math.abs(best-rate)?value:best,0)];
+    return `<rect x="${x}" y="${y}" width="44" height="${rate*1.12}" rx="7" fill="${color}"/><text x="${x+22}" y="${Math.max(14,y-7)}" text-anchor="middle" class="combo-rate">${week.summary.rate===null?"—":`${week.summary.rate}%`}</text><text x="${x+22}" y="169" text-anchor="middle" class="combo-label">${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}`}</text>`;
+  }).join("");
+  const dots=weeks.map((week,index)=>week.summary.recordedActual?`<circle cx="${55+index*100}" cy="${145-week.summary.actualMinutes/maxActual*112}" r="5"/><text x="${55+index*100}" y="${130-week.summary.actualMinutes/maxActual*112}" text-anchor="middle" class="combo-time">${(week.summary.actualMinutes/60).toFixed(1)}h</text>`:"").join("");
+  const latest=weeks[3].summary,previous=weeks[2].summary;
+  root.innerHTML=`<div class="four-week-legend"><span><i></i>수행률</span><span><i></i>실제 이행시간</span></div><svg class="four-week-combo" viewBox="0 0 400 180" role="img" aria-label="최근 4주 수행률과 실제 이행시간"><line x1="28" y1="145" x2="378" y2="145" class="combo-axis"/>${svgWeeks}${points?`<polyline points="${points}" class="combo-line"/>`:""}${dots}</svg><div class="four-week-delta"><span>지난주 대비 수행률 <b>${formatRateChange(latest.rate,previous.rate)}</b></span><span>실제 이행시간 <b>${latest.recordedActual&&previous.recordedActual?`${latest.actualMinutes-previous.actualMinutes>=0?"+":""}${formatDuration(Math.abs(latest.actualMinutes-previous.actualMinutes))}${latest.actualMinutes<previous.actualMinutes?" 감소":""}`:"—"}</b></span><span>실제시간 기록 <b>${latest.recordedActual}/${latest.events.length}</b></span></div>`;
 }
 function directionGoalsForYear(year){
   const saved=state.goalProfile.directionGoals?.[String(year)]||{};
@@ -907,7 +925,7 @@ function renderDirectionGoals(year=new Date().getFullYear()){
 }
 async function saveDirectionGoals(){
   if(!state.user)return;
-  const year=String(parseDateKey(state.statsDate||dateKey(new Date())).getFullYear());
+  const year=String(new Date().getFullYear());
   const directionGoals={...(state.goalProfile.directionGoals||{}),[year]:{
     annual:$("annualDirectionInput").value.trim(),
     quarters:[...document.querySelectorAll("[data-quarter-goal]")].map(input=>input.value.trim())
@@ -931,7 +949,7 @@ function renderEvaluationSplit(keys){
 }
 
 function reportData(){
-  const reference=parseDateKey(state.statsDate||dateKey(new Date()));
+  const reference=addDays(new Date(),Number(state.reportWeekOffset||0)*7);
   const start=startOfWeek(reference),end=addDays(start,6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
   const todayKey=dateKey(new Date());
   const analysisKeys=end<parseDateKey(todayKey)?keys:keys.filter(key=>key<=todayKey);
@@ -953,7 +971,7 @@ function openDetailedReport(){
   const typeCard=(name,items)=>`<p><b>${name} ${items.length?`${rate(items)}%`:"—"}</b><span>${items.length}개 · 실제 ${items.some(item=>eventActualMinutes(item)!==null)?formatDuration(items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0)):"미기록"}</span></p>`;
   const weekBoard=data.keys.map(key=>{
     const date=parseDateKey(key),items=allEventsForDate(key);
-    return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>${Number(item.progress||0)}% · ${item.actualStart&&item.actualEnd?`실제 ${item.actualStart}–${item.actualEnd}`:"실제 미기록"}</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
+    return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>${Number(item.progress||0)}% · ${eventActualLabel(item,{short:true})}</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
   }).join("");
   const categoryRows=state.categories.map(category=>{
     const items=data.events.filter(event=>eventCategory(event)===category.id);
@@ -961,7 +979,14 @@ function openDetailedReport(){
     const actual=items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0),recorded=items.filter(item=>eventActualMinutes(item)!==null).length;
     return `<tr><td>${escapeHtml(category.name)}</td><td>${items.length}</td><td>${rate(items)}%</td><td>${recorded?formatDuration(actual):"미기록"}</td></tr>`;
   }).join("");
-  const eventRows=data.keys.flatMap(key=>allEventsForDate(key).map(item=>({key,item}))).map(({key,item})=>`<tr><td>${key.slice(5)}</td><td>${escapeHtml(item.title)}</td><td>${({action:"실행과제",routine:"고정생활",general:"일반일정"})[item.evaluationType||"action"]}</td><td>${escapeHtml(categoryLabel(eventCategory(item)))}</td><td>${eventDisplayStart(item)}–${eventDisplayEnd(item)}</td><td>${item.actualStart&&item.actualEnd?`${item.actualStart}–${item.actualEnd} (${formatDuration(eventActualMinutes(item))})`:"미기록"}</td><td>${Number(item.progress||0)}%</td><td>${item.includeInStats===false?"제외":"포함"}</td></tr>`).join("");
+  const habitGroups=new Map();
+  data.habits.forEach(entry=>{if(!habitGroups.has(entry.habit.id))habitGroups.set(entry.habit.id,{habit:entry.habit,values:[]});habitGroups.get(entry.habit.id).values.push(entry.progress)});
+  const habitRows=[...habitGroups.values()].map(({habit,values})=>{const avg=Math.round(values.reduce((a,b)=>a+b,0)/values.length),counts=[0,25,50,75,100].map(value=>`${value}% ${values.filter(item=>item===value).length}`).join(" · ");return `<tr><td>${escapeHtml(habit.name)}</td><td>${values.length}일</td><td>${avg}%</td><td>${counts}</td><td>${habit.targetCount?`${Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length}/${habit.targetCount}회`:"—"}</td></tr>`}).join("");
+  const todoStatusLabel={done:"완료",cancelled:"취소",rolled:"이월",pending:"미완료"};
+  const todoRows=data.todos.map(todo=>`<tr><td>${escapeHtml(todo.text||"")}</td><td>${todo.date||"보관함"}</td><td>${todoStatusLabel[todo.status]||"미완료"}</td><td>${todo.important?"중요":"—"}</td><td>${todo.rolledFrom?"이월됨":todo.backlog?"보관함":"—"}</td></tr>`).join("");
+  const previousWeekKeys=Array.from({length:7},(_,i)=>dateKey(addDays(data.start,-7+i))),previousWeek=rangeSummary(previousWeekKeys);
+  const currentMonthKeys=monthKeys(new Date(data.reference.getFullYear(),data.reference.getMonth(),1)).filter(key=>key<=dateKey(new Date()));
+  const previousMonthDate=new Date(data.reference.getFullYear(),data.reference.getMonth()-1,1),previousMonth=rangeSummary(monthKeys(previousMonthDate)),currentMonth=rangeSummary(currentMonthKeys);
   const year=data.reference.getFullYear(),goals=directionGoalsForYear(year);
   const todayKey=dateKey(new Date());
   const monthSummaries=Array.from({length:12},(_,month)=>rangeSummary(monthKeys(new Date(year,month,1)).filter(key=>key<=todayKey)));
@@ -973,13 +998,17 @@ function openDetailedReport(){
   const quarterRows=quarterSummaries.map((summary,quarter)=>`<tr><td>${quarter+1}분기</td><td>${escapeHtml(goals.quarters[quarter]||"미설정").replace(/\n/g,"<br>")}</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${quarter?formatRateChange(summary.rate,quarterSummaries[quarter-1].rate):"—"}</td><td>${summary.recordedActual?formatDuration(summary.actualMinutes):"미기록"}</td></tr>`).join("");
   content.innerHTML=`<section><h3>이번 주 일정</h3><div class="report-week-board">${weekBoard}</div></section>
     <section class="report-summary"><article><span>종합 수행률</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>계획량 / 환산 실행량</span><strong>${data.values.length} / ${(data.values.reduce((a,b)=>a+b,0)/100).toFixed(1)}</strong></article><article><span>계획시간 / 실제시간</span><strong>${formatDuration(plannedMinutes)} / ${weekSummary.recordedActual?formatDuration(weekSummary.actualMinutes):"미기록"}</strong></article></section>
+    <section><h3>이전 기간과 비교</h3><div class="report-comparison-grid"><article><b>지난주 대비</b><span>수행률 ${formatRateChange(weekSummary.rate,previousWeek.rate)}</span><span>계획량 ${weekSummary.planned-previousWeek.planned>=0?"+":""}${weekSummary.planned-previousWeek.planned}</span><span>실제시간 ${weekSummary.recordedActual&&previousWeek.recordedActual?`${weekSummary.actualMinutes-previousWeek.actualMinutes>=0?"+":"-"}${formatDuration(Math.abs(weekSummary.actualMinutes-previousWeek.actualMinutes))}`:"—"}</span></article><article><b>지난달 대비</b><span>수행률 ${formatRateChange(currentMonth.rate,previousMonth.rate)}</span><span>계획량 ${currentMonth.planned-previousMonth.planned>=0?"+":""}${currentMonth.planned-previousMonth.planned}</span><span>실제시간 ${currentMonth.recordedActual&&previousMonth.recordedActual?`${currentMonth.actualMinutes-previousMonth.actualMinutes>=0?"+":"-"}${formatDuration(Math.abs(currentMonth.actualMinutes-previousMonth.actualMinutes))}`:"—"}</span></article></div></section>
     <section><h3>일정 성격별 평가</h3><div class="report-type-grid">${typeCard("실행과제",action)}${typeCard("고정생활",routine)}${typeCard("일반일정",general)}</div></section>
     <section><h3>카테고리별 근거</h3><table><thead><tr><th>카테고리</th><th>일정</th><th>수행률</th><th>실제시간</th></tr></thead><tbody>${categoryRows||"<tr><td colspan='4'>기록 없음</td></tr>"}</tbody></table></section>
     <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th><th>실제시간</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
     <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>계획량</th><th>실제시간</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
-    <section><h3>일정별 상세 내역</h3><div class="report-scroll"><table><thead><tr><th>날짜</th><th>일정</th><th>성격</th><th>카테고리</th><th>계획시간</th><th>실제시간</th><th>수행률</th><th>평가</th></tr></thead><tbody>${eventRows||"<tr><td colspan='8'>일정 없음</td></tr>"}</tbody></table></div></section>
-    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 일정은 0·25·50·75·100%, 완료한 할 일은 100%, 그 외 할 일은 0%로 계산합니다. 실제시간은 사용자가 실제 시작·종료를 모두 기록한 일정만 합산하며, 빈 값은 0분이 아닌 미기록입니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 실제시간 기록 ${weekSummary.recordedActual}/${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
-  $("detailedReportTitle").textContent=`${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()} 주간 보고서`;
+    <section><h3>습관 상세</h3><div class="report-scroll"><table><thead><tr><th>습관</th><th>대상</th><th>평균</th><th>수행률 분포</th><th>목표 횟수</th></tr></thead><tbody>${habitRows||"<tr><td colspan='5'>습관 기록 없음</td></tr>"}</tbody></table></div></section>
+    <section><h3>할 일 상세</h3><div class="report-scroll"><table><thead><tr><th>할 일</th><th>날짜</th><th>상태</th><th>중요</th><th>구분</th></tr></thead><tbody>${todoRows||"<tr><td colspan='5'>할 일 기록 없음</td></tr>"}</tbody></table></div></section>
+    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 수행률 0%이고 실제시간도 없으면 미이행입니다. 수행률이 있는데 실제시간이 없을 때만 실제시간 미기록으로 구분합니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 실제시간 기록 ${weekSummary.recordedActual}/${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+  const offset=Math.abs(Number(state.reportWeekOffset||0)),periodName=offset===0?"이번 주":offset===1?"지난주":`${offset}주 전`;
+  $("detailedReportTitle").textContent=`${periodName} · ${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()}`;
+  $("reportNextWeekButton").disabled=Number(state.reportWeekOffset||0)>=0;
   modal.classList.add("show");modal.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
 }
 function closeDetailedReport(){const modal=$("detailedReportModal");modal.classList.remove("show");modal.setAttribute("aria-hidden","true");document.body.style.overflow=""}
@@ -1537,6 +1566,7 @@ function renderPage(){
 }
 function renderHabits(){
   renderHabitHeatmap();
+  renderDirectionGoals(new Date().getFullYear());
 }
 function renderHabitList(){
   if(!el.habitList||!el.habitTodayLabel)return;
@@ -2179,7 +2209,7 @@ function renderGoals(){
 }
 function listenGoals(user){
   state.unsubscribeGoals?.();
-  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],directionGoals:{},...(snap.exists()?snap.data():{})};renderGoals();if(state.activePage==="stats")renderDirectionGoals(parseDateKey(state.statsDate).getFullYear())},error=>console.error("목표를 불러오지 못했습니다.",error));
+  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],directionGoals:{},...(snap.exists()?snap.data():{})};renderGoals();renderDirectionGoals(new Date().getFullYear())},error=>console.error("목표를 불러오지 못했습니다.",error));
 }
 async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
 function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
@@ -2435,6 +2465,8 @@ function renderAll(){
   el.selectedView.hidden=state.currentView!=="selected";
   el.weekView.hidden=state.currentView!=="week";
   el.weekZoomControls.hidden=state.currentView!=="week";
+  $("weekFitButton").hidden=state.currentView!=="week";
+  document.body.classList.toggle("selected-day-mode",state.activePage==="calendar"&&state.currentView==="selected");
 
   el.selectedBtn.classList.toggle("active",state.currentView==="selected");
   el.weekBtn.classList.toggle("active",state.currentView==="week");
@@ -3077,6 +3109,7 @@ function applyWeekZoom(){
   const index=WEEK_VIEW_OPTIONS.indexOf(visibleDays);
   el.weekZoomOut.disabled=index===0;
   el.weekZoomIn.disabled=index===WEEK_VIEW_OPTIONS.length-1;
+  $("weekFitButton")?.classList.toggle("active",Boolean(state.weekFit));
 }
 function changeWeekZoom(amount){
   const index=WEEK_VIEW_OPTIONS.indexOf(visibleDaysForZoom());
@@ -3176,7 +3209,7 @@ function renderWeek(){
       block.style.width=`calc(100% / ${columnCount} - 2px)`;
       block.style.background=COLORS[0];
       if(window.matchMedia("(hover:hover) and (pointer:fine)").matches){
-        const actual=event.actualStart&&event.actualEnd?` · 실제 ${event.actualStart}–${event.actualEnd}`:" · 실제시간 미기록";
+        const actual=` · ${eventActualLabel(event,{short:true})}`;
         block.title=`${event.title} · 계획 ${eventDisplayStart(event)}–${eventDisplayEnd(event)}${actual} · ${Number(event.progress||0)}%`;
       }
       block.style.setProperty(
@@ -3203,7 +3236,7 @@ function renderWeek(){
       block.innerHTML=`
         <i class="week-event-water" style="height:${Number(event.progress||0)}%"></i>
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
-        <small class="week-event-actual">${event.actualStart&&event.actualEnd?`실제 ${event.actualStart}–${event.actualEnd}`:"실제 미기록"} · ${Number(event.progress||0)}%</small>
+        <small class="week-event-actual">${eventActualLabel(event,{short:true})} · ${Number(event.progress||0)}%</small>
         ${checklistHtml}
       `;
 
@@ -4937,14 +4970,13 @@ function renderSelected(){
   if(selectedViewEyebrow)selectedViewEyebrow.textContent=isToday?"TODAY":"DAY";
   if(selectedProgressEyebrow)selectedProgressEyebrow.textContent=isToday?"TODAY PROGRESS":"DAY PROGRESS";
   if(selectedProgressTitle)selectedProgressTitle.textContent=isToday?"오늘 완료율":"이날 완료율";
-  el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${["일","월","화","수","목","금","토"][d.getDay()]}요일`;el.selectedEvents.innerHTML="";
+  const compactDateLabel=`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+  el.selectedTitle.textContent=isToday?"오늘 일정":"선택한 날 일정";el.selectedLabel.textContent=compactDateLabel;if(el.homeHabitDateLabel)el.homeHabitDateLabel.textContent=compactDateLabel;el.selectedEvents.innerHTML="";
   if(!items.length){el.selectedEvents.innerHTML='<button class="empty-message secondary-button" id="emptyAdd" type="button">등록된 일정이 없습니다.<br>일정 추가하기</button>';$("emptyAdd").onclick=()=>openCreate(state.selectedDateKey)}
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      const actualText=event.actualStart&&event.actualEnd
-        ?`실제 ${event.actualStart}–${event.actualEnd} · ${formatDuration(eventActualMinutes(event))}`
-        :"실제시간 미기록";
+      const actualText=eventActualLabel(event);
       main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><small class="selected-event-actual">${actualText}</small>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
 
       const summary=checklistSummary(event);
@@ -6055,8 +6087,22 @@ function setupWheelTimePicker(){
       dateInput:el.endDate,
       type:"end",
       title:"종료 시간"
+    },
+    {
+      input:el.actualStart,
+      dateInput:el.date,
+      type:"start",
+      title:"실제 시작 시간",
+      lockDate:true
+    },
+    {
+      input:el.actualEnd,
+      dateInput:el.date,
+      type:"end",
+      title:"실제 종료 시간",
+      lockDate:true
     }
-  ];
+  ].filter(target=>target.input);
 
   let active=null;
   let selectedIndex=9;
@@ -6211,6 +6257,7 @@ function setupWheelTimePicker(){
   };
 
   const changeDate=days=>{
+    if(active?.lockDate)return;
     boundaryShift+=days;
     temporaryDate=dateKey(
       addDays(parseDateKey(baseDateAtOpen),boundaryShift)
@@ -6331,10 +6378,12 @@ function setupWheelTimePicker(){
     const chosenHour=selectedIndex===24?0:selectedIndex;
     const chosenTime=`${pad(chosenHour)}:${pad(selectedMinute)}`;
 
-    active.dateInput.value=temporaryDate||baseDateAtOpen;
-    active.dateInput.dispatchEvent(
-      new Event("change",{bubbles:true})
-    );
+    if(!active.lockDate){
+      active.dateInput.value=temporaryDate||baseDateAtOpen;
+      active.dateInput.dispatchEvent(
+        new Event("change",{bubbles:true})
+      );
+    }
     active.input.value=chosenTime;
     active.input.dispatchEvent(
       new Event("change",{bubbles:true})
@@ -7605,9 +7654,12 @@ el.habitNav.onclick=()=>navigateToPage("habit");
 el.diaryNav.onclick=()=>navigateToPage("diary");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
-$("openDetailedReportButton")?.addEventListener("click",openDetailedReport);
+$("openDetailedReportButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
 $("closeDetailedReportButton")?.addEventListener("click",closeDetailedReport);
 $("detailedReportModal")?.addEventListener("click",event=>{if(event.target===$("detailedReportModal"))closeDetailedReport()});
+$("reportPrevWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset--;openDetailedReport()});
+$("reportNextWeekButton")?.addEventListener("click",()=>{if(state.reportWeekOffset<0)state.reportWeekOffset++;openDetailedReport()});
+$("reportThisWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
 $("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals().catch(error=>{console.error(error);$("directionSaveMessage").textContent="저장 실패"}));
 el.todoBacklogButton?.addEventListener("click",()=>{
   state.todoBacklogView=!state.todoBacklogView;
@@ -7872,6 +7924,10 @@ function shiftSelectedTodoDate(days){
 }
 if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
 if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
+if(el.todayPrevDateButton)el.todayPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
+if(el.todayNextDateButton)el.todayNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
+if(el.homeHabitPrevDateButton)el.homeHabitPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
+if(el.homeHabitNextDateButton)el.homeHabitNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
 el.todoForm.onsubmit=submitTodoForm;
 if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("event",!state.eventImportant);
 if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
