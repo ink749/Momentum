@@ -74,7 +74,7 @@ const state = {
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   todoOverviewMonth:startOfMonth(new Date()),
-  todoBacklogView:false,
+  todoOverviewMode:"calendar",
   habitMonth:startOfMonth(new Date()), unsubscribeHabits:null, unsubscribeHabitLogs:null,
   eventLogs:{}, unsubscribeEventLogs:null,
   editingChecklist:[],
@@ -174,7 +174,6 @@ const el = {
   eventId:$("eventId"), eventOccurrenceDate:$("eventOccurrenceDate"), title:$("eventTitle"), eventImportantButton:$("eventImportantButton"), category:$("eventCategory"),
   date:$("eventDate"), endDate:$("eventEndDate"),
   startClock:$("eventStartClock"), endClock:$("eventEndClock"),
-  actualStart:$("eventActualStart"), actualEnd:$("eventActualEnd"), actualDurationPreview:$("actualDurationPreview"),
   time:$("eventTime"), endTime:$("eventEndTime"),
   startHour:$("eventStartHour"), startMinute:$("eventStartMinute"),
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
@@ -201,7 +200,7 @@ const el = {
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
   calendarPage:$("calendarPage"), habitPage:$("habitPage"), diaryPage:$("diaryPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"), diaryNav:$("diaryNavButton"),
-  habitTodayLabel:$("habitTodayLabel"), habitList:$("habitList"), habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
+  habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
@@ -235,7 +234,7 @@ const el = {
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"), todoModeSwitch:$("todoModeSwitch"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
-  todoBacklog:$("todoBacklog"), todoBacklogButton:$("todoBacklogButton"),
+  todoBacklog:$("todoBacklog"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
   deleteTodoButton:$("deleteTodoButton"),
@@ -584,19 +583,13 @@ function occurrenceInstancesForDate(event,key){
       occurrenceStart<targetEnd
       &&occurrenceEnd>targetStart
     ){
-      const occurrenceLog=state.eventLogs[eventLogKey(event.id,candidateKey)]||{};
       instances.push({
         ...effectiveEvent,
         occurrenceDate:candidateKey,
         occurrenceStartDate:candidateKey,
         occurrenceEndDate:dateKey(occurrenceEnd),
         calendarDate:key,
-        progress:eventOccurrenceProgress(
-          event,
-          candidateKey
-        ),
-        actualStart:occurrenceLog.actualStart||"",
-        actualEnd:occurrenceLog.actualEnd||""
+        progress:eventOccurrenceProgress(event,candidateKey)
       });
     }
   }
@@ -663,22 +656,8 @@ function eventDisplayEnd(event){
     ||event.endTime
     ||defaultEndTime(eventDisplayStart(event));
 }
-function eventActualMinutes(event){
-  if(!event?.actualStart||!event?.actualEnd)return null;
-  const start=timeToMinutes(event.actualStart),end=timeToMinutes(event.actualEnd);
-  return end>start?end-start:null;
-}
-function eventActualLabel(event,{short=false}={}){
-  if(event?.actualStart&&event?.actualEnd){
-    return short
-      ?`실제 ${event.actualStart}–${event.actualEnd}`
-      :`실제 ${event.actualStart}–${event.actualEnd} · ${formatDuration(eventActualMinutes(event))}`;
-  }
-  return Number(event?.progress||0)>0?"실제시간 미기록":"미이행";
-}
-function formatDuration(minutes){
-  if(minutes===null||minutes===undefined)return "미기록";
-  const hours=Math.floor(minutes/60),rest=minutes%60;
+function formatMinutes(minutes){
+  const safe=Math.max(0,Number(minutes)||0),hours=Math.floor(safe/60),rest=safe%60;
   return [hours?`${hours}시간`:"",rest?`${rest}분`:""].filter(Boolean).join(" ")||"0분";
 }
 function eventsForCalendarDate(key){
@@ -878,14 +857,11 @@ function rangeSummary(keys){
   const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>habitProgress(habit.id,key)));
   const todos=keys.flatMap(key=>todosForDate(key));
   const values=[...events.map(item=>Number(item.progress||0)),...habits,...todos.map(item=>item.status==="done"?100:0)];
-  const actualMinutes=events.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0);
-  const recordedActual=events.filter(item=>eventActualMinutes(item)!==null).length;
   return {
     events,habits,todos,values,
     rate:values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null,
     planned:values.length,
-    executed:values.reduce((a,b)=>a+b,0)/100,
-    actualMinutes,recordedActual
+    executed:values.reduce((a,b)=>a+b,0)/100
   };
 }
 function formatRateChange(current,previous){
@@ -901,16 +877,13 @@ function renderFourWeekChange(referenceDate){
     const keys=Array.from({length:7},(__,day)=>dateKey(addDays(start,day))).filter(key=>index<3||key<=dateKey(new Date()));
     return {start,end:addDays(start,6),summary:rangeSummary(keys),current:index===3};
   });
-  const maxActual=Math.max(60,...weeks.map(week=>week.summary.actualMinutes));
-  const points=weeks.map((week,index)=>week.summary.recordedActual?`${55+index*100},${145-week.summary.actualMinutes/maxActual*112}`:null).filter(Boolean).join(" ");
   const svgWeeks=weeks.map((week,index)=>{
     const x=33+index*100,rate=week.summary.rate||0,y=145-rate*1.12;
     const color=progressColor(rate);
     return `<rect x="${x}" y="${y}" width="44" height="${rate*1.12}" rx="7" fill="${color}"/><text x="${x+22}" y="${Math.max(14,y-7)}" text-anchor="middle" class="combo-rate">${week.summary.rate===null?"—":`${week.summary.rate}%`}</text><text x="${x+22}" y="169" text-anchor="middle" class="combo-label">${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}`}</text>`;
   }).join("");
-  const dots=weeks.map((week,index)=>week.summary.recordedActual?`<circle cx="${55+index*100}" cy="${145-week.summary.actualMinutes/maxActual*112}" r="5"/><text x="${55+index*100}" y="${130-week.summary.actualMinutes/maxActual*112}" text-anchor="middle" class="combo-time">${(week.summary.actualMinutes/60).toFixed(1)}h</text>`:"").join("");
   const latest=weeks[3].summary,previous=weeks[2].summary;
-  root.innerHTML=`<div class="four-week-legend"><span><i></i>수행률</span><span><i></i>실제 이행시간</span></div><svg class="four-week-combo" viewBox="0 0 400 180" role="img" aria-label="최근 4주 수행률과 실제 이행시간"><line x1="28" y1="145" x2="378" y2="145" class="combo-axis"/>${svgWeeks}${points?`<polyline points="${points}" class="combo-line"/>`:""}${dots}</svg><div class="four-week-delta"><span>지난주 대비 수행률 <b>${formatRateChange(latest.rate,previous.rate)}</b></span><span>실제 이행시간 <b>${latest.recordedActual&&previous.recordedActual?`${latest.actualMinutes-previous.actualMinutes>=0?"+":""}${formatDuration(Math.abs(latest.actualMinutes-previous.actualMinutes))}${latest.actualMinutes<previous.actualMinutes?" 감소":""}`:"—"}</b></span><span>실제시간 기록 <b>${latest.recordedActual}/${latest.events.length}</b></span></div>`;
+  root.innerHTML=`<div class="four-week-legend"><span><i></i>수행률</span></div><svg class="four-week-combo" viewBox="0 0 400 180" role="img" aria-label="최근 4주 수행률"><line x1="28" y1="145" x2="378" y2="145" class="combo-axis"/>${svgWeeks}</svg><div class="four-week-delta"><span>지난주 대비 수행률 <b>${formatRateChange(latest.rate,previous.rate)}</b></span><span>금주 평가 항목 <b>${latest.planned}개</b></span><span>금주 일정 <b>${latest.events.length}개</b></span></div>`;
 }
 function directionGoalsForYear(year){
   const saved=state.goalProfile.directionGoals?.[String(year)]||{};
@@ -968,16 +941,15 @@ function openDetailedReport(){
   const weekSummary=rangeSummary(data.analysisKeys);
   const plannedMinutes=data.events.reduce((sum,item)=>sum+Math.max(0,timeToMinutes(eventDisplayEnd(item))-timeToMinutes(eventDisplayStart(item))),0);
   const distribution=[0,25,50,75,100].map(value=>`${value}% ${data.values.filter(item=>Number(item)===value).length}개`).join(" · ");
-  const typeCard=(name,items)=>`<p><b>${name} ${items.length?`${rate(items)}%`:"—"}</b><span>${items.length}개 · 실제 ${items.some(item=>eventActualMinutes(item)!==null)?formatDuration(items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0)):"미기록"}</span></p>`;
+  const typeCard=(name,items)=>`<p><b>${name} ${items.length?`${rate(items)}%`:"—"}</b><span>${items.length}개</span></p>`;
   const weekBoard=data.keys.map(key=>{
     const date=parseDateKey(key),items=allEventsForDate(key);
-    return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>${Number(item.progress||0)}% · ${eventActualLabel(item,{short:true})}</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
+    return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>수행률 ${Number(item.progress||0)}%</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
   }).join("");
   const categoryRows=state.categories.map(category=>{
     const items=data.events.filter(event=>eventCategory(event)===category.id);
     if(!items.length)return "";
-    const actual=items.reduce((sum,item)=>sum+(eventActualMinutes(item)||0),0),recorded=items.filter(item=>eventActualMinutes(item)!==null).length;
-    return `<tr><td>${escapeHtml(category.name)}</td><td>${items.length}</td><td>${rate(items)}%</td><td>${recorded?formatDuration(actual):"미기록"}</td></tr>`;
+    return `<tr><td>${escapeHtml(category.name)}</td><td>${items.length}</td><td>${rate(items)}%</td></tr>`;
   }).join("");
   const habitGroups=new Map();
   data.habits.forEach(entry=>{if(!habitGroups.has(entry.habit.id))habitGroups.set(entry.habit.id,{habit:entry.habit,values:[]});habitGroups.get(entry.habit.id).values.push(entry.progress)});
@@ -990,22 +962,22 @@ function openDetailedReport(){
   const year=data.reference.getFullYear(),goals=directionGoalsForYear(year);
   const todayKey=dateKey(new Date());
   const monthSummaries=Array.from({length:12},(_,month)=>rangeSummary(monthKeys(new Date(year,month,1)).filter(key=>key<=todayKey)));
-  const monthRows=monthSummaries.map((summary,month)=>`<tr><td>${month+1}월</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${month?formatRateChange(summary.rate,monthSummaries[month-1].rate):"—"}</td><td>${summary.planned}</td><td>${summary.recordedActual?formatDuration(summary.actualMinutes):"미기록"}</td></tr>`).join("");
+  const monthRows=monthSummaries.map((summary,month)=>`<tr><td>${month+1}월</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${month?formatRateChange(summary.rate,monthSummaries[month-1].rate):"—"}</td><td>${summary.planned}</td></tr>`).join("");
   const quarterSummaries=Array.from({length:4},(_,quarter)=>{
     const keys=[];for(let month=quarter*3;month<quarter*3+3;month++)keys.push(...monthKeys(new Date(year,month,1)));
     return rangeSummary(keys.filter(key=>key<=todayKey));
   });
-  const quarterRows=quarterSummaries.map((summary,quarter)=>`<tr><td>${quarter+1}분기</td><td>${escapeHtml(goals.quarters[quarter]||"미설정").replace(/\n/g,"<br>")}</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${quarter?formatRateChange(summary.rate,quarterSummaries[quarter-1].rate):"—"}</td><td>${summary.recordedActual?formatDuration(summary.actualMinutes):"미기록"}</td></tr>`).join("");
+  const quarterRows=quarterSummaries.map((summary,quarter)=>`<tr><td>${quarter+1}분기</td><td>${escapeHtml(goals.quarters[quarter]||"미설정").replace(/\n/g,"<br>")}</td><td>${summary.rate===null?"—":`${summary.rate}%`}</td><td>${quarter?formatRateChange(summary.rate,quarterSummaries[quarter-1].rate):"—"}</td></tr>`).join("");
   content.innerHTML=`<section><h3>이번 주 일정</h3><div class="report-week-board">${weekBoard}</div></section>
-    <section class="report-summary"><article><span>종합 수행률</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>계획량 / 환산 실행량</span><strong>${data.values.length} / ${(data.values.reduce((a,b)=>a+b,0)/100).toFixed(1)}</strong></article><article><span>계획시간 / 실제시간</span><strong>${formatDuration(plannedMinutes)} / ${weekSummary.recordedActual?formatDuration(weekSummary.actualMinutes):"미기록"}</strong></article></section>
-    <section><h3>이전 기간과 비교</h3><div class="report-comparison-grid"><article><b>지난주 대비</b><span>수행률 ${formatRateChange(weekSummary.rate,previousWeek.rate)}</span><span>계획량 ${weekSummary.planned-previousWeek.planned>=0?"+":""}${weekSummary.planned-previousWeek.planned}</span><span>실제시간 ${weekSummary.recordedActual&&previousWeek.recordedActual?`${weekSummary.actualMinutes-previousWeek.actualMinutes>=0?"+":"-"}${formatDuration(Math.abs(weekSummary.actualMinutes-previousWeek.actualMinutes))}`:"—"}</span></article><article><b>지난달 대비</b><span>수행률 ${formatRateChange(currentMonth.rate,previousMonth.rate)}</span><span>계획량 ${currentMonth.planned-previousMonth.planned>=0?"+":""}${currentMonth.planned-previousMonth.planned}</span><span>실제시간 ${currentMonth.recordedActual&&previousMonth.recordedActual?`${currentMonth.actualMinutes-previousMonth.actualMinutes>=0?"+":"-"}${formatDuration(Math.abs(currentMonth.actualMinutes-previousMonth.actualMinutes))}`:"—"}</span></article></div></section>
+    <section class="report-summary"><article><span>종합 수행률</span><strong>${data.values.length?`${totalRate}%`:"—"}</strong></article><article><span>평가 항목</span><strong>${data.values.length}개</strong></article><article><span>계획된 일정 시간</span><strong>${formatMinutes(plannedMinutes)}</strong></article></section>
+    <section><h3>이전 기간과 비교</h3><div class="report-comparison-grid"><article><b>지난주 대비</b><span>수행률 ${formatRateChange(weekSummary.rate,previousWeek.rate)}</span><span>평가 항목 ${weekSummary.planned-previousWeek.planned>=0?"+":""}${weekSummary.planned-previousWeek.planned}개</span></article><article><b>지난달 대비</b><span>수행률 ${formatRateChange(currentMonth.rate,previousMonth.rate)}</span><span>평가 항목 ${currentMonth.planned-previousMonth.planned>=0?"+":""}${currentMonth.planned-previousMonth.planned}개</span></article></div></section>
     <section><h3>일정 성격별 평가</h3><div class="report-type-grid">${typeCard("실행과제",action)}${typeCard("고정생활",routine)}${typeCard("일반일정",general)}</div></section>
-    <section><h3>카테고리별 근거</h3><table><thead><tr><th>카테고리</th><th>일정</th><th>수행률</th><th>실제시간</th></tr></thead><tbody>${categoryRows||"<tr><td colspan='4'>기록 없음</td></tr>"}</tbody></table></section>
-    <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th><th>실제시간</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
-    <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>계획량</th><th>실제시간</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
+    <section><h3>카테고리별 근거</h3><table><thead><tr><th>카테고리</th><th>일정</th><th>수행률</th></tr></thead><tbody>${categoryRows||"<tr><td colspan='3'>기록 없음</td></tr>"}</tbody></table></section>
+    <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
+    <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>평가 항목</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
     <section><h3>습관 상세</h3><div class="report-scroll"><table><thead><tr><th>습관</th><th>대상</th><th>평균</th><th>수행률 분포</th><th>목표 횟수</th></tr></thead><tbody>${habitRows||"<tr><td colspan='5'>습관 기록 없음</td></tr>"}</tbody></table></div></section>
     <section><h3>할 일 상세</h3><div class="report-scroll"><table><thead><tr><th>할 일</th><th>날짜</th><th>상태</th><th>중요</th><th>구분</th></tr></thead><tbody>${todoRows||"<tr><td colspan='5'>할 일 기록 없음</td></tr>"}</tbody></table></div></section>
-    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 진행률 합계 ÷ 항목 수. 수행률 0%이고 실제시간도 없으면 미이행입니다. 수행률이 있는데 실제시간이 없을 때만 실제시간 미기록으로 구분합니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 실제시간 기록 ${weekSummary.recordedActual}/${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 수행률 합계 ÷ 항목 수. 실제 실행시간은 추정하지 않습니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
   const offset=Math.abs(Number(state.reportWeekOffset||0)),periodName=offset===0?"이번 주":offset===1?"지난주":`${offset}주 전`;
   $("detailedReportTitle").textContent=`${periodName} · ${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()}`;
   $("reportNextWeekButton").disabled=Number(state.reportWeekOffset||0)>=0;
@@ -1559,48 +1531,7 @@ function renderPage(){
 function renderHabits(){
   renderHabitHeatmap();
   renderDirectionGoals(new Date().getFullYear());
-}
-function renderHabitList(){
-  if(!el.habitList||!el.habitTodayLabel)return;
-  const d=parseDateKey(state.selectedHabitDateKey);
-  el.habitTodayLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 습관`;
-  el.habitList.innerHTML="";
-  const active=state.habits.filter(h=>!h.archived&&habitIsActive(h,state.selectedHabitDateKey));
-  if(!active.length){
-    el.habitList.innerHTML='<div class="habit-empty">등록된 습관이 없습니다.<br>상단의 습관 추가를 눌러 시작하세요.</div>';
-    return;
-  }
-  active.forEach(habit=>{
-    const progress=habitProgress(habit.id,state.selectedHabitDateKey);
-    const item=document.createElement("article");
-    item.className="habit-item";
-    item.dataset.habitId=habit.id;
-    const streak=habitStreak(habit);
-    const achieved=Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length;
-    const target=Number(habit.targetCount||0);
-    const due=habit.showDday&&habit.endDate?` · ${formatHabitDday(habit.endDate)}`:"";
-    const count=target?` · ${achieved}/${target}회`:"";
-    item.innerHTML=`<div class="habit-item-top"><button class="habit-item-title habit-name-edit" type="button"><strong>${escapeHtml(habit.name)}</strong><small>연속 100% ${streak}일${count}${due}</small></button></div>`;
-    item.querySelector(".habit-name-edit").onclick=()=>openHabitEdit(habit);
-    const progressButton=document.createElement("button");
-    progressButton.type="button";
-    progressButton.className="habit-progress-cycle";
-    progressButton.textContent=`${progress}%`;
-    progressButton.style.setProperty("--habit-progress",`${progress*3.6}deg`);
-    progressButton.setAttribute("aria-label",`${habit.name} 완료율 ${progress}%, 눌러서 변경`);
-    progressButton.onclick=()=>{
-      const next=nextHabitProgressValue(
-        habitProgress(habit.id,state.selectedHabitDateKey)
-      );
-      setHabitProgress(
-        habit.id,
-        state.selectedHabitDateKey,
-        next,
-        {optimistic:true}
-      );
-    };
-    item.appendChild(progressButton);el.habitList.appendChild(item);
-  });
+  renderHabitBacklog();
 }
 function formatHabitDday(endDate){
   const days=Math.round((parseDateKey(endDate)-parseDateKey(dateKey(new Date())))/86400000);
@@ -2053,21 +1984,6 @@ function updateHabitProgressDom(habitId,key,progress){
     cell.setAttribute("aria-label",cell.title);
   });
 
-  // HEATMAP과 하루 화면의 순환 완료율을 즉시 동기화합니다.
-  if(key===state.selectedHabitDateKey&&el.habitList){
-    const card=el.habitList.querySelector(
-      `.habit-item[data-habit-id="${CSS.escape(habitId)}"]`
-    );
-
-    if(card){
-      const button=card.querySelector(".habit-progress-cycle");
-      if(button){
-        button.textContent=`${numericProgress}%`;
-        button.style.setProperty("--habit-progress",`${numericProgress*3.6}deg`);
-      }
-    }
-
-  }
   if(key===state.selectedDateKey){
     const previewRow=el.selectedHabitPreview?.querySelector(`.selected-habit-row[data-habit-id="${CSS.escape(habitId)}"]`);
     const previewProgress=previewRow?.querySelector(".selected-habit-progress");
@@ -2144,7 +2060,6 @@ async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
       updateHabitProgressDom(habitId,key,0);
     }
 
-    renderHabitList();
     alert("습관 기록을 저장하지 못했습니다.");
   }
 }
@@ -2711,23 +2626,43 @@ async function moveEventTo(event,newDate,newTime){
 }
 
 function setupMobileWeekSwipe(){
-  let sx=0,sy=0,tracking=false;
+  let sx=0,sy=0,dx=0,tracking=false,horizontal=false;
   el.weekView.addEventListener("touchstart",e=>{
     if(!window.matchMedia("(max-width:720px)").matches)return;
+    if(e.target.closest(".google-week-event,.google-week-selection"))return;
     const t=e.touches?.[0]; if(!t)return;
-    tracking=true; sx=t.clientX; sy=t.clientY;
+    tracking=true;horizontal=false;dx=0;sx=t.clientX;sy=t.clientY;
+    el.weekView.style.transition="none";
   },{passive:true,capture:true});
+  el.weekView.addEventListener("touchmove",e=>{
+    if(!tracking)return;
+    const t=e.touches?.[0];if(!t)return;
+    dx=t.clientX-sx;const dy=t.clientY-sy;
+    if(!horizontal&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.2)horizontal=true;
+    if(!horizontal)return;
+    e.preventDefault();
+    el.weekView.style.transform=`translateX(${dx*.55}px)`;
+    el.weekView.style.opacity=String(Math.max(.72,1-Math.abs(dx)/900));
+  },{passive:false,capture:true});
   el.weekView.addEventListener("touchend",e=>{
     if(!tracking||!window.matchMedia("(max-width:720px)").matches)return;
-    tracking=false; const t=e.changedTouches?.[0]; if(!t)return;
-    const dx=t.clientX-sx,dy=t.clientY-sy;
-    if(Math.abs(dx)<70||Math.abs(dx)<=Math.abs(dy)*1.25)return;
+    tracking=false;const t=e.changedTouches?.[0];if(!t)return;
+    const finalDx=t.clientX-sx,dy=t.clientY-sy;
+    const change=horizontal&&Math.abs(finalDx)>=70&&Math.abs(finalDx)>Math.abs(dy)*1.2;
+    el.weekView.style.transition="transform 180ms ease,opacity 180ms ease";
+    if(!change){el.weekView.style.transform="";el.weekView.style.opacity="";return}
+    el.weekView.style.transform=`translateX(${finalDx<0?"-105%":"105%"})`;
+    el.weekView.style.opacity=".35";
+    setTimeout(()=>{
     state.currentWeek=addDays(
       state.currentWeek,
-      (dx<0?1:-1)*visibleDaysForZoom()
+      (finalDx<0?1:-1)*visibleDaysForZoom()
     );
-    state.weekInitialScrollDone=false; renderPeriodLabel(); renderWeek(); haptic(10);
+      el.weekView.style.transition="none";el.weekView.style.transform="";el.weekView.style.opacity="";
+      state.weekInitialScrollDone=false;renderPeriodLabel();renderWeek();haptic(10);
+    },180);
   },{passive:true,capture:true});
+  el.weekView.addEventListener("touchcancel",()=>{tracking=false;horizontal=false;el.weekView.style.transform="";el.weekView.style.opacity=""},{passive:true});
 }
 
 function bindDesktopDrag(element,event){
@@ -2942,7 +2877,7 @@ function applyWeekZoom(){
   const zoom=visibleDays<=3?125:visibleDays<=7?100:visibleDays<=10?75:55;
   const rowHeight=state.weekFit
     ?Math.max(18,Math.floor((window.innerHeight-(mobile?150:170))/24))
-    :Math.max(mobile?21:20,Math.round((mobile?36:40)*(0.54+0.46*zoom/100)));
+    :Math.max(mobile?24:22,Math.round((mobile?48:52)*(0.54+0.46*zoom/100)));
 
   document.documentElement.style.setProperty(
     "--week-time-width",
@@ -3038,7 +2973,7 @@ function renderWeek(){
     column.dataset.date=key;
     if(key===dateKey(new Date()))column.classList.add("today");
 
-    bindGoogleWeekCreateGesture(column,key);
+    bindWeekCreateGesture(column,key);
     bindGoogleWeekDrop(column,key);
 
     const layout=layoutOverlappingEvents(eventsForCalendarDate(key));
@@ -3058,10 +2993,7 @@ function renderWeek(){
       const progress=Number(event.progress||0);
       const eventProgressColor=progressColor(progress);
       block.style.setProperty("--event-progress-color",eventProgressColor);
-      if(window.matchMedia("(hover:hover) and (pointer:fine)").matches){
-        const actual=` · ${eventActualLabel(event,{short:true})}`;
-        block.title=`${event.title} · 계획 ${eventDisplayStart(event)}–${eventDisplayEnd(event)}${actual} · ${Number(event.progress||0)}%`;
-      }
+      if(window.matchMedia("(hover:hover) and (pointer:fine)").matches)block.title=`${event.title} · ${eventDisplayStart(event)}–${eventDisplayEnd(event)} · ${progress}%`;
       block.style.setProperty(
         "--event-category-color",
         categoryColor(eventCategory(event))
@@ -3085,25 +3017,10 @@ function renderWeek(){
 
       block.innerHTML=`
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
-        <small class="week-event-actual">${eventActualLabel(event,{short:true})} · ${progress}%</small>
+        <small class="week-event-progress">${progress}%</small>
         ${checklistHtml}
+        <i class="week-event-resize-handle" aria-hidden="true"></i>
       `;
-
-      if(event.actualStart&&event.actualEnd){
-        const actualStartMinutes=timeToMinutes(event.actualStart);
-        const actualEndMinutes=timeToMinutes(event.actualEnd);
-        const actualDuration=Math.max(30,actualEndMinutes-actualStartMinutes);
-        const actualBlock=document.createElement("div");
-        actualBlock.className="google-week-actual-event";
-        actualBlock.style.top=`calc(var(--week-row-height) * ${actualStartMinutes/60})`;
-        actualBlock.style.height=`calc(var(--week-row-height) * ${actualDuration/60})`;
-        actualBlock.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
-        actualBlock.style.width=`calc(100% / ${columnCount} - 2px)`;
-        actualBlock.style.setProperty("--event-progress-color",eventProgressColor);
-        actualBlock.style.setProperty("--event-category-color",categoryColor(eventCategory(event)));
-        actualBlock.innerHTML=`<strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.actualStart)}–${escapeHtml(event.actualEnd)} · ${progress}%</small>`;
-        column.appendChild(actualBlock);
-      }
 
       bindChecklistTaps(
         block,
@@ -3134,6 +3051,7 @@ function renderWeek(){
       });
 
       bindDesktopDrag(block,event);
+      bindEventResize(block,event,column);
       bindGoogleMobileMove(block,event);
 
       column.appendChild(block);
@@ -3306,64 +3224,6 @@ function googleWeekPointerMinutes(column,clientY){
   );
 }
 
-function bindGoogleWeekCreateGesture(column,date){
-  let pointerId=null;
-  let startedAt=0;
-  let startX=0;
-  let startY=0;
-  let startMinutes=0;
-  let cancelled=false;
-
-  column.addEventListener("pointerdown",pointerEvent=>{
-    if(pointerEvent.button!==0||pointerEvent.target.closest(".google-week-event"))return;
-
-    pointerId=pointerEvent.pointerId;
-    startedAt=performance.now();
-    startX=pointerEvent.clientX;
-    startY=pointerEvent.clientY;
-    startMinutes=googleWeekPointerMinutes(column,pointerEvent.clientY);
-    cancelled=false;
-  });
-
-  column.addEventListener("pointermove",pointerEvent=>{
-    if(pointerId!==pointerEvent.pointerId)return;
-
-    if(
-      Math.hypot(
-        pointerEvent.clientX-startX,
-        pointerEvent.clientY-startY
-      )>6
-    ){
-      cancelled=true;
-    }
-  },{passive:true});
-
-  column.addEventListener("pointerup",pointerEvent=>{
-    if(pointerId!==pointerEvent.pointerId)return;
-
-    const heldFor=performance.now()-startedAt;
-    pointerId=null;
-
-    const maxTapDuration=["touch","pen"].includes(pointerEvent.pointerType)?180:350;
-    if(cancelled||heldFor>maxTapDuration)return;
-
-    pointerEvent.preventDefault();
-    pointerEvent.stopPropagation();
-
-    const start=minutesToTime(startMinutes);
-    state.selectedDateKey=date;
-
-    setTimeout(()=>{
-      openCreate(date,start,defaultEndTime(start));
-    },0);
-  });
-
-  column.addEventListener("pointercancel",()=>{
-    pointerId=null;
-    cancelled=true;
-  });
-}
-
 function bindGoogleWeekDrop(column,date){
   let silhouette=null;
 
@@ -3486,7 +3346,7 @@ function bindWeekCreateGesture(column,date){
   };
 
   column.addEventListener("pointerdown",pointerEvent=>{
-    if(pointerEvent.button!==0||pointerEvent.target.closest(".week-event"))return;
+    if(pointerEvent.button!==0||pointerEvent.target.closest(".google-week-event"))return;
 
     pointerId=pointerEvent.pointerId;
     startX=pointerEvent.clientX;
@@ -3559,7 +3419,7 @@ function bindWeekCreateGesture(column,date){
   });
 
   column.addEventListener("click",clickEvent=>{
-    if(suppressClick||clickEvent.target.closest(".week-event"))return;
+    if(suppressClick||clickEvent.target.closest(".google-week-event"))return;
 
     const start=minutesToTime(
       weekPointerMinutes(column,clickEvent.clientY)
@@ -4173,14 +4033,14 @@ function syncTodoBacklogForm(){
   el.todoDate.closest("label").classList.toggle("field-disabled",backlog);
   el.todoRepeat.closest("label").classList.toggle("field-disabled",backlog);
 }
-function resetTodoForm(date=state.selectedDateKey){
+function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoForm.reset();
   el.todoEditId.value="";
   el.todoOccurrenceDate.value="";
   el.todoDate.value=date||dateKey(new Date());
   el.todoRepeat.value="none";
   el.todoMemo.value="";
-  if(el.todoBacklog)el.todoBacklog.checked=state.todoBacklogView;
+  if(el.todoBacklog)el.todoBacklog.checked=backlog;
   syncTodoBacklogForm();
   setImportance("todo",false);
   state.editingTodoChecklist=[];
@@ -4205,8 +4065,8 @@ function closeTodoModalFromHistory(){
   document.body.style.overflow=state.dayViewOpen?"hidden":"";
   state.modalHistoryType=null;
 }
-function openTodoCreate(date=state.selectedDateKey){
-  resetTodoForm(date);
+function openTodoCreate(date=state.selectedDateKey,options={}){
+  resetTodoForm(date,options);
   el.todoModalEyebrow.textContent="NEW TO DO";
   el.todoModalTitle.textContent="할 일 추가";
   if(el.todoModeSwitch)el.todoModeSwitch.hidden=false;
@@ -4335,12 +4195,14 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   text.onclick=event=>{
     event.preventDefault();
     event.stopPropagation();
+    if(row.dataset.swiped==="true")return;
     openTodoEdit(todo);
   };
 
   const meta=document.createElement("small");
   meta.className="todo-meta";
-  if((todo.repeat||"none")!=="none")meta.textContent="↻";
+  if(todo.backlog)meta.textContent="보관함";
+  else if((todo.repeat||"none")!=="none")meta.textContent="↻";
 
   btn.onclick=event=>{
     event.preventDefault();
@@ -4360,7 +4222,47 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   };
 
   row.append(btn,text,meta);
+  if(!todo.backlog)bindTodoArchiveSwipe(row,todo);
   return row;
+}
+async function archiveTodo(todo){
+  if(!state.user||!todo)return;
+  await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{
+    backlog:true,date:"",repeat:"none",status:"pending",updatedAt:serverTimestamp()
+  });
+  showToast("할 일 보관함으로 옮겼습니다.");
+}
+function bindTodoArchiveSwipe(row,todo){
+  let pointerId=null,startX=0,startY=0,offset=0,active=false;
+  row.addEventListener("pointerdown",event=>{
+    if(!["touch","pen"].includes(event.pointerType))return;
+    pointerId=event.pointerId;startX=event.clientX;startY=event.clientY;offset=0;active=false;
+  });
+  row.addEventListener("pointermove",event=>{
+    if(event.pointerId!==pointerId)return;
+    const dx=event.clientX-startX,dy=event.clientY-startY;
+    if(!active&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.2)active=true;
+    if(!active)return;
+    event.preventDefault();
+    offset=Math.max(-110,Math.min(0,dx));
+    row.style.transform=`translateX(${offset}px)`;
+    row.style.opacity=String(1-Math.abs(offset)/260);
+  },{passive:false});
+  const finish=async event=>{
+    if(event.pointerId!==pointerId)return;
+    pointerId=null;
+    row.style.transition="transform 180ms ease,opacity 180ms ease";
+    if(active&&offset<=-60){
+      row.style.transform="translateX(-110%)";row.style.opacity="0";
+      row.dataset.swiped="true";
+      try{await archiveTodo(todo)}catch(error){console.error(error);showToast("보관하지 못했습니다.");renderTodos()}
+    }else{
+      row.style.transform="";row.style.opacity="";
+    }
+    setTimeout(()=>{row.style.transition=""},200);
+  };
+  row.addEventListener("pointerup",finish);
+  row.addEventListener("pointercancel",finish);
 }
 function updateTodoStatusDom(todo,status){
   document.querySelectorAll(
@@ -4379,12 +4281,10 @@ function renderTodos(){
   if(!el.todoList)return;
   const key=state.selectedDateKey;
   const d=parseDateKey(key);
-  const items=state.todoBacklogView
-    ?state.todos.filter(todo=>todo.backlog).sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0))
-    :todosForDate(key);
+  const items=todosForDate(key);
 
   if(el.todoSelectedDateLabel){
-    el.todoSelectedDateLabel.textContent=state.todoBacklogView?"할 일 보관함":`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+    el.todoSelectedDateLabel.textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
   }
 
   el.todoList.innerHTML="";
@@ -4394,13 +4294,31 @@ function renderTodos(){
     const empty=document.createElement("button");
     empty.type="button";
     empty.className="todo-empty todo-empty-button";
-    empty.textContent=state.todoBacklogView?"보관한 할 일이 없습니다. 눌러서 추가":"등록된 할 일이 없습니다. 눌러서 추가";
+    empty.textContent="등록된 할 일이 없습니다. 눌러서 추가";
     empty.onclick=()=>openTodoCreate(key);
     el.todoList.appendChild(empty);
     return;
   }
 
   items.forEach(todo=>el.todoList.appendChild(renderTodoRow(todo)));
+}
+function backlogTodos(){
+  return state.todos.filter(todo=>todo.backlog).sort((a,b)=>(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0));
+}
+function renderHabitBacklog(){
+  const list=$("habitBacklogList");if(!list)return;
+  const items=backlogTodos();list.innerHTML="";
+  if(!items.length){list.innerHTML='<p class="todo-overview-empty">보관한 할 일이 없습니다.</p>';return}
+  items.forEach(todo=>list.appendChild(renderTodoRow(todo,{compact:true})));
+}
+async function addHabitBacklog(){
+  const input=$("habitBacklogInput"),text=input?.value.trim();if(!state.user||!text)return;
+  try{
+    await addDoc(collection(db,"users",state.user.uid,"todos"),{
+      text,date:"",repeat:"none",memo:"",checklist:[],important:false,backlog:true,status:"pending",rolledFrom:"",rolledTo:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
+    input.value="";
+  }catch(error){console.error(error);showToast("보관함에 저장하지 못했습니다.")}
 }
 async function addTodo(){
   const text=el.todoInput?.value.trim()||"";
@@ -4697,6 +4615,7 @@ function listenTodos(user){
         return;
       }
       renderTodos();
+      if(state.activePage==="habit")renderHabitBacklog();
       if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
       cleanupDuplicateRolledTodos().then(()=>rollPendingTodosToToday());
@@ -4721,6 +4640,7 @@ function listenTodos(user){
         return;
       }
       renderTodos();
+      if(state.activePage==="habit")renderHabitBacklog();
       if(el.todoOverviewModal?.classList.contains("show"))renderTodoOverview();
       if(state.activePage==="stats")renderStats();
     },
@@ -4764,14 +4684,30 @@ function closeTodoOverviewFromHistory(){
 function renderTodoOverview(){
   if(!el.todoOverviewList)return;
 
+  const backlogMode=state.todoOverviewMode==="backlog";
+  const toolbar=el.todoOverviewModal.querySelector(".todo-overview-toolbar");
+  if(toolbar)toolbar.hidden=backlogMode;
+  $("todoOverviewCalendarTab")?.classList.toggle("active",!backlogMode);
+  $("todoOverviewBacklogTab")?.classList.toggle("active",backlogMode);
+  el.todoOverviewList.innerHTML="";
+
+  if(backlogMode){
+    const items=backlogTodos();
+    if(!items.length){el.todoOverviewList.innerHTML='<div class="todo-overview-empty">보관한 할 일이 없습니다.</div>';return}
+    const group=document.createElement("section");
+    group.className="todo-overview-day backlog-overview-group";
+    const list=document.createElement("div");
+    list.className="todo-overview-day-list";
+    items.forEach(todo=>list.appendChild(renderTodoRow(todo,{compact:true})));
+    group.appendChild(list);el.todoOverviewList.appendChild(group);return;
+  }
+
   const month=state.todoOverviewMonth;
   const y=month.getFullYear();
   const m=month.getMonth();
   const last=new Date(y,m+1,0);
 
   el.todoOverviewMonthLabel.textContent=`${y}년 ${m+1}월`;
-  el.todoOverviewList.innerHTML="";
-
   let shown=0;
 
   for(let day=1;day<=last.getDate();day++){
@@ -4840,8 +4776,7 @@ function renderSelected(){
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      const actualText=eventActualLabel(event);
-      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong><small class="selected-event-actual">${actualText}</small>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
+      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
 
       const summary=checklistSummary(event);
       if(summary){
@@ -5011,14 +4946,6 @@ function renderSummary(){
 }
 
 function setProgress(v){state.selectedProgress=Number(v);document.querySelectorAll("#progressOptions button").forEach(b=>{const p=Number(b.dataset.value);b.classList.toggle("selected",p===state.selectedProgress);b.style.background=COLORS[p];b.style.color=p<=25?"#557066":"#fff"});if(el.progressSummary)el.progressSummary.textContent=`${state.selectedProgress}%`}
-
-function updateActualDurationPreview(){
-  if(!el.actualDurationPreview)return;
-  const start=el.actualStart?.value||"",end=el.actualEnd?.value||"";
-  if(!start||!end){el.actualDurationPreview.textContent="미기록";return}
-  const minutes=timeToMinutes(end)-timeToMinutes(start);
-  el.actualDurationPreview.textContent=minutes>0?formatDuration(minutes):"시간 확인 필요";
-}
 
 function normalizeChecklist(items){
   if(!Array.isArray(items))return [];
@@ -5406,9 +5333,6 @@ function resetForm(){
   state.editingChecklist=[];
   el.formError.textContent="";
   setProgress(0);
-  if(el.actualStart)el.actualStart.value="";
-  if(el.actualEnd)el.actualEnd.value="";
-  updateActualDurationPreview();
   renderChecklistEditor();
   syncCompactEventForm();
 }
@@ -5498,9 +5422,6 @@ function openEdit(event){
   if(modeSwitch)modeSwitch.hidden=true;
 
   setProgress(event.progress);
-  if(el.actualStart)el.actualStart.value=event.actualStart||"";
-  if(el.actualEnd)el.actualEnd.value=event.actualEnd||"";
-  updateActualDurationPreview();
   syncCompactEventForm();
   showModal();
 }
@@ -5950,20 +5871,6 @@ function setupWheelTimePicker(){
       dateInput:el.endDate,
       type:"end",
       title:"종료 시간"
-    },
-    {
-      input:el.actualStart,
-      dateInput:el.date,
-      type:"start",
-      title:"실제 시작 시간",
-      lockDate:true
-    },
-    {
-      input:el.actualEnd,
-      dateInput:el.date,
-      type:"end",
-      title:"실제 종료 시간",
-      lockDate:true
     }
   ].filter(target=>target.input);
 
@@ -6129,7 +6036,7 @@ function setupWheelTimePicker(){
   };
 
   const applyBoundary=(previous,next)=>{
-    // 날짜는 실제 시간 휠의 끝단을 넘었을 때만 보정합니다.
+    // 날짜는 시간 휠의 끝단을 넘었을 때만 보정합니다.
     // 23시 -> 아래쪽 00시(index 24): 다음 날
     if(previous===23&&next===24){
       changeDate(1);
@@ -6907,7 +6814,7 @@ async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef})
   });
 }
 
-async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress,actualStart="",actualEnd=""){
+async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress){
   const logId=eventLogKey(eventId,occurrenceDate);
   const numericProgress=Number(progress||0);
 
@@ -6916,9 +6823,7 @@ async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress,a
     id:logId,
     eventId,
     date:occurrenceDate,
-    progress:numericProgress,
-    actualStart,
-    actualEnd
+    progress:numericProgress
   };
   skipSnapshotRenders("Event",2);
 
@@ -6928,8 +6833,6 @@ async function saveRecurringOccurrenceProgress(eventId,occurrenceDate,progress,a
       eventId,
       date:occurrenceDate,
       progress:numericProgress,
-      actualStart,
-      actualEnd,
       updatedAt:serverTimestamp()
     },
     {merge:true}
@@ -6958,8 +6861,6 @@ async function submit(event){
   const checklist=normalizeChecklist(state.editingChecklist);
   const eventId=el.eventId.value;
   const occurrenceDate=el.eventOccurrenceDate.value||date;
-  const actualStart=el.actualStart?.value||"";
-  const actualEnd=el.actualEnd?.value||"";
 
   if(!title||!date||!endDate||!time||!endTime)return;
 
@@ -6978,15 +6879,6 @@ async function submit(event){
     el.formError.textContent="반복할 요일을 하나 이상 선택하세요.";
     return;
   }
-  if(Boolean(actualStart)!==Boolean(actualEnd)){
-    el.formError.textContent="실제 시작시간과 종료시간을 모두 입력하거나 모두 비워주세요.";
-    return;
-  }
-  if(actualStart&&timeToMinutes(actualEnd)<=timeToMinutes(actualStart)){
-    el.formError.textContent="실제 종료시간은 실제 시작시간보다 늦어야 합니다.";
-    return;
-  }
-
   const eventsRef=collection(db,"users",state.user.uid,"events");
 
   try{
@@ -7009,8 +6901,6 @@ async function submit(event){
         memo,
         checklist,
         important,
-        actualStart:repeat==="none"?actualStart:"",
-        actualEnd:repeat==="none"?actualEnd:"",
         updatedAt:serverTimestamp()
       };
 
@@ -7025,13 +6915,7 @@ async function submit(event){
           occurrenceDate,
           eventsRef
         });
-        await saveRecurringOccurrenceProgress(
-          source.id,
-          occurrenceDate,
-          state.selectedProgress,
-          actualStart,
-          actualEnd
-        );
+        await saveRecurringOccurrenceProgress(source.id,occurrenceDate,state.selectedProgress);
         await finishEventSave(occurrenceDate);
         return;
       }
@@ -7075,8 +6959,6 @@ async function submit(event){
         memo,
         checklist,
         important,
-        actualStart:repeat==="none"?actualStart:"",
-        actualEnd:repeat==="none"?actualEnd:"",
         progress:repeat==="none"?state.selectedProgress:0,
         createdAt:serverTimestamp(),
         updatedAt:serverTimestamp()
@@ -7088,7 +6970,7 @@ async function submit(event){
         );
       });
 
-      if(repeat!=="none"&&(state.selectedProgress>0||actualStart||actualEnd)){
+      if(repeat!=="none"&&state.selectedProgress>0){
         await setDoc(
           doc(
             db,
@@ -7101,8 +6983,6 @@ async function submit(event){
             eventId:created.id,
             date,
             progress:state.selectedProgress,
-            actualStart,
-            actualEnd,
             updatedAt:serverTimestamp()
           }
         );
@@ -7516,11 +7396,6 @@ $("reportPrevWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset-
 $("reportNextWeekButton")?.addEventListener("click",()=>{if(state.reportWeekOffset<0)state.reportWeekOffset++;openDetailedReport()});
 $("reportThisWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
 $("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals().catch(error=>{console.error(error);$("directionSaveMessage").textContent="저장 실패"}));
-el.todoBacklogButton?.addEventListener("click",()=>{
-  state.todoBacklogView=!state.todoBacklogView;
-  el.todoBacklogButton.classList.toggle("active",state.todoBacklogView);
-  renderTodos();
-});
 el.todoBacklog?.addEventListener("change",()=>{
   syncTodoBacklogForm();
 });
@@ -7626,17 +7501,6 @@ el.endDate.addEventListener("change",()=>{
     el.endDate.value=el.date.value;
   }
 });
-[el.actualStart,el.actualEnd].forEach(input=>input?.addEventListener("change",updateActualDurationPreview));
-$("copyPlannedTimeButton")?.addEventListener("click",()=>{
-  el.actualStart.value=el.time.value||el.startClock.value;
-  el.actualEnd.value=el.endTime.value||el.endClock.value;
-  updateActualDurationPreview();
-});
-$("clearActualTimeButton")?.addEventListener("click",()=>{
-  el.actualStart.value="";
-  el.actualEnd.value="";
-  updateActualDurationPreview();
-});
 el.repeat.addEventListener("change",updateRepeatControls);
 el.editScope.addEventListener("change",updateEditScopeControls);
 el.editRangeStart.addEventListener("change",()=>{
@@ -7675,6 +7539,10 @@ el.mobileEndTime.addEventListener("change",syncHiddenTimes);
 el.quickAddButton.onclick=submitQuickAdd;
 if(el.todoAddButton)el.todoAddButton.onclick=addTodo;
 if(el.todoOverviewButton)el.todoOverviewButton.onclick=showTodoOverview;
+$("todoOverviewCalendarTab")?.addEventListener("click",()=>{state.todoOverviewMode="calendar";renderTodoOverview()});
+$("todoOverviewBacklogTab")?.addEventListener("click",()=>{state.todoOverviewMode="backlog";renderTodoOverview()});
+$("habitBacklogAddButton")?.addEventListener("click",addHabitBacklog);
+$("habitBacklogInput")?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();addHabitBacklog()}});
 if(el.todoOverviewPrevMonth)el.todoOverviewPrevMonth.onclick=()=>{
   state.todoOverviewMonth=new Date(
     state.todoOverviewMonth.getFullYear(),

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.79" />
+  <link rel="stylesheet" href="style.css?v=7.81" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -105,7 +105,7 @@
             </div>
             <div class="quick-add-controls">
               <input id="quickAddInput" type="text" maxlength="100" placeholder="빠른 입력" />
-              <button id="quickAddButton" class="quick-register-button" type="button">등록</button>
+              <button id="quickAddButton" class="quick-register-button" type="button">저장</button>
             </div>
             <p id="quickAddMessage" class="quick-add-message"></p>
           </section>
@@ -120,14 +120,13 @@
               </div>
               <div class="card-date-navigation"><button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="todoSelectedDateLabel">오늘</strong><button class="card-month-picker" type="button" aria-label="연도와 월 선택" title="연도와 월 선택">▾</button><button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <div class="todo-date-nav">
-                <button id="todoBacklogButton" class="todo-overview-button" type="button">보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
                 <span id="todoDayCount" class="todo-day-count">0개</span>
               </div>
             </div>
             <div class="todo-add-row">
               <input id="todoInput" type="text" maxlength="120" placeholder="할 일 추가" />
-              <button id="todoAddButton" type="button" class="todo-add-button">추가</button>
+              <button id="todoAddButton" type="button" class="todo-add-button">저장</button>
             </div>
             <div id="todoList" class="todo-list"></div>
           </section>
@@ -237,7 +236,12 @@
               <label>3분기<textarea data-quarter-goal="2" rows="2" maxlength="500"></textarea></label>
               <label>4분기<textarea data-quarter-goal="3" rows="2" maxlength="500"></textarea></label>
             </div>
-            <div class="direction-actions"><span id="directionSaveMessage"></span><button id="saveDirectionGoalsButton" class="primary-button" type="button">목표 저장</button></div>
+            <div class="direction-actions"><span id="directionSaveMessage"></span><button id="saveDirectionGoalsButton" class="primary-button" type="button">저장</button></div>
+          </section>
+          <section class="habit-backlog-card">
+            <div class="habit-section-heading"><div><p class="eyebrow">SOMEDAY</p><h2>언젠가 할 일</h2></div></div>
+            <div class="habit-backlog-add"><input id="habitBacklogInput" type="text" maxlength="120" placeholder="언젠가 할 일"><button id="habitBacklogAddButton" class="primary-button" type="button">저장</button></div>
+            <div id="habitBacklogList" class="todo-list habit-backlog-list"></div>
           </section>
         </section>
       </section>
@@ -611,18 +615,6 @@
             <button type="button" data-value="100">100%</button>
           </div>
         </fieldset>
-        <section class="event-actual-time-card">
-          <span class="form-section-label">실제 이행 시간</span>
-          <div class="actual-time-grid">
-            <label>실제 시작<input id="eventActualStart" class="wheel-time-input" type="text" inputmode="none" readonly /></label>
-            <label>실제 종료<input id="eventActualEnd" class="wheel-time-input" type="text" inputmode="none" readonly /></label>
-          </div>
-          <div class="actual-time-actions">
-            <button id="copyPlannedTimeButton" class="secondary-button compact-button" type="button">계획시간과 동일</button>
-            <button id="clearActualTimeButton" class="text-action-button" type="button">실제시간 지우기</button>
-            <strong id="actualDurationPreview">미기록</strong>
-          </div>
-        </section>
         <p id="formError" class="error-message"></p>
         <div class="modal-actions event-modal-actions">
           <div class="event-delete-actions">
@@ -714,6 +706,10 @@
         <strong id="todoOverviewMonthLabel"></strong>
         <button id="todoOverviewThisMonth" class="secondary-button compact-button" type="button">이번 달</button>
         <button id="todoOverviewNextMonth" class="round-button" type="button" aria-label="다음 달">›</button>
+      </div>
+      <div class="todo-overview-tabs" role="tablist">
+        <button id="todoOverviewCalendarTab" class="active" type="button" role="tab">날짜별</button>
+        <button id="todoOverviewBacklogTab" type="button" role="tab">보관함</button>
       </div>
       <div id="todoOverviewList" class="todo-overview-list"></div>
     </div>
@@ -888,6 +884,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.79"></script>
+  <script type="module" src="script.js?v=7.81"></script>
 </body>
 </html>
