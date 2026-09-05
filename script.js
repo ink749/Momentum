@@ -19,6 +19,15 @@ const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 const COLORS = {0:"#e8efea",25:"#cde6d8",50:"#98ccb0",75:"#5daf82",100:"#1f8a5b"};
+const PROGRESS_STEPS=[0,25,50,75,100];
+function progressColor(value){
+  const numeric=Number(value||0);
+  const step=PROGRESS_STEPS.reduce(
+    (best,candidate)=>Math.abs(candidate-numeric)<Math.abs(best-numeric)?candidate:best,
+    0
+  );
+  return COLORS[step];
+}
 const THEMES=[
   {id:"green",name:"녹색",main:"#8bcf4a",dark:"#5f9230",soft:"#f0f9e7",bg:"#f9fcf6",muted:"#f4f9ef",line:"#e1ecd8",text:"#2f3d27",glow:"#b9e58e"},
   {id:"red-brown",name:"붉은색 / 갈색",main:"#a85645",dark:"#743c31",soft:"#f7ebe7",bg:"#fbf7f5",muted:"#f7f1ee",line:"#eaded8",text:"#3d2d29",glow:"#d99a84"},
@@ -76,9 +85,6 @@ const state = {
   editingCategories:[],
   unsubscribeCategories:null,
   modalHistoryType:null,
-  contextTargetDate:null,
-  contextTargetTime:"09:00",
-  contextEvent:null,
   dragEvent:null,
   dragGrabOffsetMinutes:0,
   pendingWeekScroll:null,
@@ -99,7 +105,7 @@ const state = {
   ignoreNextPopstate:false,
   undoStack:[],
   isUndoing:false,
-  goalProfile:{challenges:[],directionGoals:{}}, unsubscribeGoals:null, editingGoalChecklist:[]
+  goalProfile:{directionGoals:{}}, unsubscribeGoals:null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -201,9 +207,8 @@ const el = {
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
-  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"), mobileAdd:$("mobileAddButton"),
+  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
-  goalList:$("goalList"), homeGoalPreview:$("homeGoalPreview"), goalModal:$("goalModal"), goalModalTitle:$("goalModalTitle"), goalForm:$("goalForm"), goalId:$("goalId"), goalName:$("goalName"), goalMode:$("goalMode"), goalTarget:$("goalTarget"), goalTargetWrap:$("goalTargetWrap"), goalCurrent:$("goalCurrent"), goalCurrentWrap:$("goalCurrentWrap"), goalDate:$("goalDate"), goalMemo:$("goalMemo"), goalChecklistItems:$("goalChecklistItems"), goalComplete:$("goalComplete"), goalCompleteWrap:$("goalCompleteWrap"), deleteGoalButton:$("deleteGoalButton"), goalMessage:$("goalMessage"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
@@ -246,7 +251,6 @@ const el = {
   dayViewGrid:$("dayViewGrid"), dayViewScroll:$("dayViewScroll"),
   dayViewPrev:$("dayViewPrev"), dayViewToday:$("dayViewToday"),
   dayViewNext:$("dayViewNext"), dayViewClose:$("dayViewClose"),
-  eventContextMenu:$("eventContextMenu"),
   categoryFilterButtons:$("categoryFilterButtons"), openCategoryManagerButton:$("openCategoryManagerButton"),
   weekCategoryManagerButton:$("weekCategoryManagerButton"),
   categoryManagerModal:$("categoryManagerModal"), categoryManagerList:$("categoryManagerList"),
@@ -300,9 +304,6 @@ function defaultEndTime(start){
 function roundTimeValue(value){
   if(!value)return "00:00";
   return minutesToTime(timeToMinutes(value));
-}
-function isMobileTimeEditor(){
-  return window.matchMedia("(max-width:720px)").matches;
 }
 function refreshMobileEndTimes(start,preferredEnd){
   const startMinutes=timeToMinutes(start||"09:00");
@@ -736,7 +737,6 @@ function habitIsActive(habit,key){
 
   return true;
 }
-function daysBetween(a,b){return Math.round((parseDateKey(b)-parseDateKey(a))/86400000)}
 function habitStreak(habit){
   let streak=0;
   let cursor=new Date();
@@ -905,7 +905,7 @@ function renderFourWeekChange(referenceDate){
   const points=weeks.map((week,index)=>week.summary.recordedActual?`${55+index*100},${145-week.summary.actualMinutes/maxActual*112}`:null).filter(Boolean).join(" ");
   const svgWeeks=weeks.map((week,index)=>{
     const x=33+index*100,rate=week.summary.rate||0,y=145-rate*1.12;
-    const color=COLORS[[0,25,50,75,100].reduce((best,value)=>Math.abs(value-rate)<Math.abs(best-rate)?value:best,0)];
+    const color=progressColor(rate);
     return `<rect x="${x}" y="${y}" width="44" height="${rate*1.12}" rx="7" fill="${color}"/><text x="${x+22}" y="${Math.max(14,y-7)}" text-anchor="middle" class="combo-rate">${week.summary.rate===null?"—":`${week.summary.rate}%`}</text><text x="${x+22}" y="169" text-anchor="middle" class="combo-label">${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}`}</text>`;
   }).join("");
   const dots=weeks.map((week,index)=>week.summary.recordedActual?`<circle cx="${55+index*100}" cy="${145-week.summary.actualMinutes/maxActual*112}" r="5"/><text x="${55+index*100}" y="${130-week.summary.actualMinutes/maxActual*112}" text-anchor="middle" class="combo-time">${(week.summary.actualMinutes/60).toFixed(1)}h</text>`:"").join("");
@@ -1538,11 +1538,6 @@ function renderPage(){
   el.mobileDiaryNav.classList.toggle("active",diaryMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
-  if(el.mobileAdd){
-    el.mobileAdd.hidden=statsMode||diaryMode||(calendarMode&&state.currentView==="week");
-    el.mobileAdd.classList.toggle("habit-mode",habitMode);
-  }
-
   document.body.classList.toggle(
     "week-fullscreen",
     calendarMode&&state.currentView==="week"
@@ -1557,9 +1552,6 @@ function renderPage(){
         ||window.matchMedia("(max-width:720px)").matches
       );
   }
-  el.mobileAdd?.setAttribute("aria-label",habitMode?"습관 추가":"일정 추가");
-
-  if(calendarMode)renderGoals();
   if(habitMode)renderHabits();
   if(diaryMode)renderDiary();
   if(statsMode)renderStats();
@@ -2176,60 +2168,12 @@ function listenHabits(user){
 }
 
 function goalProfileRef(){return doc(db,"users",state.user.uid,"growth","profile")}
-function goalProgress(goal){
-  const legacyCount=goal.habitId?Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId&&Number(log.progress)>0).length:0;
-  const count=Math.max(Number(goal.currentCount||0),legacyCount);
-  const reached=goal.mode==="count"?count>=Number(goal.target||1):false;
-  const outcome=goal.outcome||(goal.completed?"complete":"neutral");
-  return {...goal,count,reached,outcome,complete:outcome==="complete",failed:outcome==="failed"};
-}
-function goalCanDecide(goal){
-  if(goal.complete||goal.failed)return true;
-  const today=dateKey(new Date());
-  const dueReached=Boolean(goal.dueDate&&today>=goal.dueDate);
-  const countReached=goal.mode==="count"&&goal.reached;
-  return dueReached||countReached;
-}
-function goalStatus(goal){
-  if(goal.complete)return "달성";
-  if(goal.failed)return "미달성";
-  const checklist=goal.checklist||[],checked=checklist.filter(item=>item.done).length;
-  const checklistText=checklist.length?`체크 ${checked}/${checklist.length}`:"";
-  if(!goal.dueDate)return checklistText||"진행 중";
-  const days=Math.round((parseDateKey(goal.dueDate)-parseDateKey(dateKey(new Date())))/86400000);
-  return [checklistText,days>0?`D-${days}`:days===0?"오늘":"기한 지남"].filter(Boolean).join(" · ");
-}
-function renderGoals(){
-  if(!el.goalList&&!el.homeGoalPreview)return;
-  const goals=(state.goalProfile.challenges||[]).map(goalProgress);
-  const rows=items=>items.map(goal=>`<span class="${goal.complete?"done":goal.failed?"failed":""}" data-goal-id="${goal.id}">${goalCanDecide(goal)?`<button class="goal-state" type="button" aria-label="달성 상태 변경">${goal.complete?"✓":goal.failed?"X":"◇"}</button>`:`<i class="goal-state-placeholder" aria-hidden="true"></i>`}<button class="goal-name" type="button">${escapeHtml(goal.name)}</button><small>${escapeHtml(goalStatus(goal))}</small>${goal.mode==="count"?`<span class="goal-count-control" aria-label="현재 ${goal.count}, 목표 ${goal.target}"><button type="button" data-goal-count-step="-1" aria-label="횟수 1 감소">−1</button><b>${goal.count}/${goal.target}</b><button type="button" data-goal-count-step="1" aria-label="횟수 1 증가">+1</button></span>`:""}</span>`).join("");
-  if(el.goalList)el.goalList.innerHTML=rows(goals)||'<p class="empty-state">아직 목표가 없습니다.</p>';
-  const active=goals.filter(goal=>!goal.complete),preview=(active.length?active:goals).slice(0,4);
-  if(el.homeGoalPreview)el.homeGoalPreview.innerHTML=rows(preview)||'<p class="empty-state">등록된 목표가 없습니다.</p>';
-}
 function listenGoals(user){
   state.unsubscribeGoals?.();
-  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{state.goalProfile={challenges:[],directionGoals:{},...(snap.exists()?snap.data():{})};renderGoals();renderDirectionGoals(new Date().getFullYear())},error=>console.error("목표를 불러오지 못했습니다.",error));
-}
-async function saveGoals(challenges){state.goalProfile={...state.goalProfile,challenges};renderGoals();await setDoc(goalProfileRef(),{challenges},{merge:true})}
-function toggleGoalModal(show){el.goalModal.classList.toggle("show",show);el.goalModal.setAttribute("aria-hidden",String(!show))}
-function openGoal(goal=null){
-  const progress=goal?goalProgress(goal):null;
-  el.goalForm.reset();el.goalId.value=goal?.id||"";el.goalName.value=goal?.name||"";el.goalMode.value=goal?.mode||"date";el.goalTarget.value=goal?.target||30;el.goalCurrent.value=progress?.count||0;el.goalDate.value=goal?.dueDate||"";el.goalMemo.value=goal?.memo||"";state.editingGoalChecklist=(goal?.checklist||[]).map(item=>({...item}));renderGoalChecklistEditor();el.goalComplete.checked=Boolean(progress?.complete);el.goalModalTitle.textContent=goal?"목표 수정":"목표 추가";el.deleteGoalButton.hidden=!goal;el.goalCompleteWrap.hidden=!goal;syncGoalMode();el.goalMessage.textContent="";toggleGoalModal(true);
-}
-function renderGoalChecklistEditor(){
-  el.goalChecklistItems.innerHTML=state.editingGoalChecklist.map((item,index)=>`<div class="goal-checklist-row" data-goal-check-index="${index}"><input type="checkbox" ${item.done?"checked":""} aria-label="완료"><input type="text" maxlength="100" value="${escapeHtml(item.text||"")}" placeholder="체크할 항목"><button type="button" aria-label="항목 삭제">×</button></div>`).join("");
-}
-function syncGoalMode(){const countMode=el.goalMode.value==="count";el.goalTargetWrap.hidden=!countMode;el.goalCurrentWrap.hidden=!countMode;if(el.goalId.value)el.goalCompleteWrap.hidden=false}
-async function unlinkLegacyGoalHabit(goal){
-  if(!goal?.habitId)return;
-  await Promise.all(Object.values(state.habitLogs).filter(log=>log.habitId===goal.habitId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"habitLogs",log.id))));
-  await deleteDoc(doc(db,"users",state.user.uid,"habits",goal.habitId));
-}
-async function removeGoal(id){
-  const goal=(state.goalProfile.challenges||[]).find(item=>item.id===id);if(!goal)return;
-  await unlinkLegacyGoalHabit(goal);
-  await saveGoals((state.goalProfile.challenges||[]).filter(item=>item.id!==id));toggleGoalModal(false);
+  state.unsubscribeGoals=onSnapshot(goalProfileRef(),snap=>{
+    state.goalProfile={directionGoals:snap.data()?.directionGoals||{}};
+    renderDirectionGoals(new Date().getFullYear());
+  },error=>console.error("연간·분기 목표를 불러오지 못했습니다.",error));
 }
 
 async function login(){
@@ -2585,58 +2529,6 @@ function closeDatePickerModal(){
   el.datePickerModal.setAttribute("aria-hidden","true");
 }
 
-function addLongPress(element,callback){
-  let timer=null;
-  let startX=0;
-  let startY=0;
-
-  element.addEventListener("touchstart",event=>{
-    const touch=event.touches[0];
-    startX=touch.clientX;
-    startY=touch.clientY;
-    timer=setTimeout(()=>{
-      navigator.vibrate?.(30);
-      callback(event,startX,startY);
-    },650);
-  },{passive:true});
-
-  element.addEventListener("touchmove",event=>{
-    if(!timer)return;
-    const touch=event.touches[0];
-    if(Math.abs(touch.clientX-startX)>12||Math.abs(touch.clientY-startY)>12){
-      clearTimeout(timer);
-      timer=null;
-    }
-  },{passive:true});
-
-  ["touchend","touchcancel"].forEach(type=>{
-    element.addEventListener(type,()=>{
-      clearTimeout(timer);
-      timer=null;
-    },{passive:true});
-  });
-}
-function showEventContextMenu({x=12,y=80,event=null,date=null,time="09:00"}={}){
-  if(!event)return;
-
-  state.contextEvent=event;
-  state.contextTargetDate=date||(event.occurrenceDate||event.date);
-  state.contextTargetTime=time||(event.time||"09:00");
-
-  el.duplicateEventButton.hidden=false;
-  el.eventContextMenu.hidden=false;
-
-  const width=190;
-  const left=Math.min(Math.max(8,x),window.innerWidth-width-8);
-  const top=Math.min(Math.max(8,y),window.innerHeight-130);
-
-  el.eventContextMenu.style.left=`${left}px`;
-  el.eventContextMenu.style.top=`${top}px`;
-}
-function hideEventContextMenu(){
-  el.eventContextMenu.hidden=true;
-  state.contextEvent=null;
-}
 function showMobileEventActionSheet(event){
   if(!event)return;
 
@@ -2673,11 +2565,6 @@ async function deleteMobileActionEvent(){
     }
   });
 }
-
-function bindContextActions(){
-  // 일정 복제 메뉴를 제거하여 컨텍스트 메뉴를 사용하지 않습니다.
-}
-
 
 function isRecurringEvent(event){
   return (event.repeat||"none")!=="none";
@@ -2887,42 +2774,6 @@ function bindDesktopDrag(element,event){
     document.querySelectorAll(".drag-over").forEach(item=>item.classList.remove("drag-over"));
   });
 }
-function bindDropTarget(element,date,time="09:00"){
-  element.addEventListener("dragover",event=>{
-    if(!state.dragEvent)return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect="move";
-    element.classList.add("drag-over");
-  });
-
-  element.addEventListener("dragleave",()=>{
-    element.classList.remove("drag-over");
-  });
-
-  element.addEventListener("drop",event=>{
-    if(!state.dragEvent)return;
-    event.preventDefault();
-    event.stopPropagation();
-    element.classList.remove("drag-over");
-    const dragged=state.dragEvent;
-    state.dragEvent=null;
-    moveEventTo(dragged,date,time||dragged.time);
-  });
-}
-function createEventChip(event){
-  const chip=document.createElement("div");
-  chip.className="event-chip";
-  if(event.important)chip.classList.add("is-important");
-  chip.style.background=COLORS[event.progress]||COLORS[0];
-  chip.style.setProperty("--event-category-color",categoryColor(eventCategory(event)));
-  chip.innerHTML=`<span class="event-time">${escapeHtml(event.time)}</span><span class="event-title">${importanceMark(event.important)}${escapeHtml(event.title)}</span>${event.repeat&&event.repeat!=="none"?`<span class="repeat-badge">↻</span>`:""}`;
-  chip.onclick=clickEvent=>{
-    clickEvent.stopPropagation();
-    openEdit(event);
-  };
-  bindContextActions(chip,{event,date:event.occurrenceDate||event.date,time:event.time});
-  return chip;
-}
 function renderMonth(){
   if(!el.statsMonthGrid)return;
 
@@ -3071,9 +2922,6 @@ function visibleDaysForZoom(){
     ?state.weekVisibleDays
     :7;
 }
-function isCompactWeekZoom(){
-  return visibleDaysForZoom()>=14;
-}
 function applyWeekZoom(){
   if(state.currentView!=="week")return;
 
@@ -3207,7 +3055,9 @@ function renderWeek(){
       block.style.height=`calc(var(--week-row-height) * ${duration/60})`;
       block.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
       block.style.width=`calc(100% / ${columnCount} - 2px)`;
-      block.style.background=COLORS[0];
+      const progress=Number(event.progress||0);
+      const eventProgressColor=progressColor(progress);
+      block.style.setProperty("--event-progress-color",eventProgressColor);
       if(window.matchMedia("(hover:hover) and (pointer:fine)").matches){
         const actual=` · ${eventActualLabel(event,{short:true})}`;
         block.title=`${event.title} · 계획 ${eventDisplayStart(event)}–${eventDisplayEnd(event)}${actual} · ${Number(event.progress||0)}%`;
@@ -3234,11 +3084,26 @@ function renderWeek(){
         :"";
 
       block.innerHTML=`
-        <i class="week-event-water" style="height:${Number(event.progress||0)}%"></i>
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
-        <small class="week-event-actual">${eventActualLabel(event,{short:true})} · ${Number(event.progress||0)}%</small>
+        <small class="week-event-actual">${eventActualLabel(event,{short:true})} · ${progress}%</small>
         ${checklistHtml}
       `;
+
+      if(event.actualStart&&event.actualEnd){
+        const actualStartMinutes=timeToMinutes(event.actualStart);
+        const actualEndMinutes=timeToMinutes(event.actualEnd);
+        const actualDuration=Math.max(30,actualEndMinutes-actualStartMinutes);
+        const actualBlock=document.createElement("div");
+        actualBlock.className="google-week-actual-event";
+        actualBlock.style.top=`calc(var(--week-row-height) * ${actualStartMinutes/60})`;
+        actualBlock.style.height=`calc(var(--week-row-height) * ${actualDuration/60})`;
+        actualBlock.style.left=`calc(${columnIndex} * (100% / ${columnCount}) + 1px)`;
+        actualBlock.style.width=`calc(100% / ${columnCount} - 2px)`;
+        actualBlock.style.setProperty("--event-progress-color",eventProgressColor);
+        actualBlock.style.setProperty("--event-category-color",categoryColor(eventCategory(event)));
+        actualBlock.innerHTML=`<strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.actualStart)}–${escapeHtml(event.actualEnd)} · ${progress}%</small>`;
+        column.appendChild(actualBlock);
+      }
 
       bindChecklistTaps(
         block,
@@ -3268,7 +3133,6 @@ function renderWeek(){
         }
       });
 
-      bindContextActions(block,{event,date:key,time:event.time});
       bindDesktopDrag(block,event);
       bindGoogleMobileMove(block,event);
 
@@ -5047,7 +4911,6 @@ function renderSelected(){
         clickEvent.stopPropagation();
         openEdit(event);
       });
-      bindContextActions(item,{event,date:event.occurrenceDate||event.date,time:event.time});
 
       el.selectedEvents.appendChild(item);
     }});
@@ -7539,6 +7402,9 @@ $("weekFitButton")?.addEventListener("click",()=>{
   renderWeek();
 });
 el.periodLabel.onclick=openDatePickerModal;
+document.querySelectorAll(".card-month-picker").forEach(button=>{
+  button.addEventListener("click",openDatePickerModal);
+});
 el.closeDatePicker.onclick=closeDatePickerModal;
 el.datePickerModal.addEventListener("click",event=>{
   if(event.target===el.datePickerModal)closeDatePickerModal();
@@ -7610,23 +7476,12 @@ $("selectedAddEventButton")?.addEventListener("click",()=>openCreate(state.selec
 $("weekAddEventButton").onclick=()=>openCreate(
   state.selectedDateKey||dateKey(new Date())
 );
-$("eventModeTab").onclick=()=>{};
 $("todoEventModeTab").onclick=()=>{
   closeTodoModalFromHistory();
   openCreate(state.selectedDateKey);
 };
 $("todoModeFromEventTab").onclick=()=>switchCreateModal("todo");
 addHorizontalSwipe(el.modal,()=>switchCreateModal("todo"),()=>{});
-if(el.mobileAdd)el.mobileAdd.onclick=()=>{
-  if(state.activePage==="habit"){
-    openHabitCreate();
-    return;
-  }
-
-  openCreate(
-    state.selectedDateKey||dateKey(new Date())
-  );
-};
 $("closeEventModal").onclick=closeModal;$("cancelEvent").onclick=closeModal;el.form.onsubmit=submit;
 el.remove.onclick=removeEvent;
 el.editOnlyThisDateButton.onclick=()=>applyPendingRepeatEdit("single");
@@ -7674,48 +7529,6 @@ el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileDiaryNav.onclick=()=>navigateToPage("diary");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
-$("openGoalButton")?.addEventListener("click",()=>openGoal());
-$("closeGoalModal").onclick=$("cancelGoalButton").onclick=()=>toggleGoalModal(false);
-el.goalModal.onclick=event=>{if(event.target===el.goalModal)toggleGoalModal(false)};
-el.goalMode.onchange=syncGoalMode;
-$("addGoalChecklistButton").onclick=()=>{state.editingGoalChecklist.push({id:crypto.randomUUID(),text:"",done:false});renderGoalChecklistEditor();el.goalChecklistItems.querySelector(".goal-checklist-row:last-child input[type=text]")?.focus()};
-el.goalChecklistItems.oninput=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row)return;const item=state.editingGoalChecklist[Number(row.dataset.goalCheckIndex)];if(event.target.matches("input[type=text]"))item.text=event.target.value};
-el.goalChecklistItems.onchange=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row)return;const item=state.editingGoalChecklist[Number(row.dataset.goalCheckIndex)];if(event.target.matches("input[type=checkbox]"))item.done=event.target.checked};
-el.goalChecklistItems.onclick=event=>{const row=event.target.closest("[data-goal-check-index]");if(!row||!event.target.closest("button"))return;state.editingGoalChecklist.splice(Number(row.dataset.goalCheckIndex),1);renderGoalChecklistEditor()};
-async function handleGoalListClick(event){
-  const row=event.target.closest("[data-goal-id]");if(!row)return;
-  const goal=(state.goalProfile.challenges||[]).find(item=>item.id===row.dataset.goalId);if(!goal)return;
-  const countStep=event.target.closest("[data-goal-count-step]");
-  if(countStep){
-    const count=Math.max(0,goalProgress(goal).count+Number(countStep.dataset.goalCountStep));
-    await unlinkLegacyGoalHabit(goal);
-    const next={...goal,currentCount:count,habitId:null};
-    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?next:item));return;
-  }
-  if(event.target.closest(".goal-state")){
-    const progress=goalProgress(goal);if(!goalCanDecide(progress))return;
-    const outcome=progress.outcome==="neutral"?"failed":progress.outcome==="failed"?"complete":"neutral";
-    await saveGoals(state.goalProfile.challenges.map(item=>item.id===goal.id?{...item,outcome,completed:outcome==="complete",manualIncomplete:false}:item));return;
-  }
-  if(event.target.closest(".goal-name"))openGoal(goal);
-}
-if(el.goalList)el.goalList.onclick=handleGoalListClick;
-if(el.homeGoalPreview)el.homeGoalPreview.onclick=handleGoalListClick;
-el.deleteGoalButton.onclick=()=>removeGoal(el.goalId.value);
-el.goalForm.onsubmit=async event=>{
-  event.preventDefault();
-  const id=el.goalId.value||crypto.randomUUID();
-  const previous=(state.goalProfile.challenges||[]).find(item=>item.id===id);
-  const mode=el.goalMode.value,name=el.goalName.value.trim(),dueDate=el.goalDate.value,target=mode==="count"?Number(el.goalTarget.value||1):null,currentCount=mode==="count"?Math.max(0,Number(el.goalCurrent.value||0)):0,memo=el.goalMemo.value.trim(),checklist=state.editingGoalChecklist.map(item=>({...item,text:item.text.trim()})).filter(item=>item.text);
-  try{
-    await unlinkLegacyGoalHabit(previous);
-    const completed=el.goalComplete.checked;
-    const outcome=completed?"complete":previous?.outcome==="failed"?"failed":"neutral";
-    const next={id,name,mode,target,currentCount,dueDate,habitId:null,memo,checklist,outcome,completed,manualIncomplete:false,createdAt:previous?.createdAt||Date.now(),createdDate:previous?.createdDate||dateKey(new Date())};
-    const challenges=previous?state.goalProfile.challenges.map(item=>item.id===id?next:item):[...(state.goalProfile.challenges||[]),next];
-    await saveGoals(challenges);toggleGoalModal(false);
-  }catch(error){console.error(error);el.goalMessage.textContent="목표를 저장하지 못했습니다."}
-};
 $("statsTodayButton").onclick=()=>{
   state.statsInsightDate=null;
   state.statsDate=dateKey(new Date());
@@ -7755,13 +7568,6 @@ el.saveCategoriesButton.onclick=saveCategories;
 el.categoryManagerModal.onclick=event=>{
   if(event.target===el.categoryManagerModal)closeCategoryManager();
 };
-$("closeEventContextMenu").onclick=hideEventContextMenu;
-document.addEventListener("click",event=>{
-  if(!el.eventContextMenu.hidden&&!event.target.closest("#eventContextMenu")){
-    hideEventContextMenu();
-  }
-});
-
 [el.mobileStartTime,el.mobileEndTime].forEach(control=>{
   control.addEventListener("change",()=>{
     control.value=roundTimeValue(control.value);
@@ -8136,12 +7942,6 @@ $("diaryDate")?.addEventListener("change",renderDiary);$("saveDiaryButton")?.add
 $("deleteDiaryButton")?.addEventListener("click",()=>{const d=diaryElements();if(!d.date.value||!confirm("이 날짜의 일기를 삭제할까요?"))return;writePersonalItems("diaries",readPersonalItems("diaries").filter(item=>item.date!==d.date.value));renderDiary()});
 $("diaryList")?.addEventListener("click",event=>{const button=event.target.closest("[data-diary-date]");if(!button)return;$("diaryDate").value=button.dataset.diaryDate;renderDiary()});
 
-document.querySelectorAll("[data-habit-section]").forEach(button=>button.addEventListener("click",()=>{
-  document.querySelectorAll("[data-habit-section]").forEach(item=>item.classList.toggle("active",item===button));
-  const goals=button.dataset.habitSection==="goals";$("habitMainPanel").hidden=goals;$("goalMainPanel").hidden=!goals;
-  $("openHabitModal").hidden=goals;$("habitTodayButton").hidden=goals;
-  if(goals)renderGoals();
-}));
 document.querySelectorAll("[data-weekly-metric]").forEach(button=>button.addEventListener("click",()=>{
   state.weeklyMetric=button.dataset.weeklyMetric;document.querySelectorAll("[data-weekly-metric]").forEach(item=>item.classList.toggle("active",item===button));renderStats();
 }));
@@ -8161,7 +7961,7 @@ await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
-    state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};state.goalProfile={challenges:[],directionGoals:{}};
+    state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};state.goalProfile={directionGoals:{}};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}

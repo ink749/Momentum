@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.77" />
+  <link rel="stylesheet" href="style.css?v=7.79" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -94,7 +94,7 @@
               <div class="selected-day-heading-line">
                 <p id="selectedViewEyebrow" class="eyebrow">TODAY</p>
               </div>
-              <div class="card-date-navigation"><button id="todayPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="selectedDateLabel"></strong><button id="todayNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
+              <div class="card-date-navigation"><button id="todayPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="selectedDateLabel"></strong><button class="card-month-picker" type="button" aria-label="연도와 월 선택" title="연도와 월 선택">▾</button><button id="todayNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <button id="selectedAddEventButton" class="secondary-button selected-add-event-button" type="button">+ 일정 추가</button>
               <h3 id="selectedDateTitle" class="visually-hidden">오늘 일정</h3>
             </div>
@@ -118,7 +118,7 @@
                 <p class="eyebrow">TO DO</p>
                 <h3>할 일</h3>
               </div>
-              <div class="card-date-navigation"><button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="todoSelectedDateLabel">오늘</strong><button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
+              <div class="card-date-navigation"><button id="todoPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="todoSelectedDateLabel">오늘</strong><button class="card-month-picker" type="button" aria-label="연도와 월 선택" title="연도와 월 선택">▾</button><button id="todoNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <div class="todo-date-nav">
                 <button id="todoBacklogButton" class="todo-overview-button" type="button">보관함</button>
                 <button id="todoOverviewButton" class="todo-overview-button" type="button">전체 보기</button>
@@ -136,7 +136,7 @@
             <section class="summary-card selected-habit-preview-card">
               <div class="selected-preview-heading">
                 <div><p class="eyebrow">HABITS</p><h3>습관</h3></div>
-                <div class="card-date-navigation"><button id="homeHabitPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="homeHabitDateLabel">오늘</strong><button id="homeHabitNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
+                <div class="card-date-navigation"><button id="homeHabitPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="homeHabitDateLabel">오늘</strong><button class="card-month-picker" type="button" aria-label="연도와 월 선택" title="연도와 월 선택">▾</button><button id="homeHabitNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
                 <button id="selectedHabitMoreButton" class="text-action-button" type="button">모든 습관 보기</button>
               </div>
               <div id="selectedHabitPreview" class="selected-habit-preview"></div>
@@ -865,10 +865,6 @@
     </section>
   </div>
 
-  <div id="eventContextMenu" class="event-context-menu" hidden>
-    <button id="closeEventContextMenu" type="button">닫기</button>
-  </div>
-
   <div id="accountSheet" class="sheet-backdrop" aria-hidden="true">
     <div class="account-sheet">
       <div class="sheet-account-row">
@@ -892,26 +888,6 @@
     </div>
   </div>
 
-  <div id="goalModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal goal-modal">
-      <div class="modal-header"><div><p class="eyebrow">GOAL</p><h2 id="goalModalTitle">목표 추가</h2></div><button id="closeGoalModal" class="close-button" type="button">×</button></div>
-      <form id="goalForm" class="goal-form">
-        <input id="goalId" type="hidden" />
-        <label>목표 이름<input id="goalName" type="text" maxlength="60" placeholder="예: 소방설비기사 취득" required /></label>
-        <label>달성 방식<select id="goalMode"><option value="date">D-day까지 달성</option><option value="count">횟수 채우기</option></select></label>
-        <div class="goal-form-grid"><label id="goalTargetWrap" hidden>목표 횟수<input id="goalTarget" type="number" min="1" max="1000000" value="30" /></label><label id="goalCurrentWrap" hidden>현재 횟수<input id="goalCurrent" type="number" min="0" max="1000000" value="0" /></label><label>D-day<input id="goalDate" type="date" /></label></div>
-        <section class="goal-checklist-editor">
-          <div><strong>체크리스트</strong><button id="addGoalChecklistButton" type="button">+ 항목</button></div>
-          <div id="goalChecklistItems"></div>
-        </section>
-        <label>메모<textarea id="goalMemo" maxlength="1000" placeholder="목표에 필요한 내용이나 이유를 적어보세요"></textarea></label>
-        <label id="goalCompleteWrap" class="goal-manual-complete" hidden><input id="goalComplete" type="checkbox" /> 완료로 표시</label>
-        <div class="goal-form-actions"><button id="deleteGoalButton" class="danger-outline-button" type="button" hidden>삭제</button><span></span><button id="cancelGoalButton" class="secondary-button" type="button">취소</button><button class="primary-button" type="submit">저장</button></div>
-      </form>
-      <p id="goalMessage" class="error-message"></p>
-    </div>
-  </div>
-
-  <script type="module" src="script.js?v=7.77"></script>
+  <script type="module" src="script.js?v=7.79"></script>
 </body>
 </html>
