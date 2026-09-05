@@ -180,6 +180,8 @@ const el = {
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
   repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
   repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), includeInStats:$("eventIncludeInStats"),
+  customRepeat:$("eventCustomRepeat"), repeatInterval:$("eventRepeatInterval"), repeatUnit:$("eventRepeatUnit"),
+  repeatCount:$("eventRepeatCount"), repeatCountWrap:$("eventRepeatCountWrap"), repeatSetCountButton:$("repeatSetCountButton"),
   editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
   editRangeFields:$("eventEditRangeFields"), editRangeStart:$("eventEditRangeStart"),
   editRangeEnd:$("eventEditRangeEnd"),
@@ -232,7 +234,7 @@ const el = {
   todoOverviewList:$("todoOverviewList"), todoOverviewMonthLabel:$("todoOverviewMonthLabel"),
   todoOverviewPrevMonth:$("todoOverviewPrevMonth"), todoOverviewThisMonth:$("todoOverviewThisMonth"),
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
-  todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"), todoModeSwitch:$("todoModeSwitch"),
+  todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
   todoBacklog:$("todoBacklog"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
@@ -357,7 +359,7 @@ function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 function escapeHtml(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
 function average(items){return items.length?Math.round(items.reduce((s,e)=>s+Number(e.progress||0),0)/items.length):0}
 function step(v){if(v>=88)return 100;if(v>=63)return 75;if(v>=38)return 50;if(v>=13)return 25;return 0}
-function repeatLabel(r){return {daily:"매일",weekdays:"평일",weekends:"주말",weekly:"매주",monthly:"매월",yearly:"매년"}[r]||""}
+function repeatLabel(r){return {daily:"매일",weekdays:"평일",weekends:"주말",weekly:"매주",monthly:"매월",yearly:"매년",custom:"맞춤"}[r]||""}
 function categoryById(id){
   return state.categories.find(category=>category.id===id)
     ||state.categories.find(category=>category.id==="other")
@@ -469,37 +471,59 @@ function isRepeatStartOn(event,key){
   }
 
   const repeat=event.repeat||"none";
-
-  if(repeat==="none")return key===event.date;
-  if(repeat==="daily")return true;
-  if(repeat==="weekdays"){
-    return target.getDay()>=1&&target.getDay()<=5;
-  }
-  if(repeat==="weekends"){
-    return target.getDay()===0||target.getDay()===6;
-  }
-
   const days=Math.round((target-start)/86400000);
+  let matches=false;
 
-  if(repeat==="weekly"){
+  if(repeat==="none")matches=key===event.date;
+  else if(repeat==="daily")matches=true;
+  else if(repeat==="weekdays")matches=target.getDay()>=1&&target.getDay()<=5;
+  else if(repeat==="weekends")matches=target.getDay()===0||target.getDay()===6;
+  else if(repeat==="weekly"){
     const selected=Array.isArray(event.repeatWeekdays)&&event.repeatWeekdays.length
       ?event.repeatWeekdays.map(Number)
       :[start.getDay()];
-    return selected.includes(target.getDay());
-  }
-  if(repeat==="monthly"){
+    matches=selected.includes(target.getDay());
+  }else if(repeat==="monthly"){
     const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
-    return target.getDate()===Math.min(start.getDate(),lastDay);
-  }
-  if(repeat==="yearly"){
+    matches=target.getDate()===Math.min(start.getDate(),lastDay);
+  }else if(repeat==="yearly"){
     const targetFebruaryLastDay=new Date(target.getFullYear(),2,0).getDate();
     if(start.getMonth()===1&&start.getDate()===29&&targetFebruaryLastDay<29){
-      return target.getMonth()===1&&target.getDate()===28;
+      matches=target.getMonth()===1&&target.getDate()===28;
+    }else{
+      matches=target.getMonth()===start.getMonth()&&target.getDate()===start.getDate();
     }
-    return target.getMonth()===start.getMonth()&&target.getDate()===start.getDate();
+  }else if(repeat==="custom"){
+    const interval=Math.max(1,Number(event.repeatInterval)||1);
+    const unit=event.repeatUnit||"week";
+    if(unit==="day")matches=days%interval===0;
+    if(unit==="week"){
+      const selected=Array.isArray(event.repeatWeekdays)&&event.repeatWeekdays.length
+        ?event.repeatWeekdays.map(Number):[start.getDay()];
+      matches=Math.floor(days/7)%interval===0&&selected.includes(target.getDay());
+    }
+    if(unit==="month"){
+      const months=(target.getFullYear()-start.getFullYear())*12+target.getMonth()-start.getMonth();
+      const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+      matches=months%interval===0&&target.getDate()===Math.min(start.getDate(),lastDay);
+    }
+    if(unit==="year"){
+      const years=target.getFullYear()-start.getFullYear();
+      const day=Math.min(start.getDate(),new Date(target.getFullYear(),start.getMonth()+1,0).getDate());
+      matches=years%interval===0&&target.getMonth()===start.getMonth()&&target.getDate()===day;
+    }
   }
-
-  return false;
+  if(!matches)return false;
+  const maxCount=Math.max(0,Number(event.repeatCount)||0);
+  if(!maxCount||repeat==="none")return true;
+  let count=0;
+  for(let cursor=new Date(start);cursor<=target;cursor=addDays(cursor,1)){
+    const probe=dateKey(cursor);
+    const copy={...event,repeatCount:0,repeatEndDate:"",exceptionDates:[]};
+    if(isRepeatStartOn(copy,probe))count++;
+    if(count>maxCount)return false;
+  }
+  return count<=maxCount;
 }
 function shiftedOccurrenceEndDate(event,occurrenceStartKey){
   const start=eventDateTime(
@@ -769,7 +793,8 @@ function renderStats(){
 
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
-  const keys=monthKeys(monthAnchor);
+  const todayKey=dateKey(new Date());
+  const keys=monthKeys(monthAnchor).filter(key=>key<=todayKey);
   const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key)).filter(event=>event.includeInStats!==false);
   const monthEventAvg=average(monthEventOccurrences);
 
@@ -2629,7 +2654,7 @@ function setupMobileWeekSwipe(){
   let sx=0,sy=0,dx=0,tracking=false,horizontal=false;
   el.weekView.addEventListener("touchstart",e=>{
     if(!window.matchMedia("(max-width:720px)").matches)return;
-    if(e.target.closest(".google-week-event,.google-week-selection"))return;
+    if(e.target.closest(".google-week-event,.google-week-selection,.week-create-selection"))return;
     const t=e.touches?.[0]; if(!t)return;
     tracking=true;horizontal=false;dx=0;sx=t.clientX;sy=t.clientY;
     el.weekView.style.transition="none";
@@ -2672,11 +2697,6 @@ function bindDesktopDrag(element,event){
 
   element.addEventListener("dragstart",dragEvent=>{
     if(!window.matchMedia("(pointer:fine)").matches){
-      dragEvent.preventDefault();
-      return;
-    }
-
-    if(dragEvent.target.closest(".week-event-resize-handle")){
       dragEvent.preventDefault();
       return;
     }
@@ -3019,7 +3039,6 @@ function renderWeek(){
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
         <small class="week-event-progress">${progress}%</small>
         ${checklistHtml}
-        <i class="week-event-resize-handle" aria-hidden="true"></i>
       `;
 
       bindChecklistTaps(
@@ -3051,7 +3070,6 @@ function renderWeek(){
       });
 
       bindDesktopDrag(block,event);
-      bindEventResize(block,event,column);
       bindGoogleMobileMove(block,event);
 
       column.appendChild(block);
@@ -3327,26 +3345,71 @@ function bindWeekCreateGesture(column,date){
     selection=null;
   };
 
-  const drawSelection=()=>{
+  const positionSelection=(from,to)=>{
+    if(!selection)return;
+    const safeFrom=Math.max(0,Math.min(from,24*60-30));
+    const safeTo=Math.max(safeFrom+30,Math.min(to,24*60));
+    selection.style.top=`calc(var(--week-row-height) * ${safeFrom/60})`;
+    selection.style.height=`calc(var(--week-row-height) * ${(safeTo-safeFrom)/60})`;
+    selection.dataset.from=String(safeFrom);
+    selection.dataset.to=String(safeTo);
+    selection.querySelector("span").textContent=`${minutesToTime(safeFrom)}–${minutesToTime(safeTo)}`;
+  };
+
+  const activateSelection=()=>{
     const from=Math.min(startMinutes,currentMinutes);
-    const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+30);
-    const duration=Math.max(30,to-from);
+    const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+60);
+    const duration=Math.max(60,to-from);
 
     if(!selection){
+      document.querySelectorAll(".week-create-selection").forEach(item=>item.remove());
       selection=document.createElement("div");
       selection.className="week-create-selection";
-      selection.innerHTML="<span></span>";
+      selection.innerHTML='<button class="week-selection-handle top" type="button" aria-label="시작 시간 조정"></button><span></span><button class="week-selection-handle bottom" type="button" aria-label="종료 시간 조정"></button>';
       column.appendChild(selection);
+      selection.addEventListener("click",event=>{
+        event.stopPropagation();
+        if(event.target.closest(".week-selection-handle"))return;
+        const selectedFrom=Number(selection.dataset.from);
+        const selectedTo=Number(selection.dataset.to);
+        removeSelection();
+        state.selectedDateKey=date;renderSelected();renderSummary();
+        openCreate(date,minutesToTime(selectedFrom),minutesToTime(selectedTo));
+      });
+      selection.querySelectorAll(".week-selection-handle").forEach(handle=>{
+        handle.addEventListener("pointerdown",event=>{
+          event.preventDefault();event.stopPropagation();
+          const topHandle=handle.classList.contains("top");
+          const resizeId=event.pointerId;
+          handle.setPointerCapture?.(resizeId);
+          const resize=moveEvent=>{
+            if(moveEvent.pointerId!==resizeId)return;
+            moveEvent.preventDefault();
+            const value=weekPointerMinutes(column,moveEvent.clientY);
+            const oldFrom=Number(selection.dataset.from),oldTo=Number(selection.dataset.to);
+            positionSelection(
+              topHandle?Math.min(value,oldTo-30):oldFrom,
+              topHandle?oldTo:Math.max(value,oldFrom+30)
+            );
+          };
+          const end=endEvent=>{
+            if(endEvent.pointerId!==resizeId)return;
+            handle.removeEventListener("pointermove",resize);
+            handle.removeEventListener("pointerup",end);
+            handle.removeEventListener("pointercancel",end);
+          };
+          handle.addEventListener("pointermove",resize,{passive:false});
+          handle.addEventListener("pointerup",end);
+          handle.addEventListener("pointercancel",end);
+        });
+      });
     }
 
-    selection.style.top=`calc(var(--week-row-height) * ${from/60})`;
-    selection.style.height=`calc(var(--week-row-height) * ${duration/60})`;
-    selection.querySelector("span").textContent=
-      `${minutesToTime(from)}–${minutesToTime(to)}`;
+    positionSelection(from,from+duration);
   };
 
   column.addEventListener("pointerdown",pointerEvent=>{
-    if(pointerEvent.button!==0||pointerEvent.target.closest(".google-week-event"))return;
+    if(pointerEvent.button!==0||pointerEvent.target.closest(".google-week-event,.week-create-selection"))return;
 
     pointerId=pointerEvent.pointerId;
     startX=pointerEvent.clientX;
@@ -3359,7 +3422,7 @@ function bindWeekCreateGesture(column,date){
     holdTimer=setTimeout(()=>{
       if(pointerId!==pointerEvent.pointerId)return;
       rangeMode=true;
-      drawSelection();
+      activateSelection();
       haptic(10);
       column.setPointerCapture?.(pointerId);
     },140);
@@ -3380,7 +3443,7 @@ function bindWeekCreateGesture(column,date){
 
     pointerEvent.preventDefault();
     currentMinutes=weekPointerMinutes(column,pointerEvent.clientY);
-    drawSelection();
+    activateSelection();
   },{passive:false});
 
   const finish=pointerEvent=>{
@@ -3393,20 +3456,10 @@ function bindWeekCreateGesture(column,date){
       pointerEvent.preventDefault();
       suppressClick=true;
 
-      const from=Math.min(startMinutes,currentMinutes);
-      const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+30);
-
-      removeSelection();
-      state.selectedDateKey=date;
-      renderSelected();
-      renderSummary();
-      openCreate(date,minutesToTime(from),minutesToTime(to));
-
       setTimeout(()=>{suppressClick=false},0);
       return;
     }
 
-    removeSelection();
   };
 
   column.addEventListener("pointerup",finish);
@@ -3415,20 +3468,14 @@ function bindWeekCreateGesture(column,date){
     clearTimeout(holdTimer);
     pointerId=null;
     rangeMode=false;
-    removeSelection();
+    if(rangeMode)removeSelection();
   });
 
   column.addEventListener("click",clickEvent=>{
-    if(suppressClick||clickEvent.target.closest(".google-week-event"))return;
-
-    const start=minutesToTime(
-      weekPointerMinutes(column,clickEvent.clientY)
-    );
-
-    state.selectedDateKey=date;
-    renderSelected();
-    renderSummary();
-    openCreate(date,start,defaultEndTime(start));
+    if(suppressClick||clickEvent.target.closest(".google-week-event,.week-create-selection"))return;
+    startMinutes=weekPointerMinutes(column,clickEvent.clientY);
+    currentMinutes=startMinutes;
+    activateSelection();
   });
 }
 
@@ -3501,13 +3548,11 @@ function bindGoogleMobileMove(block,event){
   let targetDate=null;
   let targetTime=null;
   let grabOffsetMinutes=0;
+  let grabOffsetX=0;
+  let grabOffsetY=0;
   let dropPreview=null;
-  let dropSilhouette=null;
 
   const clearTarget=()=>{
-    targetColumn?.classList.remove("move-drop-target");
-    dropSilhouette?.remove();
-    dropSilhouette=null;
     targetColumn=null;
     targetDate=null;
     targetTime=null;
@@ -3552,10 +3597,16 @@ function bindGoogleMobileMove(block,event){
     grabOffsetMinutes=Math.round(
       (grabPixels/rowHeight*60)/30
     )*30;
+    grabOffsetX=pointerEvent.clientX-rect.left;
+    grabOffsetY=pointerEvent.clientY-rect.top;
 
-    ghost=document.createElement("div");
-    ghost.className="week-google-ghost";
-    ghost.textContent=`${event.title} · ${event.time}–${event.endTime||defaultEndTime(event.time)}`;
+    ghost=block.cloneNode(true);
+    ghost.classList.remove("google-moving");
+    ghost.classList.add("week-google-ghost");
+    ghost.style.width=`${rect.width}px`;
+    ghost.style.height=`${rect.height}px`;
+    ghost.style.left=`${rect.left}px`;
+    ghost.style.top=`${rect.top}px`;
     document.body.appendChild(ghost);
   };
 
@@ -3563,8 +3614,8 @@ function bindGoogleMobileMove(block,event){
     if(!active)return;
 
     pointerEvent.preventDefault();
-    ghost.style.left=`${pointerEvent.clientX}px`;
-    ghost.style.top=`${pointerEvent.clientY}px`;
+    ghost.style.left=`${pointerEvent.clientX-grabOffsetX}px`;
+    ghost.style.top=`${pointerEvent.clientY-grabOffsetY}px`;
 
     const column=document
       .elementsFromPoint(pointerEvent.clientX,pointerEvent.clientY)
@@ -3578,7 +3629,6 @@ function bindGoogleMobileMove(block,event){
     if(targetColumn!==column){
       clearTarget();
       targetColumn=column;
-      targetColumn.classList.add("move-drop-target");
     }
 
     targetDate=targetColumn.dataset.date;
@@ -3603,22 +3653,6 @@ function bindGoogleMobileMove(block,event){
     );
 
     targetTime=minutesToTime(adjustedMinutes);
-    ghost.textContent=`${event.title} → ${targetDate} ${targetTime}`;
-
-    if(!dropSilhouette){
-      dropSilhouette=document.createElement("div");
-      dropSilhouette.className="google-week-drop-silhouette";
-      dropSilhouette.innerHTML="<span></span>";
-      targetColumn.appendChild(dropSilhouette);
-    }
-
-    dropSilhouette.style.top=
-      `calc(var(--week-row-height) * ${adjustedMinutes/60})`;
-    dropSilhouette.style.height=
-      `calc(var(--week-row-height) * ${duration/60})`;
-    dropSilhouette.querySelector("span").textContent=
-      `${targetTime}–${minutesToTime(adjustedMinutes+duration)}`;
-
     if(!dropPreview){
       dropPreview=document.createElement("div");
       dropPreview.className="week-drop-time-preview";
@@ -3632,8 +3666,6 @@ function bindGoogleMobileMove(block,event){
 
   block.addEventListener("pointerdown",pointerEvent=>{
     if(!["touch","pen"].includes(pointerEvent.pointerType))return;
-    if(pointerEvent.target.closest(".week-event-resize-handle"))return;
-
     pointerId=pointerEvent.pointerId;
     startX=pointerEvent.clientX;
     startY=pointerEvent.clientY;
@@ -3652,7 +3684,7 @@ function bindGoogleMobileMove(block,event){
         pointerEvent.clientY-startY
       );
 
-      if(distance>6){
+      if(distance>14){
         clearTimeout(holdTimer);
         holdTimer=null;
       }
@@ -3715,101 +3747,6 @@ function bindTimedColumnDrop(column,date){
     const dragged=state.dragEvent;
     state.dragEvent=null;
     moveEventTo(dragged,date,minutesToTime(minutes));
-  });
-}
-
-function bindEventResize(block,event,column){
-  const handle=block.querySelector(".week-event-resize-handle");
-  if(!handle)return;
-
-  let startY=0;
-  let originalEnd=0;
-  let previewEnd=0;
-  let tooltip=null;
-  let active=false;
-
-  const move=pointerEvent=>{
-    if(!active)return;
-    pointerEvent.preventDefault();
-
-    const rowHeight=parseFloat(getComputedStyle(el.weekScroll).getPropertyValue("--week-row-height"))||26;
-    const deltaMinutes=Math.round(((pointerEvent.clientY-startY)/rowHeight*60)/30)*30;
-    const startMinutes=timeToMinutes(event.time);
-
-    previewEnd=Math.max(
-      startMinutes+30,
-      Math.min(24*60,originalEnd+deltaMinutes)
-    );
-
-    const duration=previewEnd-startMinutes;
-    block.style.height=`calc(var(--week-row-height) * ${duration/60})`;
-    block.classList.add("resizing");
-
-    if(!tooltip){
-      tooltip=document.createElement("div");
-      tooltip.className="week-resize-tooltip";
-      document.body.appendChild(tooltip);
-    }
-
-    tooltip.textContent=`${event.time}–${minutesToTime(previewEnd)}`;
-    tooltip.style.left=`${pointerEvent.clientX}px`;
-    tooltip.style.top=`${pointerEvent.clientY}px`;
-  };
-
-  const finish=async pointerEvent=>{
-    if(!active)return;
-    active=false;
-
-    handle.releasePointerCapture?.(pointerEvent.pointerId);
-    block.classList.remove("resizing");
-    tooltip?.remove();
-    tooltip=null;
-
-    block.dataset.resized="true";
-
-    if(previewEnd===originalEnd)return;
-
-    try{
-      const resizedEndTime=minutesToTime(previewEnd);
-
-      if(isRecurringEvent(event)){
-        await detachRecurringOccurrence(event,{
-          date:event.occurrenceDate||event.date,
-          time:event.time,
-          endTime:resizedEndTime
-        });
-      }else{
-        await updateDoc(
-          doc(db,"users",state.user.uid,"events",event.id),
-          {
-            endTime:resizedEndTime,
-            updatedAt:serverTimestamp()
-          }
-        );
-      }
-
-      haptic([14,18,14]);
-      showToast(`종료 시간을 ${resizedEndTime}로 변경했습니다.`);
-    }catch(error){
-      console.error(error);
-      alert("일정 길이를 변경하지 못했습니다.");
-      renderWeek();
-    }
-  };
-
-  handle.addEventListener("pointerdown",pointerEvent=>{
-    pointerEvent.preventDefault();
-    pointerEvent.stopPropagation();
-
-    active=true;
-    startY=pointerEvent.clientY;
-    originalEnd=timeToMinutes(event.endTime||defaultEndTime(event.time));
-    previewEnd=originalEnd;
-
-    handle.setPointerCapture?.(pointerEvent.pointerId);
-    document.addEventListener("pointermove",move,{passive:false});
-    document.addEventListener("pointerup",finish,{once:true});
-    document.addEventListener("pointercancel",finish,{once:true});
   });
 }
 
@@ -4069,7 +4006,6 @@ function openTodoCreate(date=state.selectedDateKey,options={}){
   resetTodoForm(date,options);
   el.todoModalEyebrow.textContent="NEW TO DO";
   el.todoModalTitle.textContent="할 일 추가";
-  if(el.todoModeSwitch)el.todoModeSwitch.hidden=false;
   el.deleteTodoButton.hidden=true;
   showTodoModal();
 }
@@ -4091,7 +4027,6 @@ function openTodoEdit(todo){
 
   el.todoModalEyebrow.textContent="EDIT TO DO";
   el.todoModalTitle.textContent=(todo.repeat||"none")!=="none"?"반복 할 일 수정":"할 일 수정";
-  if(el.todoModeSwitch)el.todoModeSwitch.hidden=true;
   el.deleteTodoButton.hidden=false;
   showTodoModal();
 }
@@ -4178,7 +4113,7 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   const btn=document.createElement("button");
   btn.type="button";
   btn.className="todo-checkbox";
-  btn.textContent=todoStatusIcon(todo.status||"pending");
+  btn.textContent=todo.backlog&&(!todo.status||todo.status==="pending")?"":todoStatusIcon(todo.status||"pending");
   btn.setAttribute("aria-label",`${todo.text} 상태 변경`);
 
   const text=document.createElement("button");
@@ -4272,7 +4207,7 @@ function updateTodoStatusDom(todo,status){
     row.classList.add(`status-${status}`);
     const button=row.querySelector(".todo-checkbox");
     if(button){
-      button.textContent=todoStatusIcon(status);
+      button.textContent=todo.backlog&&status==="pending"?"":todoStatusIcon(status);
       button.setAttribute("aria-label",`${todo.text} 상태 ${status}, 눌러서 변경`);
     }
   });
@@ -5317,11 +5252,16 @@ function resetForm(){
   el.endDate.value=dateKey(new Date());
   el.category.value=state.categories[0]?.id||"other";
   el.repeat.value="none";
+  if(el.repeatInterval)el.repeatInterval.value="1";
+  if(el.repeatUnit)el.repeatUnit.value="week";
+  if(el.repeatCount)el.repeatCount.value="1";
+  if(el.customRepeat)el.customRepeat.hidden=true;
   setSelectedRepeatWeekdays([]);
   if(el.repeatWeekdays)el.repeatWeekdays.hidden=true;
   if(el.evaluationType)el.evaluationType.value="action";
   if(el.includeInStats)el.includeInStats.checked=true;
   el.repeatEndDate.value="";
+  if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
   el.repeatEndWrap.hidden=true;
   el.editScopeSection.hidden=true;
   el.memo.value="";
@@ -5349,9 +5289,6 @@ function openCreate(key=state.selectedDateKey,time="09:00",endTime=defaultEndTim
   el.modalEyebrow.textContent="NEW EVENT";
   el.modalTitle.textContent="일정 추가";
   el.remove.hidden=true;
-
-  const modeSwitch=el.modal.querySelector(".modal-mode-switch");
-  if(modeSwitch)modeSwitch.hidden=false;
 
   showModal();
 }
@@ -5391,10 +5328,15 @@ function openEdit(event){
     event.endTime||defaultEndTime(event.time)
   );
   el.repeat.value=event.repeat||"none";
+  if(el.repeatInterval)el.repeatInterval.value=String(Math.max(1,Number(event.repeatInterval)||1));
+  if(el.repeatUnit)el.repeatUnit.value=event.repeatUnit||"week";
+  if(el.repeatCount)el.repeatCount.value=String(Math.max(1,Number(event.repeatCount)||1));
+  if(el.customRepeat)el.customRepeat.hidden=el.repeat.value!=="custom";
   setSelectedRepeatWeekdays(event.repeatWeekdays||[parseDateKey(occurrenceStart).getDay()]);
-  if(el.repeatWeekdays)el.repeatWeekdays.hidden=el.repeat.value!=="weekly";
+  if(el.repeatWeekdays)el.repeatWeekdays.hidden=!(el.repeat.value==="weekly"||(el.repeat.value==="custom"&&el.repeatUnit?.value==="week"));
   el.repeatEndDate.value=event.repeatEndDate||"";
   el.repeatEndWrap.hidden=(event.repeat||"none")==="none";
+  if(el.repeatCountWrap)el.repeatCountWrap.hidden=!Number(event.repeatCount);
   el.memo.value=event.memo||"";
   setImportance("event",Boolean(event.important));
   state.editingChecklist=
@@ -5417,9 +5359,6 @@ function openEdit(event){
     :"일정 수정";
   el.remove.hidden=false;
   el.remove.textContent="삭제";
-
-  const modeSwitch=el.modal.querySelector(".modal-mode-switch");
-  if(modeSwitch)modeSwitch.hidden=true;
 
   setProgress(event.progress);
   syncCompactEventForm();
@@ -6335,8 +6274,11 @@ function setupMondayFirstDatePicker(){
 
 function updateRepeatControls(){
   el.repeatEndWrap.hidden=(el.repeat.value||"none")==="none";
-  if(el.repeatWeekdays)el.repeatWeekdays.hidden=el.repeat.value!=="weekly";
-  if(el.repeat.value==="weekly"&&!selectedRepeatWeekdays().length){
+  const custom=el.repeat.value==="custom";
+  if(el.customRepeat)el.customRepeat.hidden=!custom;
+  const usesWeekdays=el.repeat.value==="weekly"||(custom&&el.repeatUnit?.value==="week");
+  if(el.repeatWeekdays)el.repeatWeekdays.hidden=!usesWeekdays;
+  if(usesWeekdays&&!selectedRepeatWeekdays().length){
     setSelectedRepeatWeekdays([parseDateKey(el.date.value||dateKey(new Date())).getDay()]);
   }
   syncCompactEventForm();
@@ -6362,8 +6304,10 @@ function syncCompactEventForm(){
   }
   if(el.repeatNoEndButton&&el.repeatSetEndButton){
     const hasEnd=Boolean(el.repeatEndDate.value);
-    el.repeatNoEndButton.classList.toggle("active",!hasEnd);
+    const hasCount=!el.repeatCountWrap?.hidden;
+    el.repeatNoEndButton.classList.toggle("active",!hasEnd&&!hasCount);
     el.repeatSetEndButton.classList.toggle("active",hasEnd);
+    el.repeatSetCountButton?.classList.toggle("active",hasCount);
     el.repeatEndDate.classList.toggle("has-value",hasEnd);
   }
   const scopeLabels={single:"선택한 날짜만",future:"이 날짜부터",all:"전체 반복 일정"};
@@ -6381,7 +6325,10 @@ function currentEventFormData(){
     endTime:el.endTime.value,
     repeat:el.repeat.value||"none",
     repeatEndDate:el.repeat.value==="none"?"":el.repeatEndDate.value,
-    repeatWeekdays:el.repeat.value==="weekly"?selectedRepeatWeekdays():[],
+    repeatWeekdays:(el.repeat.value==="weekly"||(el.repeat.value==="custom"&&el.repeatUnit?.value==="week"))?selectedRepeatWeekdays():[],
+    repeatInterval:el.repeat.value==="custom"?Math.max(1,Number(el.repeatInterval?.value)||1):1,
+    repeatUnit:el.repeat.value==="custom"?(el.repeatUnit?.value||"week"):"",
+    repeatCount:el.repeat.value==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1),
     evaluationType:el.evaluationType?.value||"action",
     includeInStats:el.includeInStats?.checked!==false,
     memo:el.memo.value.trim(),
@@ -6794,6 +6741,10 @@ async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef})
   delete rangeChanges.endDate;
   delete rangeChanges.repeat;
   delete rangeChanges.repeatEndDate;
+  delete rangeChanges.repeatWeekdays;
+  delete rangeChanges.repeatInterval;
+  delete rangeChanges.repeatUnit;
+  delete rangeChanges.repeatCount;
 
   if(!Object.keys(rangeChanges).length)return;
 
@@ -6853,7 +6804,10 @@ async function submit(event){
   const endTime=el.endTime.value;
   const repeat=el.repeat.value;
   const repeatEndDate=repeat==="none"?"":el.repeatEndDate.value;
-  const repeatWeekdays=repeat==="weekly"?selectedRepeatWeekdays():[];
+  const repeatUnit=repeat==="custom"?(el.repeatUnit?.value||"week"):"";
+  const repeatInterval=repeat==="custom"?Math.max(1,Number(el.repeatInterval?.value)||1):1;
+  const repeatWeekdays=(repeat==="weekly"||(repeat==="custom"&&repeatUnit==="week"))?selectedRepeatWeekdays():[];
+  const repeatCount=repeat==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1);
   const evaluationType=el.evaluationType?.value||"action";
   const includeInStats=el.includeInStats?.checked!==false;
   const memo=el.memo.value.trim();
@@ -6875,7 +6829,7 @@ async function submit(event){
     el.formError.textContent="반복 종료일은 시작 날짜보다 빠를 수 없습니다.";
     return;
   }
-  if(repeat==="weekly"&&!repeatWeekdays.length){
+  if((repeat==="weekly"||(repeat==="custom"&&repeatUnit==="week"))&&!repeatWeekdays.length){
     el.formError.textContent="반복할 요일을 하나 이상 선택하세요.";
     return;
   }
@@ -6896,6 +6850,9 @@ async function submit(event){
         repeat,
         repeatEndDate,
         repeatWeekdays,
+        repeatInterval,
+        repeatUnit,
+        repeatCount,
         evaluationType,
         includeInStats,
         memo,
@@ -6954,6 +6911,9 @@ async function submit(event){
         repeat,
         repeatEndDate,
         repeatWeekdays,
+        repeatInterval,
+        repeatUnit,
+        repeatCount,
         evaluationType,
         includeInStats,
         memo,
@@ -7092,34 +7052,6 @@ async function removeEvent(){
     console.error(error);
     el.formError.textContent="일정을 삭제하지 못했습니다.";
   }
-}
-
-
-function switchCreateModal(target){
-  if(target!=="todo"||el.eventId.value)return;
-
-  closeEventModalFromHistory();
-  openTodoCreate(state.selectedDateKey);
-}
-function addHorizontalSwipe(element,onLeft,onRight){
-  let startX=0;
-  let startY=0;
-
-  element.addEventListener("touchstart",event=>{
-    const touch=event.changedTouches[0];
-    startX=touch.clientX;
-    startY=touch.clientY;
-  },{passive:true});
-
-  element.addEventListener("touchend",event=>{
-    const touch=event.changedTouches[0];
-    const dx=touch.clientX-startX;
-    const dy=touch.clientY-startY;
-
-    if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.3)return;
-    if(dx<0)onLeft();
-    else onRight();
-  },{passive:true});
 }
 
 
@@ -7353,15 +7285,10 @@ el.dayViewNext.onclick=()=>{
 
 $("openEventModal").onclick=()=>openCreate();
 $("selectedAddEventButton")?.addEventListener("click",()=>openCreate(state.selectedDateKey));
+$("todoCreateButton")?.addEventListener("click",()=>openTodoCreate(state.selectedDateKey));
 $("weekAddEventButton").onclick=()=>openCreate(
   state.selectedDateKey||dateKey(new Date())
 );
-$("todoEventModeTab").onclick=()=>{
-  closeTodoModalFromHistory();
-  openCreate(state.selectedDateKey);
-};
-$("todoModeFromEventTab").onclick=()=>switchCreateModal("todo");
-addHorizontalSwipe(el.modal,()=>switchCreateModal("todo"),()=>{});
 $("closeEventModal").onclick=closeModal;$("cancelEvent").onclick=closeModal;el.form.onsubmit=submit;
 el.remove.onclick=removeEvent;
 el.editOnlyThisDateButton.onclick=()=>applyPendingRepeatEdit("single");
@@ -7395,6 +7322,7 @@ $("detailedReportModal")?.addEventListener("click",event=>{if(event.target===$("
 $("reportPrevWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset--;openDetailedReport()});
 $("reportNextWeekButton")?.addEventListener("click",()=>{if(state.reportWeekOffset<0)state.reportWeekOffset++;openDetailedReport()});
 $("reportThisWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
+$("saveReportPdfButton")?.addEventListener("click",()=>window.print());
 $("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals().catch(error=>{console.error(error);$("directionSaveMessage").textContent="저장 실패"}));
 el.todoBacklog?.addEventListener("change",()=>{
   syncTodoBacklogForm();
@@ -7474,9 +7402,21 @@ el.repeatWeekdays?.addEventListener("click",event=>{
 });
 el.repeatNoEndButton?.addEventListener("click",()=>{
   el.repeatEndDate.value="";
+  if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
   el.repeatEndDate.dispatchEvent(new Event("change",{bubbles:true}));
 });
-el.repeatSetEndButton?.addEventListener("click",()=>el.repeatEndDate.click());
+el.repeatSetEndButton?.addEventListener("click",()=>{
+  if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
+  el.repeatEndDate.click();syncCompactEventForm();
+});
+el.repeatSetCountButton?.addEventListener("click",()=>{
+  el.repeatEndDate.value="";
+  if(el.repeatCountWrap)el.repeatCountWrap.hidden=false;
+  el.repeatCount?.focus();syncCompactEventForm();
+});
+el.repeatUnit?.addEventListener("change",updateRepeatControls);
+el.repeatInterval?.addEventListener("input",syncCompactEventForm);
+el.repeatCount?.addEventListener("input",syncCompactEventForm);
 el.repeatEndDate.addEventListener("change",syncCompactEventForm);
 
 function closeEventScopeSheet(){if(el.editScopeSheet)el.editScopeSheet.hidden=true}

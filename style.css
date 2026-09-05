@@ -2275,43 +2275,6 @@ button:active,
 .week-event.timed-event small{
   margin-top:2px;
 }
-.week-event-resize-handle{
-  position:absolute;
-  left:5px;
-  right:5px;
-  bottom:1px;
-  height:9px;
-  border-radius:999px;
-  cursor:ns-resize;
-  touch-action:none;
-}
-.week-event-resize-handle::after{
-  content:"";
-  position:absolute;
-  left:50%;
-  bottom:2px;
-  width:22px;
-  height:3px;
-  border-radius:999px;
-  background:rgba(28,64,46,.42);
-  transform:translateX(-50%);
-}
-.week-event.resizing{
-  opacity:.76;
-  box-shadow:0 8px 22px rgba(20,55,38,.2);
-}
-.week-resize-tooltip{
-  position:fixed;
-  z-index:210;
-  padding:7px 10px;
-  border-radius:999px;
-  background:var(--text);
-  color:#fff;
-  font-size:10px;
-  font-weight:800;
-  pointer-events:none;
-  transform:translate(-50%,-120%);
-}
 @media(max-width:720px){
   .time-range-editor{
     grid-template-columns:1fr;
@@ -2323,13 +2286,6 @@ button:active,
   .time-parts select{
     min-height:44px;
     font-size:16px;
-  }
-  .week-event-resize-handle{
-    height:14px;
-  }
-  .week-event-resize-handle::after{
-    width:28px;
-    height:4px;
   }
 }
 
@@ -2567,16 +2523,6 @@ button:active,
 .week-event.move-armed.dragging{
   cursor:grabbing;
 }
-.week-event-resize-handle{
-  opacity:0;
-}
-.week-event-resize-handle::after{
-  opacity:0;
-}
-.week-event.resizing .week-event-resize-handle,
-.week-event:hover .week-event-resize-handle{
-  opacity:0;
-}
 .page-swipe-surface{
   touch-action:pan-y;
 }
@@ -2708,11 +2654,6 @@ body.week-fullscreen .summary-column{
   top:0;
   left:0;
   z-index:9;
-}
-
-/* 일정 길이 조절 기능 및 표시 제거 */
-.week-event-resize-handle{
-  display:none!important;
 }
 
 /* 화면 전환 스와이프 */
@@ -2897,7 +2838,7 @@ body.week-fullscreen #weekView{display:block!important;flex:1 1 auto;min-width:0
 .google-week-selection span{position:absolute;left:4px;top:3px;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,.92);color:var(--green-dark);font-size:8px;font-weight:800;white-space:nowrap}
 body.week-fullscreen{--google-day-width:calc((100vw - var(--week-time-width))/7)}
 body.week-fullscreen.week-manual-zoom{--google-day-width:var(--week-day-width)}
-body.week-fullscreen .summary-column{display:none!important}.week-event-resize-handle{display:none!important}
+body.week-fullscreen .summary-column{display:none!important}
 @media(max-width:720px){body.week-fullscreen .calendar-toolbar{padding:calc(7px + env(safe-area-inset-top)) 7px 7px}body.week-fullscreen .quick-add-bar{padding:7px}body.week-fullscreen .quick-add-copy{display:none}body.week-fullscreen .quick-add-controls{grid-template-columns:1fr auto}.google-week-day-header{min-height:40px;padding:5px 1px;font-size:8px}.google-week-event{padding:3px 3px 4px 6px}.google-week-event strong{font-size:7px}.google-week-event small{font-size:6px}}
 
 
@@ -3089,8 +3030,6 @@ body.week-manual-zoom .google-week-body-track{
 body.week-manual-zoom .google-week-body-scroll{
   overflow-x:auto;
 }
-.week-event-resize-handle{display:none!important}
-
 @media(max-width:720px){
   :root{
     --week-time-width:32px;
@@ -7940,10 +7879,26 @@ body.selected-day-mode #calendarPage .calendar-controls{margin-left:auto}
 /* Momentum v7.81 — Google-like week interaction and compact home headings */
 .week-zoom-controls{margin-left:auto!important;order:20}.week-fit-icon{order:21}.calendar-controls{justify-content:flex-end}
 .google-week-day-header{min-height:52px!important;padding:8px 3px!important;font-size:10px!important}.google-week-time-label{font-size:10px!important}.google-week-event{box-shadow:0 1px 4px rgba(27,54,42,.1);transition:transform .16s ease,box-shadow .16s ease,opacity .16s ease}.google-week-event:hover{box-shadow:0 7px 20px rgba(27,54,42,.16)}
-.google-week-event .week-event-resize-handle{display:block!important;position:absolute;z-index:5;left:7px;right:7px;bottom:0;height:10px;cursor:ns-resize;touch-action:none}.google-week-event .week-event-resize-handle::after{content:"";position:absolute;left:50%;bottom:2px;width:24px;height:3px;border-radius:99px;background:color-mix(in srgb,var(--text) 36%,transparent);transform:translateX(-50%);opacity:0;transition:opacity .15s}.google-week-event:hover .week-event-resize-handle::after,.google-week-event.resizing .week-event-resize-handle::after{opacity:1}
 .selected-todo-card{overflow:hidden}.todo-row{transition:transform .18s ease,opacity .18s ease;touch-action:pan-y}.todo-overview-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:10px 0;padding:4px;border-radius:12px;background:var(--muted)}.todo-overview-tabs button{min-height:34px;border:0;border-radius:9px;background:transparent;color:var(--soft);font-weight:800}.todo-overview-tabs button.active{background:#fff;color:var(--green-dark);box-shadow:0 2px 8px rgba(30,72,52,.08)}.todo-overview-toolbar[hidden]{display:none!important}
 .habit-backlog-card{width:100%;padding:18px;border:1px solid var(--line);border-radius:20px;background:var(--surface);box-shadow:var(--shadow);box-sizing:border-box}.habit-backlog-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:10px 0}.habit-backlog-add input{margin:0;min-width:0}.habit-backlog-add button{min-width:72px}.habit-backlog-list{display:grid;gap:6px}.backlog-overview-group{margin-top:8px}
 .todo-date-nav{grid-template-columns:1fr auto!important;min-width:116px!important}.todo-date-nav .todo-day-count{min-width:40px}
 @media(max-width:720px){
-  #selectedView .selected-day-heading,.selected-todo-heading,.selected-preview-heading{grid-template-columns:auto minmax(116px,1fr) auto!important;gap:6px!important}.card-date-navigation{grid-column:2!important;grid-row:1!important;width:auto!important;min-width:0;padding:2px 3px!important}.card-date-navigation>button:not(.card-month-picker){width:23px!important;height:23px!important;flex-basis:23px!important}.card-date-navigation strong{min-width:62px!important;font-size:9px!important}.card-date-navigation .card-month-picker{width:16px!important;height:16px!important;flex-basis:16px!important}.selected-add-event-button,.selected-preview-heading .text-action-button,.todo-date-nav{grid-column:3!important;grid-row:1!important;justify-self:end}.selected-day-heading-line h3,.selected-todo-heading h3,.selected-preview-heading h3{white-space:nowrap}.todo-date-nav{min-width:88px!important}.todo-date-nav .todo-overview-button{padding-inline:5px!important;font-size:9px!important}.google-week-day-header{min-height:48px!important;font-size:9px!important}.google-week-event .week-event-resize-handle{height:14px}.google-week-event .week-event-resize-handle::after{width:28px;height:4px;opacity:.5}.habit-backlog-card{padding:14px;border-radius:16px}
+  #selectedView .selected-day-heading,.selected-todo-heading,.selected-preview-heading{grid-template-columns:auto minmax(116px,1fr) auto!important;gap:6px!important}.card-date-navigation{grid-column:2!important;grid-row:1!important;width:auto!important;min-width:0;padding:2px 3px!important}.card-date-navigation>button:not(.card-month-picker){width:23px!important;height:23px!important;flex-basis:23px!important}.card-date-navigation strong{min-width:62px!important;font-size:9px!important}.card-date-navigation .card-month-picker{width:16px!important;height:16px!important;flex-basis:16px!important}.selected-add-event-button,.selected-preview-heading .text-action-button,.todo-date-nav{grid-column:3!important;grid-row:1!important;justify-self:end}.selected-day-heading-line h3,.selected-todo-heading h3,.selected-preview-heading h3{white-space:nowrap}.todo-date-nav{min-width:88px!important}.todo-date-nav .todo-overview-button{padding-inline:5px!important;font-size:9px!important}.google-week-day-header{min-height:48px!important;font-size:9px!important}.habit-backlog-card{padding:14px;border-radius:16px}
 }
+
+/* Momentum v7.82 — block calendar interactions and aligned home tools */
+.calendar-toolbar{display:grid!important;grid-template-columns:auto minmax(160px,1fr) auto;align-items:center!important;gap:10px}.calendar-toolbar>.view-switch{grid-column:1;grid-row:1;margin:0!important}.calendar-toolbar>.period-navigation{grid-column:2;grid-row:1;justify-self:center}.calendar-toolbar>.calendar-controls{grid-column:3;grid-row:1}
+.calendar-controls .week-add-event-button{order:10}.calendar-controls .week-category-manager-button{order:11}.calendar-controls .week-zoom-controls{order:20!important;margin-left:auto!important}.calendar-controls .week-fit-icon{order:21!important}
+body.selected-day-mode #calendarPage .calendar-controls{width:auto!important;justify-content:flex-end!important}
+.google-week-day-column{border-right:4px solid var(--surface)!important;background:repeating-linear-gradient(to bottom,var(--muted) 0,var(--muted) calc(var(--week-row-height) - 4px),transparent calc(var(--week-row-height) - 4px),transparent var(--week-row-height))!important}
+.google-week-day-column.drag-over,.google-week-day-column.move-drop-target{box-shadow:none!important;background-color:transparent!important}.google-week-event.google-moving{opacity:.3!important;transform:none!important}
+.week-google-ghost{position:fixed!important;z-index:250!important;margin:0!important;padding:5px 6px!important;max-width:none!important;box-sizing:border-box;border-radius:8px!important;background:var(--event-progress-color,var(--muted))!important;color:var(--text)!important;box-shadow:0 10px 28px rgba(20,55,38,.22)!important;transform:none!important;opacity:.88!important;pointer-events:none!important;transition:left 45ms linear,top 45ms linear!important}
+.google-week-drop-silhouette{border:0!important;border-radius:8px!important;background:color-mix(in srgb,var(--green) 20%,transparent)!important;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 38%,transparent)!important}
+.week-create-selection{z-index:35!important;pointer-events:auto!important;border:2px solid var(--green)!important;border-radius:9px!important;background:color-mix(in srgb,var(--green) 14%,var(--surface))!important;box-shadow:0 5px 16px rgba(24,111,72,.16)!important;cursor:pointer}.week-create-selection span{left:8px!important;top:8px!important;background:transparent!important;font-size:10px!important}
+.week-selection-handle{position:absolute;z-index:2;left:50%;width:15px;height:15px;padding:0;border:2px solid #fff;border-radius:50%;background:var(--green);box-shadow:0 1px 5px rgba(20,55,38,.28);transform:translateX(-50%);touch-action:none}.week-selection-handle.top{top:-8px}.week-selection-handle.bottom{bottom:-8px}
+.event-custom-repeat{display:grid;grid-template-columns:1fr 64px 92px;align-items:center;gap:7px;margin-top:8px;padding:9px;border-radius:11px;background:var(--muted)}.event-custom-repeat[hidden]{display:none!important}.event-custom-repeat>span{font-size:10px;font-weight:800;color:var(--soft)}.event-custom-repeat input,.event-custom-repeat select{height:34px;min-height:34px;margin:0;padding:4px 7px;font-size:12px}
+.event-repeat-end{grid-template-columns:auto repeat(3,1fr)!important}.repeat-count-wrap{grid-column:2/-1;display:flex!important;align-items:center;gap:7px;margin:0}.repeat-count-wrap[hidden]{display:none!important}.repeat-count-wrap input{display:block!important;width:84px!important;margin:0!important}.repeat-count-wrap span{font-size:10px;white-space:nowrap}
+.report-download-row{display:flex;justify-content:flex-end;margin:-5px 0 10px}.report-download-row button{min-height:36px;padding:0 14px}.habit-backlog-list .todo-checkbox,.backlog-overview-group .todo-checkbox{border:1.5px solid var(--green)!important;border-radius:4px!important;background:transparent!important;box-shadow:none!important;color:var(--green-dark)!important}
+#selectedView .selected-todo-heading{grid-template-columns:auto minmax(142px,1fr) auto!important}.selected-todo-heading .todo-date-nav{grid-column:1/-1!important;grid-row:2!important;justify-self:end}.selected-todo-heading #todoCreateButton{grid-column:3!important;grid-row:1!important;justify-self:end}.todo-add-button{min-height:36px!important;padding:0 14px!important;border:0!important;border-radius:10px!important;background:var(--green)!important;color:#fff!important;font-weight:850!important;box-shadow:0 4px 12px color-mix(in srgb,var(--green) 18%,transparent)!important}
+@media(max-width:720px){.calendar-toolbar{grid-template-columns:auto 1fr auto!important;gap:5px!important}.calendar-toolbar>.view-switch{grid-column:1;grid-row:1}.calendar-toolbar>.calendar-controls{grid-column:3;grid-row:1;width:auto!important;flex-wrap:nowrap!important;justify-content:flex-end!important}.calendar-toolbar>.period-navigation{grid-column:1/-1;grid-row:2;width:100%;justify-self:stretch}.calendar-controls .week-zoom-controls{margin-left:0!important}.calendar-controls .week-add-event-button{display:none!important}body.selected-day-mode .calendar-toolbar{grid-template-rows:auto!important}#selectedView .selected-todo-heading{grid-template-columns:auto minmax(105px,1fr) auto!important}.selected-todo-heading .card-date-navigation{grid-column:2!important}.selected-todo-heading #todoCreateButton{grid-column:3!important;max-width:82px;padding-inline:7px!important;font-size:9px!important}.selected-todo-heading .todo-date-nav{grid-column:2/-1!important;grid-row:2!important;margin-top:2px}#selectedView .selected-preview-heading{grid-template-columns:auto minmax(105px,1fr) auto!important}.selected-preview-heading .card-date-navigation{grid-column:2!important}.selected-preview-heading .text-action-button{grid-column:3!important;max-width:78px;font-size:9px!important;white-space:normal;line-height:1.2}.event-custom-repeat{grid-template-columns:1fr 55px 78px}.event-repeat-end{grid-template-columns:1fr 1fr 1fr!important}.event-repeat-end>span{grid-column:1/-1}.repeat-count-wrap{grid-column:1/-1}}
+@media print{.report-download-row,.report-week-navigation{display:none!important}@page{size:A4;margin:12mm}}
