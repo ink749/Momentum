@@ -166,7 +166,7 @@ const el = {
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
   calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), weekNav:$("weekNavButton"), habitNav:$("habitNavButton"),
-  habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
+  habitHeatmapLabel:$("habitHeatmapLabel"), habitPeriodLabel:$("habitPeriodLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
@@ -1802,6 +1802,7 @@ function habitExistsInHeatmapPeriod(habit){
 function renderHabitHeatmap(){
   const y=state.habitMonth.getFullYear();
   const m=state.habitMonth.getMonth();
+  if(el.habitPeriodLabel) el.habitPeriodLabel.textContent=`${y}년 ${m+1}월`;
 
   el.habitHeatmapLabel.textContent=`${y}년 ${m+1}월 기준`;
 
@@ -7453,6 +7454,7 @@ el.habitModal.onclick=e=>{if(e.target===el.habitModal)closeHabitModal()};
 $("habitTodayButton").onclick=()=>{const today=new Date();state.selectedHabitDateKey=dateKey(today);state.habitMonth=startOfMonth(today);renderHabits()};
 $("prevHabitMonth").onclick=()=>{state.habitMonth=new Date(state.habitMonth.getFullYear(),state.habitMonth.getMonth()-1,1);renderHabitHeatmap()};
 $("nextHabitMonth").onclick=()=>{state.habitMonth=new Date(state.habitMonth.getFullYear(),state.habitMonth.getMonth()+1,1);renderHabitHeatmap()};
+$("habitPeriodLabel").onclick=()=>{state.habitMonth=startOfMonth(new Date());renderHabitHeatmap()};
 
 
 document.addEventListener("keydown",event=>{

@@ -7911,3 +7911,47 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
 .calendar-controls .week-fit-icon{order:4!important;flex:0 0 36px!important}
 .four-week-change{min-height:0!important}.four-week-table-scroll{width:100%;overflow-x:auto}.four-week-table{width:100%;min-width:720px;border-collapse:collapse;table-layout:fixed}.four-week-table th,.four-week-table td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center}.four-week-table thead th{background:var(--muted);color:var(--soft);font-size:9px}.four-week-table thead th:first-child{width:105px;border-radius:9px 0 0 9px}.four-week-table tbody th{text-align:left;color:var(--text);font-size:10px}.four-week-table td strong{display:block;font-size:13px}.four-week-table td small{display:block;margin-top:3px;color:var(--green-dark);font-size:8px}.four-week-table tbody tr:last-child th,.four-week-table tbody tr:last-child td{border-bottom:0}
 @media(max-width:720px){.mobile-bottom-nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}.calendar-toolbar>.calendar-controls{gap:5px!important}.calendar-controls .period-navigation{flex-basis:250px!important;width:250px!important;min-width:210px!important}.calendar-controls .week-category-manager-button{font-size:9px!important;padding-inline:8px!important}.four-week-table{min-width:650px}.four-week-table th,.four-week-table td{padding:8px 6px}}
+
+/* Momentum v7.86 — consistent date navigation and readable statistics */
+.habit-date-navigation{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:2px!important;min-width:210px;padding:3px 5px;border:1px solid var(--line);border-radius:999px;background:#fff}
+.habit-date-navigation .round-button{width:28px!important;height:28px!important;flex:0 0 28px;border:0!important;background:transparent!important;font-size:19px!important}
+.habit-period-label{min-width:120px;height:28px;padding:0 8px;border:0;background:transparent;color:var(--text);font-size:12px;font-weight:850;white-space:nowrap}
+.selected-todo-heading{position:relative;padding-bottom:20px}
+.selected-todo-heading .todo-date-nav{position:absolute!important;right:0;bottom:0;display:flex!important;grid-template-columns:none!important;align-items:center!important;gap:8px!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important}
+.selected-todo-heading .todo-overview-button,.selected-todo-heading .todo-day-count{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:10px!important;line-height:1.2!important;color:var(--green-dark);font-weight:800}
+.selected-todo-heading .todo-day-count{color:var(--soft)}
+.calendar-controls .period-navigation{padding:3px 5px!important;border:1px solid var(--line)!important;border-radius:999px!important;background:#fff!important;box-sizing:border-box}
+.calendar-controls .period-navigation .round-button{border:0!important;background:transparent!important}
+#statsPage .stats-card h2,#statsPage .evaluation-split-card h2,#statsPage .four-week-card h2,#statsPage .workload-card h2{font-size:16px!important}
+#statsPage .stats-metric-card>span{font-size:11px!important;line-height:1.35!important}
+#statsPage .stats-metric-card>strong{font-size:25px!important}
+#statsPage .evaluation-split-stats span,#statsPage .category-stat-card span{font-size:13px!important}
+#statsPage .evaluation-split-stats strong,#statsPage .category-stat-card strong{font-size:20px!important}
+.four-week-card,.four-week-change,.four-week-table-scroll{width:100%!important;max-width:none!important;box-sizing:border-box!important}
+.four-week-table{width:100%!important}
+.four-week-table tbody th{font-size:12px!important}.four-week-table td strong{font-size:15px!important}.four-week-table td small{font-size:10px!important}
+@media(max-width:720px){
+  #selectedView .selected-preview-heading{grid-template-columns:auto minmax(116px,1fr) auto!important;gap:6px!important}
+  #selectedView .selected-preview-heading .card-date-navigation{grid-column:2!important;grid-row:1!important;width:auto!important;margin-top:0!important;justify-self:center!important}
+  #selectedView .selected-preview-heading .text-action-button{grid-column:3!important;grid-row:1!important;max-width:82px!important;font-size:9px!important;white-space:normal!important;line-height:1.15!important}
+  .habit-section-heading{display:grid!important;grid-template-columns:auto minmax(190px,1fr)!important;align-items:center!important;gap:8px!important}
+  .habit-section-heading .habit-date-navigation{justify-self:end;width:min(250px,100%);min-width:190px;box-sizing:border-box}
+  .calendar-toolbar>.calendar-controls{display:grid!important;grid-template-columns:auto 1fr auto auto!important;gap:7px!important;overflow:visible!important}
+  .calendar-controls .week-zoom-controls{grid-column:1;grid-row:1!important}
+  .calendar-controls .week-category-manager-button{grid-column:3;grid-row:1!important}
+  .calendar-controls .week-fit-icon{grid-column:4;grid-row:1!important}
+  .calendar-controls .period-navigation{grid-column:1/-1;grid-row:2!important;justify-self:center!important;width:min(390px,100%)!important;min-width:260px!important;height:38px!important}
+  #statsPage>.topbar h1{font-size:28px!important}
+  #statsPage>.topbar .top-actions button{font-size:12px!important}
+  .stats-core-metrics .stats-metric-card{padding:12px 9px!important}
+  #statsPage .stats-metric-card>span{font-size:10px!important}
+  #statsPage .stats-metric-card>strong{font-size:23px!important}
+  .four-week-table-scroll{overflow-x:hidden!important}
+  .four-week-table{min-width:0!important;table-layout:fixed!important}
+  .four-week-table thead th:first-child{width:68px!important}
+  .four-week-table th,.four-week-table td{padding:8px 2px!important}
+  .four-week-table thead th{font-size:8px!important;line-height:1.25!important;overflow-wrap:anywhere}
+  .four-week-table tbody th{font-size:10px!important}
+  .four-week-table td strong{font-size:12px!important}
+  .four-week-table td small{font-size:8px!important;white-space:nowrap}
+}
