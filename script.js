@@ -882,7 +882,9 @@ function renderFourWeekChange(referenceDate){
     if(value===null)return "<td>—</td>";
     const previous=index?row.value(weeks[index-1].summary):null;
     const display=Number.isInteger(value)?value:value.toFixed(1);
-    const change=previous===null?"":`<small>▷ ${signed(value-previous)}${row.change}</small>`;
+    const difference=previous===null?null:value-previous;
+    const changeClass=difference>0?"change-up":difference<0?"change-down":"change-neutral";
+    const change=previous===null?"":`<small class="${changeClass}">▷ ${signed(difference)}${row.change}</small>`;
     return `<td><strong>${display}${row.suffix}</strong>${change}</td>`;
   }).join("")}</tr>`).join("");
   root.innerHTML=`<div class="four-week-table-scroll"><table class="four-week-table"><thead><tr><th>항목</th>${weeks.map(week=>`<th><span class="week-label-full">${weekLabel(week)}</span><span class="week-label-compact">${compactWeekLabel(week)}</span></th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
