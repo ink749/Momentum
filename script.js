@@ -4701,7 +4701,11 @@ function renderSelected(){
   const selectedViewEyebrow=$("selectedViewEyebrow");
   const selectedProgressEyebrow=$("selectedProgressEyebrow");
   const selectedProgressTitle=$("selectedProgressTitle");
-  if(selectedViewEyebrow)selectedViewEyebrow.textContent=isToday?"TODAY":"DAY";
+  if(selectedViewEyebrow){
+    selectedViewEyebrow.textContent=isToday?"TODAY":"DAY";
+    selectedViewEyebrow.disabled=isToday;
+    selectedViewEyebrow.title=isToday?"":"오늘로 이동";
+  }
   if(selectedProgressEyebrow)selectedProgressEyebrow.textContent=isToday?"TODAY PROGRESS":"DAY PROGRESS";
   if(selectedProgressTitle)selectedProgressTitle.textContent=isToday?"오늘 완료율":"이날 완료율";
   const compactDateLabel=`${d.getMonth()+1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
@@ -7163,7 +7167,7 @@ const returnCalendarToToday=()=>{
 };
 el.periodLabel.onclick=returnCalendarToToday;
 el.weekDatePickerButton.onclick=openDatePickerModal;
-$("homeTodayButton").onclick=returnCalendarToToday;
+$("selectedViewEyebrow").onclick=returnCalendarToToday;
 document.querySelectorAll(".card-month-picker").forEach(button=>{
   button.addEventListener("click",openDatePickerModal);
 });

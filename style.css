@@ -4592,14 +4592,6 @@ body.week-four-weeks .week-event-checklist{
 }
 
 
-/* Momentum v5.6 — 모바일 습관 화면은 하단 플로팅 추가 버튼만 사용 */
-@media(max-width:720px){
-  #habitPage #openHabitModal{
-    display:none!important;
-  }
-}
-
-
 /* SELECTED DAY 체크리스트도 주간·하루 보기와 동일한 상태 표현 */
 .event-checklist-row{
   appearance:none;
@@ -7946,9 +7938,6 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
 }
 
 /* Momentum v7.87 — final home, calendar and statistics alignment */
-.home-today-button{min-height:32px!important;padding:0 12px!important;border-radius:999px!important;font-size:11px!important}
-body.selected-day-mode #calendarPage .home-today-button{display:inline-flex!important}
-body:not(.selected-day-mode) #calendarPage .home-today-button{display:none!important}
 #selectedView{padding:0!important;background:transparent!important}
 #calendarPage .home-memo-board,#calendarPage .dashboard-grid,#selectedView>.summary-card,#selectedView>.selected-support-grid{width:100%!important;max-width:1540px!important;box-sizing:border-box!important}
 .yearly-direction-card textarea{resize:none!important}
@@ -8047,4 +8036,60 @@ body.week-page-mode .week-scroll,body.week-page-mode .google-week-body-scroll{ov
   .google-week-event{padding:3px 3px 4px 5px!important}
   .google-week-event strong{display:-webkit-box!important;overflow:hidden!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;font-size:8px!important;line-height:1.15!important}
   .google-week-event small{display:none!important}
+}
+
+/* Momentum v7.92 — restore habit creation on mobile */
+@media(max-width:720px){
+  #habitPage>.topbar{display:flex!important;align-items:center!important;margin-bottom:10px!important}
+  #habitPage>.topbar .top-actions{display:flex!important;align-items:center!important;gap:6px!important}
+  #habitPage #habitTodayButton{min-height:34px!important;padding:0 10px!important;font-size:10px!important}
+  #habitPage #openHabitModal{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:34px!important;padding:0 11px!important;font-size:10px!important;white-space:nowrap!important}
+}
+
+/* Momentum v7.93 — DAY title returns every home card to today */
+.day-return-button{min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;font:inherit;cursor:pointer}
+.day-return-button:not(:disabled){color:var(--green-dark)!important;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.day-return-button:disabled{cursor:default}
+
+/* Momentum v7.94 — equally aligned, larger home date controls */
+.card-date-navigation{padding:4px 6px!important;gap:5px!important}
+.card-date-navigation>button:not(.card-month-picker){width:28px!important;height:28px!important;flex-basis:28px!important;font-size:19px!important}
+.card-date-navigation strong{min-width:78px!important;font-size:12px!important}
+.card-date-navigation .card-month-picker{width:19px!important;height:19px!important;flex-basis:19px!important;margin-left:-3px!important;font-size:10px!important}
+@media(max-width:720px){
+  #selectedView .selected-day-heading,#selectedView .selected-todo-heading,#selectedView .selected-preview-heading{grid-template-columns:54px minmax(0,1fr) 80px!important;align-items:center!important;column-gap:6px!important}
+  #selectedView .selected-day-heading>.card-date-navigation,#selectedView .selected-todo-heading>.card-date-navigation,#selectedView .selected-preview-heading>.card-date-navigation{grid-column:2!important;grid-row:1!important;justify-self:center!important;width:168px!important;max-width:100%!important;min-width:0!important;margin:0!important;box-sizing:border-box!important}
+  #selectedView .card-date-navigation>button:not(.card-month-picker){width:26px!important;height:26px!important;flex-basis:26px!important;font-size:18px!important}
+  #selectedView .card-date-navigation strong{min-width:68px!important;font-size:10px!important}
+  #selectedView .card-date-navigation .card-month-picker{width:18px!important;height:18px!important;flex-basis:18px!important}
+  #selectedView .selected-add-event-button,#selectedView .selected-preview-heading .text-action-button{grid-column:3!important;grid-row:1!important;justify-self:end!important;max-width:80px!important}
+}
+
+/* Momentum v7.95 — event-modal design shared by TO DO and habit forms */
+.entity-modal{width:min(560px,calc(100vw - 24px))!important;max-height:calc(100dvh - 20px)!important;padding:16px!important;border-radius:23px!important;overflow:auto!important}
+.entity-modal .modal-header{margin-bottom:8px!important}
+.entity-modal .modal-header h2{font-size:22px!important;line-height:1.15!important}
+.entity-modal .modal-header .eyebrow{margin-bottom:2px!important;font-size:9px!important}
+.entity-form-compact{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px 10px!important}
+.entity-form-compact>input[type=hidden]{display:none!important}
+.entity-form-compact>label{display:grid!important;align-content:start!important;gap:4px!important;min-width:0!important;padding:9px 10px!important;border:1px solid #dce9e2!important;border-radius:16px!important;background:#f8fbf9!important;color:#60766c!important;font-size:11px!important}
+.entity-form-compact>label:first-of-type{grid-column:1/-1!important;background:#fff!important}
+.entity-form-compact>label input:not([type=checkbox]),.entity-form-compact>label select,.entity-form-compact>label textarea{width:100%!important;min-width:0!important;min-height:38px!important;margin:0!important;padding:7px 10px!important;box-sizing:border-box!important;border-radius:10px!important;background:#fff!important;font-size:13px!important}
+.entity-form-compact .importance-input-wrap{margin-top:0!important}
+.entity-form-compact .importance-input-wrap input{height:42px!important;padding-right:42px!important}
+.entity-form-compact>.check-option{display:flex!important;grid-column:1/-1!important;align-items:center!important;min-height:42px!important;padding:9px 11px!important}
+.entity-form-compact>.check-option input{width:20px!important;height:20px!important;margin:0!important}
+.entity-form-compact>.checklist-editor{grid-column:1/-1!important;margin:0!important;padding:10px!important;border:1px solid #dce9e2!important;border-radius:16px!important;background:#f8fbf9!important}
+.entity-form-compact>.error-message{grid-column:1/-1!important;margin:0!important}
+.entity-modal .entity-modal-actions,.entity-modal .event-modal-actions{grid-column:1/-1!important;display:grid!important;grid-template-columns:auto 1fr auto auto!important;align-items:center!important;gap:7px!important;margin-top:1px!important;padding:7px 0 0!important;border-top:1px solid #e7eee9!important;background:#fff!important;position:sticky!important;bottom:-16px!important;z-index:2!important}
+.entity-modal .entity-modal-actions button,.entity-modal .event-modal-actions button{width:auto!important;min-width:58px!important;height:38px!important;min-height:38px!important;padding:5px 13px!important;border-radius:11px!important;font-size:12px!important}
+.entity-modal .danger-button{background:#fff4f3!important;color:#bd4139!important;border:1px solid #f0cfcc!important}
+#habitForm .habit-option-grid{grid-column:1/-1!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;padding:10px!important;border:1px solid #dce9e2!important;border-radius:16px!important;background:#f8fbf9!important}
+#habitForm .habit-option-grid .check-option{min-width:0!important;margin:0!important;padding:0!important;background:transparent!important}
+@media(max-width:600px){
+  .entity-modal{width:calc(100vw - 14px)!important;max-height:calc(100dvh - 10px)!important;padding:11px!important;border-radius:20px!important}
+  .entity-form-compact{grid-template-columns:1fr!important;gap:6px!important}
+  .entity-form-compact>label{grid-column:1/-1!important;padding:7px 8px!important}
+  .entity-modal .entity-modal-actions,.entity-modal .event-modal-actions{bottom:-11px!important}
+  #habitForm .habit-option-grid{grid-template-columns:1fr!important;padding:8px!important}
 }

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.91" />
+  <link rel="stylesheet" href="style.css?v=7.95" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -53,7 +53,6 @@
           <p class="eyebrow">YOUR DAILY MOMENTUM</p>
           <h1>Momentum</h1>
         </div>
-        <button id="homeTodayButton" class="secondary-button home-today-button" type="button">오늘</button>
       </header>
 
       <section class="home-memo-board" aria-label="홈 메모지">
@@ -86,7 +85,7 @@
           <section class="summary-card">
             <div class="summary-heading selected-day-heading">
               <div class="selected-day-heading-line">
-                <p id="selectedViewEyebrow" class="eyebrow">TODAY</p>
+                <button id="selectedViewEyebrow" class="eyebrow day-return-button" type="button" aria-label="오늘로 이동">TODAY</button>
               </div>
               <div class="card-date-navigation"><button id="todayPrevDateButton" type="button" aria-label="이전 날짜">‹</button><strong id="selectedDateLabel"></strong><button class="card-month-picker" type="button" aria-label="연도와 월 선택" title="연도와 월 선택">▾</button><button id="todayNextDateButton" type="button" aria-label="다음 날짜">›</button></div>
               <button id="selectedAddEventButton" class="secondary-button selected-add-event-button" type="button">+ 일정 추가</button>
@@ -617,7 +616,7 @@
 
 
   <div id="todoModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal todo-modal">
+    <div class="modal event-modal entity-modal todo-modal">
       <div class="modal-header">
         <div>
           <p id="todoModalEyebrow" class="eyebrow">NEW TO DO</p>
@@ -625,7 +624,7 @@
         </div>
         <button id="closeTodoModal" class="close-button" type="button">×</button>
       </div>
-      <form id="todoForm">
+      <form id="todoForm" class="entity-form-compact">
         <input id="todoEditId" type="hidden" />
         <input id="todoOccurrenceDate" type="hidden" />
         <label>이름
@@ -768,12 +767,12 @@
   </div>
 
   <div id="habitModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal">
+    <div class="modal event-modal entity-modal habit-modal">
       <div class="modal-header">
         <div><p id="habitModalEyebrow" class="eyebrow">NEW HABIT</p><h2 id="habitModalTitle">습관 추가</h2></div>
         <button id="closeHabitModal" class="close-button" type="button">×</button>
       </div>
-      <form id="habitForm">
+      <form id="habitForm" class="entity-form-compact">
         <input id="habitId" type="hidden" />
         <label>습관 이름<input id="habitName" type="text" maxlength="40" placeholder="예: 물 2L 마시기" required /></label>
         <label>시작일<input id="habitStartDate" type="date" required /></label>
@@ -797,7 +796,7 @@
           <input id="habitTargetCount" type="number" min="1" max="1000000" placeholder="예: 30" />
         </label>
         <p id="habitFormError" class="error-message"></p>
-        <div class="modal-actions">
+        <div class="modal-actions event-modal-actions entity-modal-actions">
           <button id="deleteHabitButton" class="danger-button" type="button" hidden>삭제</button>
           <span></span>
           <button id="cancelHabit" class="secondary-button" type="button">취소</button>
@@ -836,6 +835,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.91"></script>
+  <script type="module" src="script.js?v=7.95"></script>
 </body>
 </html>
