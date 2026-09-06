@@ -8093,3 +8093,6 @@ body.week-page-mode .week-scroll,body.week-page-mode .google-week-body-scroll{ov
   .entity-modal .entity-modal-actions,.entity-modal .event-modal-actions{bottom:-11px!important}
   #habitForm .habit-option-grid{grid-template-columns:1fr!important;padding:8px!important}
 }
+
+/* Momentum v7.96 — stable home position while card lengths change */
+html{scrollbar-gutter:stable}

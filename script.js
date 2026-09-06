@@ -3337,8 +3337,8 @@ function bindWeekCreateGesture(column,date){
           const pointerMinutes=weekPointerMinutes(column,event.clientY);
           const from=Number(selection.dataset.from);
           const to=Number(selection.dataset.to);
-          if(handle.dataset.selectionEdge==="top")positionSelection(Math.min(pointerMinutes,to-60),to);
-          else positionSelection(from,Math.max(from+60,pointerMinutes+30));
+          if(handle.dataset.selectionEdge==="top")positionSelection(Math.min(pointerMinutes,to-30),to);
+          else positionSelection(from,Math.max(from+30,pointerMinutes+30));
         },{passive:false});
         const finishResize=event=>{
           if(event.pointerId!==resizePointerId)return;
@@ -7440,8 +7440,8 @@ $("closeTodoOverviewModal").onclick=closeTodoOverview;
 el.todoOverviewModal.onclick=event=>{
   if(event.target===el.todoOverviewModal)closeTodoOverview();
 };
-function shiftSelectedTodoDate(days){
-  const card=el.todoList?.closest(".selected-todo-card");
+function shiftSelectedHomeDate(days,anchorSelector){
+  const card=document.querySelector(anchorSelector);
   const beforeTop=card?.getBoundingClientRect().top??null;
 
   state.selectedDateKey=dateKey(
@@ -7453,7 +7453,7 @@ function shiftSelectedTodoDate(days){
 
   requestAnimationFrame(()=>{
     requestAnimationFrame(()=>{
-      const refreshed=el.todoList?.closest(".selected-todo-card");
+      const refreshed=document.querySelector(anchorSelector);
       if(!refreshed)return;
 
       const afterTop=refreshed.getBoundingClientRect().top;
@@ -7469,12 +7469,13 @@ function shiftSelectedTodoDate(days){
     });
   });
 }
-if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
-if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
-if(el.todayPrevDateButton)el.todayPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
-if(el.todayNextDateButton)el.todayNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
-if(el.homeHabitPrevDateButton)el.homeHabitPrevDateButton.onclick=()=>shiftSelectedTodoDate(-1);
-if(el.homeHabitNextDateButton)el.homeHabitNextDateButton.onclick=()=>shiftSelectedTodoDate(1);
+const homeDateAnchors={today:"#selectedView>.summary-card:first-child",todo:"#selectedView>.selected-todo-card",habit:"#selectedView .selected-habit-preview-card"};
+if(el.todoPrevDateButton)el.todoPrevDateButton.onclick=()=>shiftSelectedHomeDate(-1,homeDateAnchors.todo);
+if(el.todoNextDateButton)el.todoNextDateButton.onclick=()=>shiftSelectedHomeDate(1,homeDateAnchors.todo);
+if(el.todayPrevDateButton)el.todayPrevDateButton.onclick=()=>shiftSelectedHomeDate(-1,homeDateAnchors.today);
+if(el.todayNextDateButton)el.todayNextDateButton.onclick=()=>shiftSelectedHomeDate(1,homeDateAnchors.today);
+if(el.homeHabitPrevDateButton)el.homeHabitPrevDateButton.onclick=()=>shiftSelectedHomeDate(-1,homeDateAnchors.habit);
+if(el.homeHabitNextDateButton)el.homeHabitNextDateButton.onclick=()=>shiftSelectedHomeDate(1,homeDateAnchors.habit);
 el.todoForm.onsubmit=submitTodoForm;
 if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("event",!state.eventImportant);
 if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
