@@ -115,7 +115,7 @@ const el = {
   logout:$("logoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
   statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
-  selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
+  selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
   todayPrevDateButton:$("todayPrevDateButton"), todayNextDateButton:$("todayNextDateButton"),
   homeHabitPrevDateButton:$("homeHabitPrevDateButton"), homeHabitNextDateButton:$("homeHabitNextDateButton"), homeHabitDateLabel:$("homeHabitDateLabel"),
   datePickerModal:$("datePickerModal"), datePickerGrid:$("datePickerGrid"),
@@ -165,14 +165,14 @@ const el = {
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
-  calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"),
+  calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), weekNav:$("weekNavButton"), habitNav:$("habitNavButton"),
   habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
-  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
+  mobileCalendarNav:$("mobileCalendarNavButton"), mobileWeekNav:$("mobileWeekNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
@@ -865,13 +865,26 @@ function renderFourWeekChange(referenceDate){
     const keys=Array.from({length:7},(__,day)=>dateKey(addDays(start,day))).filter(key=>index<3||key<=dateKey(new Date()));
     return {start,end:addDays(start,6),summary:rangeSummary(keys),current:index===3};
   });
-  const svgWeeks=weeks.map((week,index)=>{
-    const x=33+index*100,rate=week.summary.rate||0,y=145-rate*1.12;
-    const color=progressColor(rate);
-    return `<rect x="${x}" y="${y}" width="44" height="${rate*1.12}" rx="7" fill="${color}"/><text x="${x+22}" y="${Math.max(14,y-7)}" text-anchor="middle" class="combo-rate">${week.summary.rate===null?"—":`${week.summary.rate}%`}</text><text x="${x+22}" y="169" text-anchor="middle" class="combo-label">${week.current?"금주":`${week.start.getMonth()+1}/${week.start.getDate()}`}</text>`;
-  }).join("");
-  const latest=weeks[3].summary,previous=weeks[2].summary;
-  root.innerHTML=`<div class="four-week-legend"><span><i></i>수행률</span></div><svg class="four-week-combo" viewBox="0 0 400 180" role="img" aria-label="최근 4주 수행률"><line x1="28" y1="145" x2="378" y2="145" class="combo-axis"/>${svgWeeks}</svg><div class="four-week-delta"><span>지난주 대비 수행률 <b>${formatRateChange(latest.rate,previous.rate)}</b></span><span>금주 평가 항목 <b>${latest.planned}개</b></span><span>금주 일정 <b>${latest.events.length}개</b></span></div>`;
+  const weekday=date=>["일","월","화","수","목","금","토"][date.getDay()];
+  const weekLabel=week=>`${week.start.getMonth()+1}.${week.start.getDate()}(${weekday(week.start)})~${week.end.getMonth()+1}.${week.end.getDate()}(${weekday(week.end)})`;
+  const signed=value=>`${value>0?"+":""}${Number.isInteger(value)?value:value.toFixed(1)}`;
+  const rows=[
+    {name:"수행률",value:summary=>summary.rate,suffix:"%",change:"%p"},
+    {name:"계획 항목",value:summary=>summary.planned,suffix:"개",change:"개"},
+    {name:"실행량",value:summary=>summary.executed,suffix:"",change:""},
+    {name:"일정",value:summary=>summary.events.length,suffix:"개",change:"개"},
+    {name:"습관",value:summary=>summary.habits.length,suffix:"회",change:"회"},
+    {name:"할 일",value:summary=>summary.todos.length,suffix:"개",change:"개"}
+  ];
+  const body=rows.map(row=>`<tr><th scope="row">${row.name}</th>${weeks.map((week,index)=>{
+    const value=row.value(week.summary);
+    if(value===null)return "<td>—</td>";
+    const previous=index?row.value(weeks[index-1].summary):null;
+    const display=Number.isInteger(value)?value:value.toFixed(1);
+    const change=previous===null?"":`<small>▷ ${signed(value-previous)}${row.change}</small>`;
+    return `<td><strong>${display}${row.suffix}</strong>${change}</td>`;
+  }).join("")}</tr>`).join("");
+  root.innerHTML=`<div class="four-week-table-scroll"><table class="four-week-table"><thead><tr><th>항목</th>${weeks.map(week=>`<th>${weekLabel(week)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function directionGoalsForYear(year){
   const saved=state.goalProfile.directionGoals?.[String(year)]||{};
@@ -1441,17 +1454,27 @@ function currentHistoryState(){
   };
 }
 function navigateToPage(page,{push=true}={}){
-  if(!["calendar","habit","stats"].includes(page))page="calendar";
+  if(!["calendar","week","habit","stats"].includes(page))page="calendar";
 
   const previousPage=state.activePage;
   state.activePage=page;
+  if(page==="calendar")state.currentView="selected";
+  if(page==="week"){
+    state.currentView="week";
+    state.currentWeek=startOfWeek(parseDateKey(state.selectedDateKey));
+  }
   if(page==="stats")state.statsInsightDate=null;
 
   if(push){
     history.pushState(currentHistoryState(),"",location.href);
   }
 
-  renderPage();
+  if(page==="calendar"||page==="week"){
+    renderAll();
+    if(page==="week")requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
+  }else{
+    renderPage();
+  }
   if(previousPage!==page)animateVisiblePage();
 }
 function syncHistoryState({replace=false}={}){
@@ -1479,7 +1502,8 @@ function showToast(message){
 }
 
 function renderPage(){
-  const calendarMode=state.activePage==="calendar";
+  const calendarMode=state.activePage==="calendar"||state.activePage==="week";
+  const weekMode=state.activePage==="week";
   const habitMode=state.activePage==="habit";
   const statsMode=state.activePage==="stats";
 
@@ -1487,17 +1511,19 @@ function renderPage(){
   el.habitPage.hidden=!habitMode;
   el.statsPage.hidden=!statsMode;
 
-  el.calendarNav.classList.toggle("active",calendarMode);
+  el.calendarNav.classList.toggle("active",state.activePage==="calendar");
+  el.weekNav.classList.toggle("active",weekMode);
   el.habitNav.classList.toggle("active",habitMode);
   el.statsNav.classList.toggle("active",statsMode);
 
-  el.mobileCalendarNav.classList.toggle("active",calendarMode);
+  el.mobileCalendarNav.classList.toggle("active",state.activePage==="calendar");
+  el.mobileWeekNav.classList.toggle("active",weekMode);
   el.mobileHabitNav.classList.toggle("active",habitMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
   document.body.classList.toggle(
     "week-fullscreen",
-    calendarMode&&state.currentView==="week"
+    weekMode
   );
 
   const topAddButton=document.querySelector(".desktop-add");
@@ -2304,13 +2330,6 @@ function restoreViewScroll(position){
 function renderAll(){
   const preservedScroll=captureViewScroll();
 
-  const weekAddButton=$("weekAddEventButton");
-  if(weekAddButton){
-    weekAddButton.hidden=
-      state.currentView!=="week"
-      ||window.matchMedia("(max-width:720px)").matches;
-  }
-
   if(el.weekCategoryManagerButton){
     el.weekCategoryManagerButton.hidden=state.currentView!=="week";
   }
@@ -2329,16 +2348,8 @@ function renderAll(){
   el.weekView.hidden=state.currentView!=="week";
   el.weekZoomControls.hidden=state.currentView!=="week";
   $("weekFitButton").hidden=state.currentView!=="week";
+  document.querySelector(".calendar-toolbar").hidden=state.currentView!=="week";
   document.body.classList.toggle("selected-day-mode",state.activePage==="calendar"&&state.currentView==="selected");
-
-  el.selectedBtn.classList.toggle("active",state.currentView==="selected");
-  el.weekBtn.classList.toggle("active",state.currentView==="week");
-  el.selectedBtn.textContent=
-    state.currentView==="selected"&&state.selectedDateKey===dateKey(new Date())
-      ?"DAY"
-      :state.currentView==="selected"
-        ?"TODAY"
-        :"DAY";
 
   renderPage();
   applyWeekZoom();
@@ -2839,7 +2850,7 @@ function applyWeekZoom(){
   const zoom=visibleDays<=3?125:visibleDays<=7?100:visibleDays<=10?75:55;
   const rowHeight=state.weekFit
     ?Math.max(18,Math.floor((window.innerHeight-(mobile?150:170))/24))
-    :Math.max(mobile?24:22,Math.round((mobile?48:52)*(0.54+0.46*zoom/100)));
+    :Math.max(mobile?30:28,Math.round((mobile?58:64)*(0.54+0.46*zoom/100)));
 
   document.documentElement.style.setProperty(
     "--week-time-width",
@@ -6986,8 +6997,8 @@ function shiftCalendarPeriod(direction){
 }
 function setupPageSwipeNavigation(){
   const screens=[
-    {page:"calendar",view:"selected"},
-    {page:"calendar",view:"week"},
+    {page:"calendar"},
+    {page:"week"},
     {page:"habit"},
     {page:"stats"}
   ];
@@ -6997,9 +7008,8 @@ function setupPageSwipeNavigation(){
   let tracking=false;
 
   const currentIndex=()=>{
-    if(state.activePage==="calendar"){
-      return state.currentView==="selected"?0:1;
-    }
+    if(state.activePage==="calendar")return 0;
+    if(state.activePage==="week")return 1;
     if(state.activePage==="habit")return 2;
     return 3;
   };
@@ -7011,9 +7021,7 @@ function setupPageSwipeNavigation(){
     const target=screens[index];
 
     state.activePage=target.page;
-    if(target.page==="calendar"){
-      state.currentView=target.view;
-    }
+    state.currentView=target.page==="week"?"week":"selected";
 
     renderAll();
 
@@ -7072,40 +7080,12 @@ function setupCalendarSwipe(){
 
 
 $("prevPeriod").onclick=()=>{
-  if(state.currentView==="selected"){
-    state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),-1));
-  }else{
-    state.currentWeek=addDays(state.currentWeek,-visibleDaysForZoom());
-  }
+  state.currentWeek=addDays(state.currentWeek,-visibleDaysForZoom());
   renderAll();
 };
 $("nextPeriod").onclick=()=>{
-  if(state.currentView==="selected"){
-    state.selectedDateKey=dateKey(addDays(parseDateKey(state.selectedDateKey),1));
-  }else{
-    state.currentWeek=addDays(state.currentWeek,visibleDaysForZoom());
-  }
+  state.currentWeek=addDays(state.currentWeek,visibleDaysForZoom());
   renderAll();
-};
-el.selectedBtn.onclick=()=>{
-  if(state.currentView==="selected"){
-    const today=new Date();
-    if(state.selectedDateKey!==dateKey(today)){
-      state.selectedDateKey=dateKey(today);
-      state.currentMonth=startOfMonth(today);
-      state.currentWeek=startOfWeek(today);
-    }
-  }else{
-    state.currentView="selected";
-  }
-  renderAll();
-};
-el.weekBtn.onclick=()=>{
-  state.currentView="week";
-  state.currentWeek=startOfWeek(parseDateKey(state.selectedDateKey));
-  state.weekFit=false;
-  renderAll();
-  requestAnimationFrame(()=>scrollGoogleWeekToCurrent(false));
 };
 el.selectedHabitMoreButton.onclick=()=>navigateToPage("habit");
 el.weekZoomOut.onclick=()=>changeWeekZoom(-10);
@@ -7175,9 +7155,6 @@ el.dayViewNext.onclick=()=>{
 
 $("selectedAddEventButton")?.addEventListener("click",()=>openCreate(state.selectedDateKey));
 $("todoCreateButton")?.addEventListener("click",()=>openTodoCreate(state.selectedDateKey));
-$("weekAddEventButton").onclick=()=>openCreate(
-  state.selectedDateKey||dateKey(new Date())
-);
 $("closeEventModal").onclick=closeModal;$("cancelEvent").onclick=closeModal;el.form.onsubmit=submit;
 el.remove.onclick=removeEvent;
 el.editOnlyThisDateButton.onclick=()=>applyPendingRepeatEdit("single");
@@ -7197,6 +7174,7 @@ el.repeatDeleteDialog.onclick=event=>{
 };
 $("progressOptions").onclick=e=>{const b=e.target.closest("button[data-value]");if(b)setProgress(b.dataset.value)};el.modal.onclick=e=>{if(e.target===el.modal)closeModal()};
 el.calendarNav.onclick=()=>navigateToPage("calendar");
+el.weekNav.onclick=()=>navigateToPage("week");
 el.habitNav.onclick=()=>navigateToPage("habit");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
@@ -7212,6 +7190,7 @@ el.todoBacklog?.addEventListener("change",()=>{
   syncTodoBacklogForm();
 });
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
+el.mobileWeekNav.onclick=()=>navigateToPage("week");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
@@ -7563,12 +7542,10 @@ window.addEventListener("popstate",event=>{
 
   if(historyState?.momentum){
     state.activePage=historyState.page||"calendar";
-
-    if(historyState.calendarView){
-      state.currentView=historyState.calendarView;
-    }
+    state.currentView=state.activePage==="week"?"week":"selected";
   }else{
     state.activePage="calendar";
+    state.currentView="selected";
   }
 
   renderAll();
