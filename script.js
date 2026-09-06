@@ -113,7 +113,7 @@ function clearSnapshotRenderSkip(kind){
 const el = {
   loading:$("loadingScreen"), login:$("loginScreen"), app:$("app"), loginButton:$("googleLoginButton"), loginError:$("loginError"),
   logout:$("logoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
-  statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
+  statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"), weekDatePickerButton:$("weekDatePickerButton"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
   todayPrevDateButton:$("todayPrevDateButton"), todayNextDateButton:$("todayNextDateButton"),
@@ -867,6 +867,7 @@ function renderFourWeekChange(referenceDate){
   });
   const weekday=date=>["일","월","화","수","목","금","토"][date.getDay()];
   const weekLabel=week=>`${week.start.getMonth()+1}.${week.start.getDate()}(${weekday(week.start)})~${week.end.getMonth()+1}.${week.end.getDate()}(${weekday(week.end)})`;
+  const compactWeekLabel=week=>`${week.start.getMonth()+1}.${week.start.getDate()}~${week.end.getMonth()+1}.${week.end.getDate()}`;
   const signed=value=>`${value>0?"+":""}${Number.isInteger(value)?value:value.toFixed(1)}`;
   const rows=[
     {name:"수행률",value:summary=>summary.rate,suffix:"%",change:"%p"},
@@ -884,7 +885,7 @@ function renderFourWeekChange(referenceDate){
     const change=previous===null?"":`<small>▷ ${signed(value-previous)}${row.change}</small>`;
     return `<td><strong>${display}${row.suffix}</strong>${change}</td>`;
   }).join("")}</tr>`).join("");
-  root.innerHTML=`<div class="four-week-table-scroll"><table class="four-week-table"><thead><tr><th>항목</th>${weeks.map(week=>`<th>${weekLabel(week)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+  root.innerHTML=`<div class="four-week-table-scroll"><table class="four-week-table"><thead><tr><th>항목</th>${weeks.map(week=>`<th><span class="week-label-full">${weekLabel(week)}</span><span class="week-label-compact">${compactWeekLabel(week)}</span></th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function directionGoalsForYear(year){
   const saved=state.goalProfile.directionGoals?.[String(year)]||{};
@@ -3311,6 +3312,7 @@ function bindWeekCreateGesture(column,date){
     const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+60);
     const duration=Math.max(60,to-from);
 
+    if(selection&&!selection.isConnected)selection=null;
     if(!selection){
       document.querySelectorAll(".week-create-selection").forEach(item=>item.remove());
       selection=document.createElement("div");
@@ -3403,20 +3405,17 @@ function bindWeekCreateGesture(column,date){
 }
 
 function setupWeekSelectionDismissal(){
-  let blockNextClick=false;
   document.addEventListener("pointerdown",event=>{
     const selection=document.querySelector(".week-create-selection");
     if(!selection||selection.contains(event.target))return;
     selection.remove();
-    blockNextClick=true;
-    event.preventDefault();
     event.stopImmediatePropagation();
-  },true);
-  document.addEventListener("click",event=>{
-    if(!blockNextClick)return;
-    blockNextClick=false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    const consumeDismissClick=clickEvent=>{
+      clickEvent.preventDefault();
+      clickEvent.stopImmediatePropagation();
+    };
+    document.addEventListener("click",consumeDismissClick,{capture:true,once:true});
+    setTimeout(()=>document.removeEventListener("click",consumeDismissClick,true),350);
   },true);
 }
 
@@ -7097,7 +7096,15 @@ $("weekFitButton")?.addEventListener("click",()=>{
   applyWeekZoom();
   renderWeek();
 });
-el.periodLabel.onclick=openDatePickerModal;
+const returnCalendarToToday=()=>{
+  const today=new Date();
+  state.selectedDateKey=dateKey(today);
+  state.currentWeek=startOfWeek(today);
+  renderAll();
+};
+el.periodLabel.onclick=returnCalendarToToday;
+el.weekDatePickerButton.onclick=openDatePickerModal;
+$("homeTodayButton").onclick=returnCalendarToToday;
 document.querySelectorAll(".card-month-picker").forEach(button=>{
   button.addEventListener("click",openDatePickerModal);
 });

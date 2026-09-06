@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.86" />
+  <link rel="stylesheet" href="style.css?v=7.87" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -53,6 +53,7 @@
           <p class="eyebrow">YOUR DAILY MOMENTUM</p>
           <h1>Momentum</h1>
         </div>
+        <button id="homeTodayButton" class="secondary-button home-today-button" type="button">오늘</button>
       </header>
 
       <section class="home-memo-board" aria-label="홈 메모지">
@@ -71,7 +72,8 @@
               </div>
               <div class="period-navigation">
                 <button id="prevPeriod" class="round-button" type="button">‹</button>
-                <button id="periodLabel" class="period-label-button" type="button" aria-label="날짜 선택"></button>
+                <button id="periodLabel" class="period-label-button" type="button" aria-label="오늘로 이동"></button>
+                <button id="weekDatePickerButton" class="period-picker-button" type="button" aria-label="전체 날짜 선택" title="전체 날짜 선택">▾</button>
                 <button id="nextPeriod" class="round-button" type="button">›</button>
               </div>
               <button id="weekCategoryManagerButton" class="week-category-manager-button" type="button" hidden>카테고리 관리</button>
@@ -834,6 +836,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.86"></script>
+  <script type="module" src="script.js?v=7.87"></script>
 </body>
 </html>

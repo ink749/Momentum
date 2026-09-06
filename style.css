@@ -7955,3 +7955,47 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
   .four-week-table td strong{font-size:12px!important}
   .four-week-table td small{font-size:8px!important;white-space:nowrap}
 }
+
+/* Momentum v7.87 — final home, calendar and statistics alignment */
+.home-today-button{min-height:32px!important;padding:0 12px!important;border-radius:999px!important;font-size:11px!important}
+body.selected-day-mode #calendarPage .home-today-button{display:inline-flex!important}
+body:not(.selected-day-mode) #calendarPage .home-today-button{display:none!important}
+#selectedView{padding:0!important;background:transparent!important}
+#calendarPage .home-memo-board,#calendarPage .dashboard-grid,#selectedView>.summary-card,#selectedView>.selected-support-grid{width:100%!important;max-width:1540px!important;box-sizing:border-box!important}
+.yearly-direction-card textarea{resize:none!important}
+.calendar-controls{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:7px!important;overflow:visible!important}
+.calendar-controls .week-zoom-controls{order:1!important;margin:0!important;flex:0 0 auto!important}
+.calendar-controls .period-navigation{order:2!important;display:grid!important;grid-template-columns:30px minmax(90px,1fr) 22px 30px!important;align-items:center!important;gap:2px!important;flex:1 1 420px!important;width:auto!important;min-width:190px!important;max-width:520px!important;height:38px!important;padding:3px 5px!important}
+.calendar-controls .period-label-button{min-width:0!important;width:100%!important;padding:0 3px!important;border:0!important;background:transparent!important;white-space:nowrap!important}
+.period-picker-button{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:var(--muted);color:var(--soft);font-size:9px;line-height:1}
+.calendar-controls .week-category-manager-button{order:3!important;flex:0 0 auto!important}
+.calendar-controls .week-fit-icon{order:4!important;flex:0 0 36px!important}
+.four-week-change{display:block!important;width:100%!important;min-width:0!important}
+.four-week-table-scroll{display:block!important;width:100%!important;overflow-x:hidden!important}
+.four-week-table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+.four-week-table thead th{white-space:normal!important;word-break:keep-all!important;overflow-wrap:normal!important}
+.week-label-compact{display:none}
+@media(max-width:720px){
+  #calendarPage>.topbar{display:none!important}
+  #selectedView{gap:10px!important}
+  .calendar-toolbar{padding:6px 4px!important}
+  .calendar-toolbar>.calendar-controls{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:4px!important;width:100%!important;overflow:visible!important}
+  .calendar-controls .week-zoom-controls{flex:0 0 88px!important;padding:2px!important}
+  .calendar-controls .week-zoom-controls .zoom-button{width:27px!important;height:29px!important;min-width:27px!important;padding:0!important}
+  .calendar-controls .week-zoom-controls .zoom-value{width:32px!important;min-width:32px!important;padding:0!important;font-size:9px!important}
+  .calendar-controls .period-navigation{display:grid!important;grid-template-columns:23px minmax(52px,1fr) 18px 23px!important;flex:1 1 auto!important;width:auto!important;min-width:124px!important;max-width:none!important;height:35px!important;padding:2px!important;gap:0!important}
+  .calendar-controls .period-navigation .round-button{width:23px!important;height:29px!important;min-width:23px!important;font-size:16px!important}
+  .calendar-controls .period-label-button{min-height:29px!important;font-size:9px!important}
+  .period-picker-button{width:17px;height:17px;font-size:8px}
+  .calendar-controls .week-category-manager-button{min-width:0!important;min-height:33px!important;padding:0 5px!important;font-size:8px!important;white-space:nowrap!important}
+  .calendar-controls .week-fit-icon{width:33px!important;height:33px!important;flex:0 0 33px!important}
+  #statsPage .stats-dashboard{width:100%!important;min-width:0!important}
+  #statsPage .four-week-card{width:100%!important;min-width:0!important;overflow:hidden!important}
+  .four-week-table thead th:first-child{width:62px!important}
+  .four-week-table th,.four-week-table td{padding:8px 2px!important}
+  .four-week-table thead th{font-size:8px!important;line-height:1.25!important}
+  .week-label-full{display:none!important}.week-label-compact{display:inline!important;white-space:nowrap!important}
+  .four-week-table tbody th{font-size:10px!important}
+  .four-week-table td strong{font-size:12px!important}
+  .four-week-table td small{font-size:8px!important}
+}
