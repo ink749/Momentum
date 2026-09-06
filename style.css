@@ -8036,3 +8036,15 @@ body:not(.selected-day-mode) #calendarPage .home-today-button{display:none!impor
   body:not(.selected-day-mode) #calendarPage .google-week-shell{height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
   body:not(.selected-day-mode) #calendarPage .google-week-body-scroll{height:calc(100dvh - 100px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
 }
+
+/* Momentum v7.91 — adjustable creation range, readable titles, no pull refresh */
+.week-selection-handle{position:absolute;z-index:3;left:50%;display:block;width:12px;height:12px;border:2px solid #fff;border-radius:50%;background:var(--green);box-shadow:0 1px 5px rgba(20,70,45,.25);transform:translate(-50%,-50%);touch-action:none;cursor:ns-resize}
+.week-selection-handle.top{top:0}.week-selection-handle.bottom{top:100%}
+body.week-page-mode{overscroll-behavior-y:none!important}
+html:has(body.week-page-mode){overscroll-behavior-y:none!important}
+body.week-page-mode .week-scroll,body.week-page-mode .google-week-body-scroll{overscroll-behavior-y:contain!important}
+@media(max-width:900px){
+  .google-week-event{padding:3px 3px 4px 5px!important}
+  .google-week-event strong{display:-webkit-box!important;overflow:hidden!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;font-size:8px!important;line-height:1.15!important}
+  .google-week-event small{display:none!important}
+}

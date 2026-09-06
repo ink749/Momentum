@@ -2352,6 +2352,7 @@ function renderAll(){
   $("weekFitButton").hidden=state.currentView!=="week";
   document.querySelector(".calendar-toolbar").hidden=state.currentView!=="week";
   document.body.classList.toggle("selected-day-mode",state.activePage==="calendar"&&state.currentView==="selected");
+  document.body.classList.toggle("week-page-mode",state.activePage==="week"&&state.currentView==="week");
 
   renderPage();
   applyWeekZoom();
@@ -3317,10 +3318,42 @@ function bindWeekCreateGesture(column,date){
       document.querySelectorAll(".week-create-selection").forEach(item=>item.remove());
       selection=document.createElement("div");
       selection.className="week-create-selection";
-      selection.innerHTML='<span></span>';
+      selection.innerHTML='<i class="week-selection-handle top" data-selection-edge="top"></i><span></span><i class="week-selection-handle bottom" data-selection-edge="bottom"></i>';
       column.appendChild(selection);
+      selection.querySelectorAll("[data-selection-edge]").forEach(handle=>{
+        let resizePointerId=null;
+        let resizeMoved=false;
+        handle.addEventListener("pointerdown",event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          resizePointerId=event.pointerId;
+          resizeMoved=false;
+          handle.setPointerCapture?.(resizePointerId);
+        });
+        handle.addEventListener("pointermove",event=>{
+          if(event.pointerId!==resizePointerId)return;
+          event.preventDefault();
+          resizeMoved=true;
+          const pointerMinutes=weekPointerMinutes(column,event.clientY);
+          const from=Number(selection.dataset.from);
+          const to=Number(selection.dataset.to);
+          if(handle.dataset.selectionEdge==="top")positionSelection(Math.min(pointerMinutes,to-60),to);
+          else positionSelection(from,Math.max(from+60,pointerMinutes+30));
+        },{passive:false});
+        const finishResize=event=>{
+          if(event.pointerId!==resizePointerId)return;
+          resizePointerId=null;
+          if(resizeMoved){
+            suppressClick=true;
+            setTimeout(()=>{suppressClick=false},80);
+          }
+        };
+        handle.addEventListener("pointerup",finishResize);
+        handle.addEventListener("pointercancel",finishResize);
+      });
       selection.addEventListener("click",event=>{
         event.stopPropagation();
+        if(suppressClick){event.preventDefault();return}
         const selectedFrom=Number(selection.dataset.from);
         const selectedTo=Number(selection.dataset.to);
         removeSelection();
@@ -3359,10 +3392,16 @@ function bindWeekCreateGesture(column,date){
     const dy=Math.abs(pointerEvent.clientY-startY);
 
     if(!rangeMode){
-      if(dx>12||dy>12){
+      if(dy>7&&dx<18){
         clearTimeout(holdTimer);
+        rangeMode=true;
+        currentMinutes=weekPointerMinutes(column,pointerEvent.clientY);
+        activateSelection();
+        column.setPointerCapture?.(pointerId);
+      }else{
+        if(dx>12)clearTimeout(holdTimer);
+        return;
       }
-      return;
     }
 
     pointerEvent.preventDefault();
@@ -3417,6 +3456,26 @@ function setupWeekSelectionDismissal(){
     document.addEventListener("click",consumeDismissClick,{capture:true,once:true});
     setTimeout(()=>document.removeEventListener("click",consumeDismissClick,true),350);
   },true);
+}
+
+function setupWeekPullToRefreshGuard(){
+  let startX=0;
+  let startY=0;
+  el.weekView.addEventListener("touchstart",event=>{
+    const touch=event.touches[0];
+    if(!touch)return;
+    startX=touch.clientX;
+    startY=touch.clientY;
+  },{passive:true});
+  el.weekView.addEventListener("touchmove",event=>{
+    if(!document.body.classList.contains("week-page-mode"))return;
+    const touch=event.touches[0];
+    const scroller=event.target.closest(".google-week-body-scroll");
+    if(!touch||!scroller||scroller.scrollTop>0)return;
+    const dx=Math.abs(touch.clientX-startX);
+    const dy=touch.clientY-startY;
+    if(dy>6&&dy>dx)event.preventDefault();
+  },{passive:false});
 }
 
 
@@ -7601,6 +7660,7 @@ setupWheelTimePicker();
 setupDesktopUndo();
 setupMobileWeekSwipe();
 setupWeekSelectionDismissal();
+setupWeekPullToRefreshGuard();
 
 await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
