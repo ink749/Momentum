@@ -7981,7 +7981,7 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
 /* Momentum v7.89 final cascade — compact controls stay on one row */
 .four-week-table td small.change-up{color:#c83b3b!important}
 .four-week-table td small.change-down{color:#2876c7!important}
-.four-week-table td small.change-neutral{color:var(--soft)!important}
+.four-week-table td small.change-neutral{color:var(--green-dark)!important}
 
 @media(max-width:900px){
   body:not(.selected-day-mode) #calendarPage .calendar-toolbar{padding:6px 4px!important}
