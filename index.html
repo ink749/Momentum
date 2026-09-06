@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7.83" />
+  <link rel="stylesheet" href="style.css?v=7.84" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -36,7 +36,6 @@
       <nav>
         <button id="calendarNavButton" class="nav-item active" type="button">⌂ 홈</button>
         <button id="habitNavButton" class="nav-item" type="button">◫ 습관</button>
-        <button id="diaryNavButton" class="nav-item" type="button">▤ 일기</button>
         <button id="statsNavButton" class="nav-item" type="button">◈ 통계</button>
       </nav>
       <div class="account-panel">
@@ -52,9 +51,6 @@
         <div>
           <p class="eyebrow">YOUR DAILY MOMENTUM</p>
           <h1>Momentum</h1>
-        </div>
-        <div class="top-actions">
-          <button id="openEventModal" class="primary-button desktop-add" type="button">+ 일정 추가</button>
         </div>
       </header>
 
@@ -247,21 +243,6 @@
         </section>
       </section>
 
-      <section id="diaryPage" hidden>
-        <header class="topbar diary-topbar"><div><h1>일기</h1></div></header>
-        <section class="diary-dashboard">
-          <article class="diary-editor-card">
-            <label>날짜<input id="diaryDate" type="date" /></label>
-            <label>오늘의 한 줄<input id="diaryTitle" type="text" maxlength="80" placeholder="오늘을 한 문장으로 남겨보세요" /></label>
-            <label>기록<textarea id="diaryBody" maxlength="5000" placeholder="무엇을 했고, 무엇을 느꼈나요?"></textarea></label>
-            <div class="diary-editor-actions"><button id="deleteDiaryButton" class="danger-button" type="button">삭제</button><span></span><button id="saveDiaryButton" class="primary-button" type="button">저장</button></div>
-            <p id="diaryMessage" class="muted"></p>
-          </article>
-          <article class="diary-list-card"><div class="diary-list-heading"><div><h2>지난 기록</h2></div></div><div id="diaryList" class="diary-list"></div></article>
-        </section>
-
-      </section>
-
       <section id="statsPage" hidden>
         <header class="topbar">
           <div>
@@ -271,7 +252,6 @@
             <button id="openDetailedReportButton" class="secondary-button" type="button">상세 보고서</button>
             <button id="openSearchButton" class="stats-search-button" type="button" aria-label="검색" title="검색">⌕</button>
             <button id="statsTodayButton" class="secondary-button" type="button">오늘</button>
-            <button id="statsSettingsButton" class="top-settings-button" type="button" aria-label="설정" title="설정">⚙</button>
           </div>
         </header>
 
@@ -284,7 +264,7 @@
               <small id="statsTodayEventCount">계획을 지킨 비율</small>
             </article>
             <article class="stats-metric-card">
-              <span id="statsDayHabitLabel">이번 달 계획량</span>
+              <span id="statsDayHabitLabel">이번 달 계획 항목</span>
               <strong id="statsTodayHabitProgress">0</strong>
               <small id="statsTodayHabitCount">예정된 전체 항목</small>
             </article>
@@ -403,10 +383,6 @@
         <span class="mobile-nav-icon">◫</span>
         <span>습관</span>
       </button>
-      <button id="mobileDiaryNavButton" class="mobile-nav-button" type="button">
-        <span class="mobile-nav-icon">▥</span>
-        <span>일기</span>
-      </button>
       <button id="mobileStatsNavButton" class="mobile-nav-button" type="button">
         <span class="mobile-nav-icon">◈</span>
         <span>통계</span>
@@ -512,7 +488,6 @@
               <option value="general">일반일정</option>
             </select>
           </label>
-          <label class="check-option"><input id="eventIncludeInStats" type="checkbox" checked /> 평가에 포함</label>
           <label class="event-category-field">카테고리
             <select id="eventCategory"></select>
           </label>
@@ -850,34 +825,6 @@
     </section>
   </div>
 
-  <div id="mobileEventActionSheet" class="mobile-event-action-backdrop" hidden>
-    <section class="mobile-event-action-sheet" role="dialog" aria-modal="true" aria-labelledby="mobileEventActionTitle">
-      <div class="mobile-event-action-handle"></div>
-      <strong id="mobileEventActionTitle">일정</strong>
-      <small id="mobileEventActionTime"></small>
-
-      <div class="mobile-event-action-buttons">
-        <button id="mobileEventDeleteButton" class="danger" type="button">삭제</button>
-        <button id="mobileEventEditButton" type="button">수정</button>
-      </div>
-    </section>
-  </div>
-
-  <div id="accountSheet" class="sheet-backdrop" aria-hidden="true">
-    <div class="account-sheet">
-      <div class="sheet-account-row">
-        <img id="sheetUserPhoto" alt="" />
-        <div><strong id="sheetUserName"></strong><small id="sheetUserEmail"></small></div>
-        <button id="sheetLogoutButton" class="danger-outline-button" type="button">로그아웃</button>
-      </div>
-      <section class="theme-settings" aria-labelledby="themeSettingsTitle">
-        <div class="theme-settings-heading"><p class="eyebrow">THEME</p><h2 id="themeSettingsTitle">화면 테마</h2></div>
-        <div id="themePicker" class="theme-picker"></div>
-      </section>
-      <button id="closeAccountSheet" class="secondary-button" type="button">닫기</button>
-    </div>
-  </div>
-
   <div id="homeMemoModal" class="modal-backdrop" aria-hidden="true">
     <div class="modal home-memo-modal">
       <div class="modal-header"><h2>MEMO</h2><button id="closeHomeMemoModal" class="close-button" type="button" aria-label="닫기">×</button></div>
@@ -886,6 +833,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=7.83"></script>
+  <script type="module" src="script.js?v=7.84"></script>
 </body>
 </html>

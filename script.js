@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDcrq-223O2A8E0yJoVNgXnDARH1bfwrgw",
@@ -28,20 +28,6 @@ function progressColor(value){
   );
   return COLORS[step];
 }
-const THEMES=[
-  {id:"green",name:"녹색",main:"#8bcf4a",dark:"#5f9230",soft:"#f0f9e7",bg:"#f9fcf6",muted:"#f4f9ef",line:"#e1ecd8",text:"#2f3d27",glow:"#b9e58e"},
-  {id:"red-brown",name:"붉은색 / 갈색",main:"#a85645",dark:"#743c31",soft:"#f7ebe7",bg:"#fbf7f5",muted:"#f7f1ee",line:"#eaded8",text:"#3d2d29",glow:"#d99a84"},
-  {id:"blue",name:"청색 (파란색)",main:"#347fc4",dark:"#245b91",soft:"#e9f3fb",bg:"#f6f9fc",muted:"#f0f5f9",line:"#dce7ef",text:"#213544",glow:"#79b7e8"},
-  {id:"glass",name:"회색 / 하늘색 / 백색",main:"#7899ad",dark:"#506f82",soft:"rgba(224,239,247,.62)",bg:"#eef4f7",muted:"rgba(255,255,255,.55)",line:"rgba(154,179,194,.38)",text:"#30434e",glow:"#b9dbea",glass:true},
-  {id:"red-orange",name:"붉은색 / 주황색",main:"#df6e3e",dark:"#aa3f30",soft:"#fff0e8",bg:"#fff9f5",muted:"#fff3ec",line:"#f1dfd5",text:"#442e27",glow:"#f3a36f"},
-  {id:"red",name:"붉은색",main:"#c94f59",dark:"#943640",soft:"#fbecef",bg:"#fcf7f8",muted:"#f9f0f2",line:"#ecdde0",text:"#422c31",glow:"#e58b94"},
-  {id:"yellow",name:"노란색",main:"#d7a928",dark:"#977315",soft:"#fff7d8",bg:"#fffdf5",muted:"#fff9e7",line:"#eee4c5",text:"#423b25",glow:"#edce72"},
-  {id:"lime-green",name:"연두색 / 녹색",main:"#69a83f",dark:"#42772b",soft:"#eef7e8",bg:"#f8fbf5",muted:"#f2f8ed",line:"#dfead7",text:"#2f4129",glow:"#a8d67e"},
-  {id:"pale-yellow",name:"연한 노란색",main:"#bca34a",dark:"#806f32",soft:"#fff9e3",bg:"#fffdf7",muted:"#fffaf0",line:"#eee7d3",text:"#443f31",glow:"#ead995"},
-  {id:"deep-green",name:"짙은 녹색",main:"#176b50",dark:"#0d4937",soft:"#e3f0eb",bg:"#f3f8f6",muted:"#edf4f1",line:"#d6e5df",text:"#19352b",glow:"#5aa78c"},
-  {id:"azure",name:"푸른색 (파란색)",main:"#3469d4",dark:"#244a9b",soft:"#e9effd",bg:"#f6f8fd",muted:"#eff3fb",line:"#dce3f2",text:"#25334d",glow:"#7fa4ed"},
-  {id:"purple",name:"보라색",main:"#8361b5",dark:"#5f438a",soft:"#f1ebf8",bg:"#faf8fc",muted:"#f5f1f9",line:"#e7deef",text:"#392f45",glow:"#b69bd7"}
-];
 const CATEGORY_COLORS=[
   {name:"초록색",value:"#2fa66a"},
   {name:"하늘색",value:"#65bff0"},
@@ -54,7 +40,8 @@ const CATEGORY_COLORS=[
   {name:"주황색",value:"#ed8738"},
   {name:"연두색",value:"#8bcf4a"},
   {name:"푸른 보라색",value:"#665ad1"},
-  {name:"자주색",value:"#a33f83"}
+  {name:"자주색",value:"#a33f83"},
+  {name:"회색",value:"#7d8582"}
 ];
 const DEFAULT_CATEGORIES = [
   {id:"study",name:"공부",color:"#65bff0"},
@@ -89,7 +76,6 @@ const state = {
   dragGrabOffsetMinutes:0,
   pendingWeekScroll:null,
   weekInitialScrollDone:false,
-  mobileActionEvent:null,
   dayViewDate:null,
   dayViewOpen:false,
   datePickerMonth:startOfMonth(new Date()),
@@ -109,26 +95,6 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
-function mixHex(a,b,amount){
-  const parse=value=>value.replace("#","").match(/.{2}/g).map(part=>parseInt(part,16));
-  const [ar,ag,ab]=parse(a),[br,bg,bb]=parse(b);
-  return `#${[ar+(br-ar)*amount,ag+(bg-ag)*amount,ab+(bb-ab)*amount].map(value=>Math.round(value).toString(16).padStart(2,"0")).join("")}`;
-}
-function applyTheme(id,{save=true}={}){
-  const theme=THEMES.find(item=>item.id===id)||THEMES[0],root=document.documentElement.style;
-  root.setProperty("--bg",theme.bg);root.setProperty("--surface","#ffffff");root.setProperty("--muted",theme.muted);root.setProperty("--line",theme.line);root.setProperty("--text",theme.text);
-  root.setProperty("--green",theme.main);root.setProperty("--green-dark",theme.dark);root.setProperty("--green-soft",theme.soft);root.setProperty("--theme-glow",theme.glow);
-  document.documentElement.dataset.theme=theme.id;document.documentElement.classList.toggle("glass-theme",Boolean(theme.glass));
-  COLORS[0]=mixHex(theme.main,"#ffffff",.9);COLORS[25]=mixHex(theme.main,"#ffffff",.72);COLORS[50]=mixHex(theme.main,"#ffffff",.48);COLORS[75]=mixHex(theme.main,"#ffffff",.24);COLORS[100]=theme.main;
-  if(save)localStorage.setItem("momentum_theme",theme.id);
-  document.querySelectorAll("[data-theme-id]").forEach(button=>button.classList.toggle("active",button.dataset.themeId===theme.id));
-  if(state.events?.length)renderAll();
-}
-function renderThemePicker(){
-  const picker=$("themePicker");if(!picker)return;
-  const current=localStorage.getItem("momentum_theme")||"green";
-  picker.innerHTML=THEMES.map(theme=>`<button type="button" data-theme-id="${theme.id}" class="${theme.id===current?"active":""}"><i style="--theme-main:${theme.main};--theme-soft:${theme.soft}"></i><span>${escapeHtml(theme.name)}</span></button>`).join("");
-}
 function skipSnapshotRenders(kind,count=2){
   const key=`skip${kind}SnapshotRenders`;
   state[key]=Math.max(Number(state[key]||0),count);
@@ -146,9 +112,7 @@ function clearSnapshotRenderSkip(kind){
 }
 const el = {
   loading:$("loadingScreen"), login:$("loginScreen"), app:$("app"), loginButton:$("googleLoginButton"), loginError:$("loginError"),
-  logout:$("logoutButton"), sheetLogout:$("sheetLogoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
-  sheetPhoto:$("sheetUserPhoto"), sheetName:$("sheetUserName"), sheetEmail:$("sheetUserEmail"),
-  accountSheet:$("accountSheet"), closeSheet:$("closeAccountSheet"),
+  logout:$("logoutButton"), userPhoto:$("userPhoto"), userName:$("userName"), userEmail:$("userEmail"),
   statsMonthView:$("statsMonthView"), selectedView:$("selectedView"), weekView:$("weekView"), statsMonthGrid:$("statsMonthGrid"), weekGrid:$("weekGrid"), weekScroll:$("weekScroll"), periodLabel:$("periodLabel"),
   weekZoomControls:$("weekZoomControls"), weekZoomOut:$("weekZoomOut"), weekZoomIn:$("weekZoomIn"), weekZoomValue:$("weekZoomValue"),
   selectedBtn:$("selectedViewButton"), weekBtn:$("weekViewButton"), selectedTitle:$("selectedDateTitle"), selectedLabel:$("selectedDateLabel"),
@@ -179,7 +143,7 @@ const el = {
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
   repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
-  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), includeInStats:$("eventIncludeInStats"),
+  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"),
   customRepeat:$("eventCustomRepeat"), repeatInterval:$("eventRepeatInterval"), repeatUnit:$("eventRepeatUnit"),
   repeatCount:$("eventRepeatCount"), repeatCountWrap:$("eventRepeatCountWrap"), repeatSetCountButton:$("repeatSetCountButton"),
   editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
@@ -201,14 +165,14 @@ const el = {
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
   deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
-  calendarPage:$("calendarPage"), habitPage:$("habitPage"), diaryPage:$("diaryPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"), diaryNav:$("diaryNavButton"),
+  calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), habitNav:$("habitNavButton"),
   habitHeatmapLabel:$("habitHeatmapLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
-  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileDiaryNav:$("mobileDiaryNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
+  mobileCalendarNav:$("mobileCalendarNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
   statsPage:$("statsPage"), statsNav:$("statsNavButton"),
   statsTodayEventProgress:$("statsTodayEventProgress"), statsTodayEventCount:$("statsTodayEventCount"),
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
@@ -243,11 +207,6 @@ const el = {
   statsTodoCount:$("statsTodoCount"),
   statsTodoTotal:$("statsTodoTotal"), statsTodoDone:$("statsTodoDone"), statsTodoCancelled:$("statsTodoCancelled"),
   statsTodoAverage:$("statsTodoAverage"),
-  mobileEventActionSheet:$("mobileEventActionSheet"),
-  mobileEventActionTitle:$("mobileEventActionTitle"),
-  mobileEventActionTime:$("mobileEventActionTime"),
-  mobileEventEditButton:$("mobileEventEditButton"),
-  mobileEventDeleteButton:$("mobileEventDeleteButton"),
   dayViewOverlay:$("dayViewOverlay"), dayViewTitle:$("dayViewTitle"),
   dayViewGrid:$("dayViewGrid"), dayViewScroll:$("dayViewScroll"),
   dayViewPrev:$("dayViewPrev"), dayViewToday:$("dayViewToday"),
@@ -794,8 +753,9 @@ function renderStats(){
   const monthAnchor=startOfMonth(selectedDate);
   const monthText=`${selectedDate.getFullYear()}년 ${selectedDate.getMonth()+1}월`;
   const todayKey=dateKey(new Date());
-  const keys=monthKeys(monthAnchor).filter(key=>key<=todayKey);
-  const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key)).filter(event=>event.includeInStats!==false);
+  const plannedKeys=monthKeys(monthAnchor);
+  const keys=plannedKeys.filter(key=>key<=todayKey);
+  const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
   const monthEventAvg=average(monthEventOccurrences);
 
   const monthTodos=todoCompletionForKeys(keys);
@@ -834,10 +794,13 @@ function renderStats(){
     ?Math.round(monthCombinedValues.reduce((a,b)=>a+b,0)/monthCombinedValues.length)
     :0;
 
-  const plannedVolume=monthCombinedValues.length;
+  const plannedVolume=
+    plannedKeys.flatMap(key=>allEventsForDate(key)).length+
+    plannedKeys.flatMap(key=>activeHabitsOn(key)).length+
+    plannedKeys.flatMap(key=>todosForDate(key)).length;
   const executedVolume=monthCombinedValues.reduce((sum,value)=>sum+value,0)/100;
   el.statsDayEventLabel.textContent=`${selectedDate.getMonth()+1}월 종합 완료율`;
-  el.statsDayHabitLabel.textContent=`${selectedDate.getMonth()+1}월 계획량`;
+  el.statsDayHabitLabel.textContent=`${selectedDate.getMonth()+1}월 계획 항목`;
   el.statsMonthCombinedLabel.textContent=`${selectedDate.getMonth()+1}월 실행량`;
   el.statsTodayEventProgress.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
   el.statsTodayEventCount.textContent="일정·습관·할 일을 함께 계산";
@@ -878,7 +841,7 @@ function renderStats(){
   renderFourWeekChange(selectedDate);
 }
 function rangeSummary(keys){
-  const events=keys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
+  const events=keys.flatMap(key=>allEventsForDate(key));
   const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>habitProgress(habit.id,key)));
   const todos=keys.flatMap(key=>todosForDate(key));
   const values=[...events.map(item=>Number(item.progress||0)),...habits,...todos.map(item=>item.status==="done"?100:0)];
@@ -940,7 +903,7 @@ function renderEvaluationSplit(keys){
     {id:"general",name:"일반일정",description:"약속·행사 등 참고용 일정"}
   ];
   root.innerHTML=types.map(type=>{
-    const items=keys.flatMap(key=>allEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id&&event.includeInStats!==false);
+    const items=keys.flatMap(key=>allEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id);
     const value=average(items);
     return `<article><span>${type.name}</span><strong>${items.length?`${value}%`:"—"}</strong><div class="evaluation-bar"><i style="width:${items.length?value:0}%"></i></div></article>`;
   }).join("");
@@ -951,7 +914,7 @@ function reportData(){
   const start=startOfWeek(reference),end=addDays(start,6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
   const todayKey=dateKey(new Date());
   const analysisKeys=end<parseDateKey(todayKey)?keys:keys.filter(key=>key<=todayKey);
-  const events=analysisKeys.flatMap(key=>allEventsForDate(key)).filter(item=>item.includeInStats!==false);
+  const events=analysisKeys.flatMap(key=>allEventsForDate(key));
   const habits=analysisKeys.flatMap(key=>activeHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
   const todos=analysisKeys.flatMap(key=>todosForDate(key));
   const byType=id=>events.filter(item=>(item.evaluationType||"action")===id);
@@ -979,8 +942,10 @@ function openDetailedReport(){
   const habitGroups=new Map();
   data.habits.forEach(entry=>{if(!habitGroups.has(entry.habit.id))habitGroups.set(entry.habit.id,{habit:entry.habit,values:[]});habitGroups.get(entry.habit.id).values.push(entry.progress)});
   const habitRows=[...habitGroups.values()].map(({habit,values})=>{const avg=Math.round(values.reduce((a,b)=>a+b,0)/values.length),counts=[0,25,50,75,100].map(value=>`${value}% ${values.filter(item=>item===value).length}`).join(" · ");return `<tr><td>${escapeHtml(habit.name)}</td><td>${values.length}일</td><td>${avg}%</td><td>${counts}</td><td>${habit.targetCount?`${Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length}/${habit.targetCount}회`:"—"}</td></tr>`}).join("");
-  const todoStatusLabel={done:"완료",cancelled:"취소",rolled:"이월",pending:"미완료"};
-  const todoRows=data.todos.map(todo=>`<tr><td>${escapeHtml(todo.text||"")}</td><td>${todo.date||"보관함"}</td><td>${todoStatusLabel[todo.status]||"미완료"}</td><td>${todo.important?"중요":"—"}</td><td>${todo.rolledFrom?"이월됨":todo.backlog?"보관함":"—"}</td></tr>`).join("");
+  const todoTotal=data.todos.length,todoDone=data.todos.filter(todo=>todo.status==="done").length;
+  const todoRolled=data.todos.filter(todo=>todo.status==="rolled").length,todoCancelled=data.todos.filter(todo=>todo.status==="cancelled").length;
+  const todoPending=Math.max(0,todoTotal-todoDone-todoRolled-todoCancelled),todoBacklog=state.todos.filter(todo=>todo.backlog).length;
+  const todoRate=value=>todoTotal?Math.round(value/todoTotal*100):0;
   const previousWeekKeys=Array.from({length:7},(_,i)=>dateKey(addDays(data.start,-7+i))),previousWeek=rangeSummary(previousWeekKeys);
   const currentMonthKeys=monthKeys(new Date(data.reference.getFullYear(),data.reference.getMonth(),1)).filter(key=>key<=dateKey(new Date()));
   const previousMonthDate=new Date(data.reference.getFullYear(),data.reference.getMonth()-1,1),previousMonth=rangeSummary(monthKeys(previousMonthDate)),currentMonth=rangeSummary(currentMonthKeys);
@@ -1001,8 +966,8 @@ function openDetailedReport(){
     <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
     <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>평가 항목</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
     <section><h3>습관 상세</h3><div class="report-scroll"><table><thead><tr><th>습관</th><th>대상</th><th>평균</th><th>수행률 분포</th><th>목표 횟수</th></tr></thead><tbody>${habitRows||"<tr><td colspan='5'>습관 기록 없음</td></tr>"}</tbody></table></div></section>
-    <section><h3>할 일 상세</h3><div class="report-scroll"><table><thead><tr><th>할 일</th><th>날짜</th><th>상태</th><th>중요</th><th>구분</th></tr></thead><tbody>${todoRows||"<tr><td colspan='5'>할 일 기록 없음</td></tr>"}</tbody></table></div></section>
-    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 평가에 포함된 일정·활성 습관·할 일의 수행률 합계 ÷ 항목 수. 실제 실행시간은 추정하지 않습니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+    <section><h3>할 일 수치</h3><div class="report-todo-metrics"><article><span>전체</span><strong>${todoTotal}개</strong></article><article><span>완료율</span><strong>${todoRate(todoDone)}%</strong><small>${todoDone}개</small></article><article><span>미완료</span><strong>${todoPending}개</strong></article><article><span>이월률</span><strong>${todoRate(todoRolled)}%</strong><small>${todoRolled}개</small></article><article><span>취소율</span><strong>${todoRate(todoCancelled)}%</strong><small>${todoCancelled}개</small></article><article><span>보관함</span><strong>${todoBacklog}개</strong></article></div></section>
+    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 일정·활성 습관·할 일의 수행률 합계 ÷ 항목 수. 모든 일정은 통계에 포함하며 실제 실행시간은 추정하지 않습니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
   const offset=Math.abs(Number(state.reportWeekOffset||0)),periodName=offset===0?"이번 주":offset===1?"지난주":`${offset}주 전`;
   $("detailedReportTitle").textContent=`${periodName} · ${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()}`;
   $("reportNextWeekButton").disabled=Number(state.reportWeekOffset||0)>=0;
@@ -1015,7 +980,7 @@ function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey
   for(let offset=6;offset>=0;offset--){
     const d=addDays(referenceDate,-offset),key=dateKey(d);
     const values=[
-      ...allEventsForDate(key).filter(item=>item.includeInStats!==false).map(item=>Number(item.progress||0)),
+      ...allEventsForDate(key).map(item=>Number(item.progress||0)),
       ...activeHabitsOn(key).map(item=>habitProgress(item.id,key)),
       ...todosForDate(key).map(item=>item.status==="done"?100:0)
     ];
@@ -1056,7 +1021,7 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
   const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
     const d=addDays(today,-offset),key=dateKey(d);
-    const events=allEventsForDate(key).filter(item=>item.includeInStats!==false),todos=todosForDate(key),habits=activeHabitsOn(key);
+    const events=allEventsForDate(key),todos=todosForDate(key),habits=activeHabitsOn(key);
     const metric=state.weeklyMetric||"combined";
     const values=metric==="events"
       ?events.map(item=>Number(item.progress||0))
@@ -1079,7 +1044,7 @@ function renderCategoryAchievement(keys){
 
     keys.forEach(key=>{
       allEventsForDate(key)
-        .filter(event=>event.includeInStats!==false&&eventCategory(event)===category.id)
+        .filter(event=>eventCategory(event)===category.id)
         .forEach(event=>occurrences.push(event));
     });
 
@@ -1476,8 +1441,7 @@ function currentHistoryState(){
   };
 }
 function navigateToPage(page,{push=true}={}){
-  if(page==="growth")page="diary";
-  if(!["calendar","habit","diary","stats"].includes(page))page="calendar";
+  if(!["calendar","habit","stats"].includes(page))page="calendar";
 
   const previousPage=state.activePage;
   state.activePage=page;
@@ -1497,7 +1461,7 @@ function syncHistoryState({replace=false}={}){
 
 
 function animateVisiblePage(){
-  const page=[el.calendarPage,el.habitPage,el.diaryPage,el.statsPage].find(item=>!item.hidden);
+  const page=[el.calendarPage,el.habitPage,el.statsPage].find(item=>!item.hidden);
   if(!page)return;
   page.classList.remove("page-enter");
   void page.offsetWidth;
@@ -1517,22 +1481,18 @@ function showToast(message){
 function renderPage(){
   const calendarMode=state.activePage==="calendar";
   const habitMode=state.activePage==="habit";
-  const diaryMode=state.activePage==="diary";
   const statsMode=state.activePage==="stats";
 
   el.calendarPage.hidden=!calendarMode;
   el.habitPage.hidden=!habitMode;
-  el.diaryPage.hidden=!diaryMode;
   el.statsPage.hidden=!statsMode;
 
   el.calendarNav.classList.toggle("active",calendarMode);
   el.habitNav.classList.toggle("active",habitMode);
-  el.diaryNav.classList.toggle("active",diaryMode);
   el.statsNav.classList.toggle("active",statsMode);
 
   el.mobileCalendarNav.classList.toggle("active",calendarMode);
   el.mobileHabitNav.classList.toggle("active",habitMode);
-  el.mobileDiaryNav.classList.toggle("active",diaryMode);
   el.mobileStatsNav.classList.toggle("active",statsMode);
 
   document.body.classList.toggle(
@@ -1550,7 +1510,6 @@ function renderPage(){
       );
   }
   if(habitMode)renderHabits();
-  if(diaryMode)renderDiary();
   if(statsMode)renderStats();
 }
 function renderHabits(){
@@ -2121,14 +2080,34 @@ async function login(){
   try{await signInWithPopup(auth,provider)}
   catch(error){console.error(error);el.loginError.textContent=`${error.code||"오류"}: ${error.message||""}`}
 }
-async function logout(){await signOut(auth);closeSheet()}
+async function logout(){await signOut(auth)}
 async function saveProfile(user){
   await setDoc(doc(db,"users",user.uid),{displayName:user.displayName||"",email:user.email||"",photoURL:user.photoURL||"",lastLoginAt:serverTimestamp()},{merge:true})
 }
 function fillUser(user){
   const photo=user.photoURL||"",name=user.displayName||"사용자",email=user.email||"";
-  [el.userPhoto,el.sheetPhoto].forEach(i=>{i.src=photo;i.alt=`${name} 프로필`});
-  el.userName.textContent=name;el.userEmail.textContent=email;el.sheetName.textContent=name;el.sheetEmail.textContent=email;
+  el.userPhoto.src=photo;el.userPhoto.alt=`${name} 프로필`;
+  el.userName.textContent=name;el.userEmail.textContent=email;
+}
+
+const DATA_RESET_VERSION="v7.84-clean-start";
+async function resetUserDataOnce(user){
+  const userRef=doc(db,"users",user.uid);
+  const profile=await getDoc(userRef);
+  if(profile.data()?.dataResetVersion===DATA_RESET_VERSION)return;
+
+  const collectionNames=["events","eventLogs","habits","habitLogs","todos","todoLogs","growth","settings","diaries"];
+  for(const name of collectionNames){
+    const snapshot=await getDocs(collection(db,"users",user.uid,name));
+    await Promise.all(snapshot.docs.map(record=>deleteDoc(record.ref)));
+  }
+
+  localStorage.removeItem(`momentum_diaries_${user.uid}`);
+  localStorage.removeItem(`momentum_memos_${user.uid}`);
+  localStorage.removeItem("momentum_theme");
+  state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};state.todos=[];state.todoLogs={};
+  state.goalProfile={directionGoals:{}};state.categories=DEFAULT_CATEGORIES.map(category=>({...category}));
+  await setDoc(userRef,{dataResetVersion:DATA_RESET_VERSION,dataResetAt:serverTimestamp()},{merge:true});
 }
 function progressStructuralSignature(record){
   if(!record)return "";
@@ -2467,43 +2446,6 @@ function openDatePickerModal(){
 function closeDatePickerModal(){
   el.datePickerModal.classList.remove("show");
   el.datePickerModal.setAttribute("aria-hidden","true");
-}
-
-function showMobileEventActionSheet(event){
-  if(!event)return;
-
-  state.mobileActionEvent=event;
-  el.mobileEventActionTitle.textContent=event.title||"일정";
-  el.mobileEventActionTime.textContent=
-    `${event.occurrenceDate||event.date} · ${event.time||"09:00"}–${event.endTime||defaultEndTime(event.time||"09:00")}`;
-
-  el.mobileEventActionSheet.hidden=false;
-  document.body.style.overflow="hidden";
-  haptic(12);
-}
-function hideMobileEventActionSheet(){
-  el.mobileEventActionSheet.hidden=true;
-  state.mobileActionEvent=null;
-
-  if(
-    !el.modal.classList.contains("show")
-    &&!el.habitModal.classList.contains("show")
-  ){
-    document.body.style.overflow="";
-  }
-}
-async function deleteMobileActionEvent(){
-  const event=state.mobileActionEvent;
-  if(!event)return;
-
-  hideMobileEventActionSheet();
-  openEdit(event);
-
-  requestAnimationFrame(()=>{
-    if(!el.remove.hidden){
-      el.remove.click();
-    }
-  });
 }
 
 function isRecurringEvent(event){
@@ -3062,11 +3004,7 @@ function renderWeek(){
           return;
         }
 
-        if(window.matchMedia("(pointer:fine)").matches){
-          openEdit(event);
-        }else{
-          showMobileEventActionSheet(event);
-        }
+        openEdit(event);
       });
 
       bindDesktopDrag(block,event);
@@ -3365,43 +3303,15 @@ function bindWeekCreateGesture(column,date){
       document.querySelectorAll(".week-create-selection").forEach(item=>item.remove());
       selection=document.createElement("div");
       selection.className="week-create-selection";
-      selection.innerHTML='<button class="week-selection-handle top" type="button" aria-label="시작 시간 조정"></button><span></span><button class="week-selection-handle bottom" type="button" aria-label="종료 시간 조정"></button>';
+      selection.innerHTML='<span></span>';
       column.appendChild(selection);
       selection.addEventListener("click",event=>{
         event.stopPropagation();
-        if(event.target.closest(".week-selection-handle"))return;
         const selectedFrom=Number(selection.dataset.from);
         const selectedTo=Number(selection.dataset.to);
         removeSelection();
         state.selectedDateKey=date;renderSelected();renderSummary();
         openCreate(date,minutesToTime(selectedFrom),minutesToTime(selectedTo));
-      });
-      selection.querySelectorAll(".week-selection-handle").forEach(handle=>{
-        handle.addEventListener("pointerdown",event=>{
-          event.preventDefault();event.stopPropagation();
-          const topHandle=handle.classList.contains("top");
-          const resizeId=event.pointerId;
-          handle.setPointerCapture?.(resizeId);
-          const resize=moveEvent=>{
-            if(moveEvent.pointerId!==resizeId)return;
-            moveEvent.preventDefault();
-            const value=weekPointerMinutes(column,moveEvent.clientY);
-            const oldFrom=Number(selection.dataset.from),oldTo=Number(selection.dataset.to);
-            positionSelection(
-              topHandle?Math.min(value,oldTo-30):oldFrom,
-              topHandle?oldTo:Math.max(value,oldFrom+30)
-            );
-          };
-          const end=endEvent=>{
-            if(endEvent.pointerId!==resizeId)return;
-            handle.removeEventListener("pointermove",resize);
-            handle.removeEventListener("pointerup",end);
-            handle.removeEventListener("pointercancel",end);
-          };
-          handle.addEventListener("pointermove",resize,{passive:false});
-          handle.addEventListener("pointerup",end);
-          handle.addEventListener("pointercancel",end);
-        });
       });
     }
 
@@ -3467,8 +3377,9 @@ function bindWeekCreateGesture(column,date){
     if(pointerId!==pointerEvent.pointerId)return;
     clearTimeout(holdTimer);
     pointerId=null;
+    const hadRange=rangeMode;
     rangeMode=false;
-    if(rangeMode)removeSelection();
+    if(hadRange)removeSelection();
   });
 
   column.addEventListener("click",clickEvent=>{
@@ -3477,6 +3388,24 @@ function bindWeekCreateGesture(column,date){
     currentMinutes=startMinutes;
     activateSelection();
   });
+}
+
+function setupWeekSelectionDismissal(){
+  let blockNextClick=false;
+  document.addEventListener("pointerdown",event=>{
+    const selection=document.querySelector(".week-create-selection");
+    if(!selection||selection.contains(event.target))return;
+    selection.remove();
+    blockNextClick=true;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  },true);
+  document.addEventListener("click",event=>{
+    if(!blockNextClick)return;
+    blockNextClick=false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  },true);
 }
 
 
@@ -5259,7 +5188,6 @@ function resetForm(){
   setSelectedRepeatWeekdays([]);
   if(el.repeatWeekdays)el.repeatWeekdays.hidden=true;
   if(el.evaluationType)el.evaluationType.value="action";
-  if(el.includeInStats)el.includeInStats.checked=true;
   el.repeatEndDate.value="";
   if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
   el.repeatEndWrap.hidden=true;
@@ -5318,7 +5246,6 @@ function openEdit(event){
   el.title.value=event.title;
   el.category.value=eventCategory(event);
   if(el.evaluationType)el.evaluationType.value=event.evaluationType||"action";
-  if(el.includeInStats)el.includeInStats.checked=event.includeInStats!==false;
   el.date.value=recurring
     ?occurrenceStart
     :event.date;
@@ -5779,11 +5706,7 @@ function renderDayView(){
         eventClick.preventDefault();
         eventClick.stopPropagation();
 
-        if(window.matchMedia("(pointer:fine)").matches){
-          openEdit(event);
-        }else{
-          showMobileEventActionSheet(event);
-        }
+        openEdit(event);
       });
 
       column.appendChild(block);
@@ -6330,7 +6253,6 @@ function currentEventFormData(){
     repeatUnit:el.repeat.value==="custom"?(el.repeatUnit?.value||"week"):"",
     repeatCount:el.repeat.value==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1),
     evaluationType:el.evaluationType?.value||"action",
-    includeInStats:el.includeInStats?.checked!==false,
     memo:el.memo.value.trim(),
     checklist:normalizeChecklist(state.editingChecklist),
     important:Boolean(state.eventImportant)
@@ -6382,10 +6304,6 @@ function closeEventModalFromHistory(){
 function closeHabitModalFromHistory(){
   el.habitModal.classList.remove("show");
   document.body.style.overflow="";
-  state.modalHistoryType=null;
-}
-function closeAccountSheetFromHistory(){
-  el.accountSheet.classList.remove("show");
   state.modalHistoryType=null;
 }
 
@@ -6809,7 +6727,6 @@ async function submit(event){
   const repeatWeekdays=(repeat==="weekly"||(repeat==="custom"&&repeatUnit==="week"))?selectedRepeatWeekdays():[];
   const repeatCount=repeat==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1);
   const evaluationType=el.evaluationType?.value||"action";
-  const includeInStats=el.includeInStats?.checked!==false;
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
@@ -6854,7 +6771,6 @@ async function submit(event){
         repeatUnit,
         repeatCount,
         evaluationType,
-        includeInStats,
         memo,
         checklist,
         important,
@@ -6915,7 +6831,6 @@ async function submit(event){
         repeatUnit,
         repeatCount,
         evaluationType,
-        includeInStats,
         memo,
         checklist,
         important,
@@ -7074,7 +6989,6 @@ function setupPageSwipeNavigation(){
     {page:"calendar",view:"selected"},
     {page:"calendar",view:"week"},
     {page:"habit"},
-    {page:"diary"},
     {page:"stats"}
   ];
 
@@ -7087,8 +7001,7 @@ function setupPageSwipeNavigation(){
       return state.currentView==="selected"?0:1;
     }
     if(state.activePage==="habit")return 2;
-    if(state.activePage==="diary")return 3;
-    return 4;
+    return 3;
   };
 
   const showScreen=index=>{
@@ -7107,7 +7020,6 @@ function setupPageSwipeNavigation(){
     const visible=[
       el.calendarPage,
       el.habitPage,
-      el.diaryPage,
       el.statsPage
     ].find(page=>!page.hidden);
 
@@ -7158,15 +7070,6 @@ function setupCalendarSwipe(){
   // 주간 내부는 날짜 가로 스크롤, 화면 가장자리 스와이프는 화면 전환에 사용합니다.
 }
 
-
-function openSheet(){
-  el.accountSheet.classList.add("show");
-  pushModalHistory("account");
-}
-function closeSheet(){
-  el.accountSheet.classList.remove("show");
-  clearModalHistory("account");
-}
 
 $("prevPeriod").onclick=()=>{
   if(state.currentView==="selected"){
@@ -7256,19 +7159,6 @@ el.datePickerMonth.onchange=()=>{
 window.addEventListener("resize",()=>{if(state.currentView==="week"&&state.weekFit)applyWeekZoom()});
 el.loginButton.onclick=login;
 el.logout.onclick=logout;
-el.sheetLogout.onclick=logout;
-el.mobileEventEditButton.onclick=()=>{
-  const event=state.mobileActionEvent;
-  hideMobileEventActionSheet();
-  if(event)openEdit(event);
-};
-el.mobileEventDeleteButton.onclick=deleteMobileActionEvent;
-el.mobileEventActionSheet.addEventListener("click",event=>{
-  if(event.target===el.mobileEventActionSheet){
-    hideMobileEventActionSheet();
-  }
-});
-
 el.dayViewClose.onclick=()=>closeDayView();
 el.dayViewPrev.onclick=()=>{
   state.dayViewDate=dateKey(addDays(parseDateKey(state.dayViewDate),-1));
@@ -7283,7 +7173,6 @@ el.dayViewNext.onclick=()=>{
   renderDayView();
 };
 
-$("openEventModal").onclick=()=>openCreate();
 $("selectedAddEventButton")?.addEventListener("click",()=>openCreate(state.selectedDateKey));
 $("todoCreateButton")?.addEventListener("click",()=>openTodoCreate(state.selectedDateKey));
 $("weekAddEventButton").onclick=()=>openCreate(
@@ -7307,13 +7196,8 @@ el.repeatDeleteDialog.onclick=event=>{
   if(event.target===el.repeatDeleteDialog)closeRepeatDeleteDialog();
 };
 $("progressOptions").onclick=e=>{const b=e.target.closest("button[data-value]");if(b)setProgress(b.dataset.value)};el.modal.onclick=e=>{if(e.target===el.modal)closeModal()};
-el.closeSheet.onclick=closeSheet;el.accountSheet.onclick=e=>{if(e.target===el.accountSheet)closeSheet()};
-$("statsSettingsButton").onclick=openSheet;
-
-
 el.calendarNav.onclick=()=>navigateToPage("calendar");
 el.habitNav.onclick=()=>navigateToPage("habit");
-el.diaryNav.onclick=()=>navigateToPage("diary");
 el.statsNav.onclick=()=>navigateToPage("stats");
 el.openSearchButton.onclick=openSearchModal;
 $("openDetailedReportButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
@@ -7329,7 +7213,6 @@ el.todoBacklog?.addEventListener("change",()=>{
 });
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
-el.mobileDiaryNav.onclick=()=>navigateToPage("diary");
 el.mobileStatsNav.onclick=()=>navigateToPage("stats");
 
 $("statsTodayButton").onclick=()=>{
@@ -7606,14 +7489,6 @@ document.addEventListener("keydown",event=>{
     return;
   }
 
-  if(
-    el.mobileEventActionSheet
-    &&!el.mobileEventActionSheet.hidden
-  ){
-    hideMobileEventActionSheet();
-    return;
-  }
-
   if(el.searchModal.classList.contains("show")){
     closeSearchModal();
     return;
@@ -7680,10 +7555,6 @@ window.addEventListener("popstate",event=>{
     el.habitModal.classList.contains("show")
   ){
     closeHabitModalFromHistory();
-  }else if(
-    el.accountSheet.classList.contains("show")
-  ){
-    closeAccountSheetFromHistory();
   }else if(state.dayViewOpen){
     closeDayView({fromHistory:true});
   }
@@ -7732,38 +7603,18 @@ $("homeMemoModal")?.addEventListener("click",event=>{if(event.target===$("homeMe
 $("saveHomeMemoButton")?.addEventListener("click",()=>{const text=$("homeMemoInput").value.trim();writePersonalItems("memos",text?[{id:"home",text}]:[]);renderHomeMemos();closeHomeMemo()});
 $("deleteHomeMemoButton")?.addEventListener("click",()=>{writePersonalItems("memos",[]);renderHomeMemos();closeHomeMemo()});
 
-function diaryElements(){return {date:$("diaryDate"),title:$("diaryTitle"),body:$("diaryBody"),list:$("diaryList"),message:$("diaryMessage")}}
-function renderDiary(){
-  const d=diaryElements();if(!d.date)return;
-  if(!d.date.value)d.date.value=dateKey(new Date());
-  const items=readPersonalItems("diaries").sort((a,b)=>b.date.localeCompare(a.date));
-  d.list.innerHTML=items.length?items.map(item=>`<button class="diary-entry ${item.date===d.date.value?"active":""}" type="button" data-diary-date="${item.date}"><strong>${escapeHtml(item.title||"제목 없는 기록")}</strong><small>${escapeHtml(item.date)} · ${escapeHtml((item.body||"").slice(0,44))}</small></button>`).join(""):'<p class="diary-empty">아직 기록이 없습니다.</p>';
-  const current=items.find(item=>item.date===d.date.value);d.title.value=current?.title||"";d.body.value=current?.body||"";
-}
-function saveDiary(){
-  const d=diaryElements(),date=d.date.value;if(!date)return;
-  const items=readPersonalItems("diaries");const index=items.findIndex(item=>item.date===date);
-  const entry={date,title:d.title.value.trim(),body:d.body.value.trim(),updatedAt:Date.now()};
-  if(index>=0)items[index]=entry;else items.push(entry);writePersonalItems("diaries",items);renderDiary();d.message.textContent="저장했습니다.";setTimeout(()=>d.message.textContent="",1400);
-}
-$("diaryDate")?.addEventListener("change",renderDiary);$("saveDiaryButton")?.addEventListener("click",saveDiary);
-$("deleteDiaryButton")?.addEventListener("click",()=>{const d=diaryElements();if(!d.date.value||!confirm("이 날짜의 일기를 삭제할까요?"))return;writePersonalItems("diaries",readPersonalItems("diaries").filter(item=>item.date!==d.date.value));renderDiary()});
-$("diaryList")?.addEventListener("click",event=>{const button=event.target.closest("[data-diary-date]");if(!button)return;$("diaryDate").value=button.dataset.diaryDate;renderDiary()});
-
 document.querySelectorAll("[data-weekly-metric]").forEach(button=>button.addEventListener("click",()=>{
   state.weeklyMetric=button.dataset.weeklyMetric;document.querySelectorAll("[data-weekly-metric]").forEach(item=>item.classList.toggle("active",item===button));renderStats();
 }));
 
 renderHomeMemos();
-renderThemePicker();
-applyTheme(localStorage.getItem("momentum_theme")||"green",{save:false});
-$("themePicker")?.addEventListener("click",event=>{const button=event.target.closest("[data-theme-id]");if(button)applyTheme(button.dataset.themeId)});
 
 
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
 setupDesktopUndo();
 setupMobileWeekSwipe();
+setupWeekSelectionDismissal();
 
 await setPersistence(auth,browserLocalPersistence);
 onAuthStateChanged(auth,async user=>{
@@ -7784,13 +7635,13 @@ onAuthStateChanged(auth,async user=>{
   el.login.hidden=true;
   el.app.hidden=false;
   fillUser(user);
-  renderHomeMemos();
-  if(state.activePage==="diary")renderDiary();
 
   if(!history.state?.momentum){
     syncHistoryState({replace:true});
   }
   try{
+    await resetUserDataOnce(user);
+    renderHomeMemos();
     await saveProfile(user);
     listenCategories(user);
     listen(user);
