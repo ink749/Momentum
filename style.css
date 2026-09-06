@@ -8022,3 +8022,17 @@ body:not(.selected-day-mode) #calendarPage .home-today-button{display:none!impor
   body:not(.selected-day-mode) #calendarPage .week-category-manager-button{grid-column:3!important;width:52px!important;height:32px!important;padding:0!important;font-size:8px!important;white-space:nowrap!important}
   body:not(.selected-day-mode) #calendarPage .week-fit-icon{grid-column:4!important;width:32px!important;min-width:32px!important;height:32px!important;padding:0!important}
 }
+
+/* Momentum v7.90 — separated toolbar controls and edge-to-edge week height */
+@media(max-width:900px){
+  body:not(.selected-day-mode) #calendarPage .calendar-toolbar>.calendar-controls{grid-template-columns:76px minmax(110px,1fr) 50px 32px!important;column-gap:6px!important}
+  body:not(.selected-day-mode) #calendarPage .week-zoom-controls{width:76px!important;padding:1px!important;gap:1px!important;overflow:hidden!important}
+  body:not(.selected-day-mode) #calendarPage .week-zoom-controls .zoom-button{width:22px!important;min-width:22px!important;height:28px!important}
+  body:not(.selected-day-mode) #calendarPage .week-zoom-controls .zoom-value{width:26px!important;min-width:26px!important;height:28px!important}
+  body:not(.selected-day-mode) #calendarPage .week-category-manager-button{width:50px!important}
+  body:not(.selected-day-mode) #calendarPage .calendar-card{margin-bottom:0!important;padding-bottom:0!important;border-bottom:0!important;border-radius:0!important}
+  body:not(.selected-day-mode) #calendarPage #weekView{height:auto!important;margin:0!important;padding:0!important}
+  body:not(.selected-day-mode) #calendarPage .week-scroll{max-height:none!important;margin:0!important;padding:0!important}
+  body:not(.selected-day-mode) #calendarPage .google-week-shell{height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
+  body:not(.selected-day-mode) #calendarPage .google-week-body-scroll{height:calc(100dvh - 100px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
+}
