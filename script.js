@@ -2637,7 +2637,7 @@ function setupMobileWeekSwipe(){
     setTimeout(()=>{
     state.currentWeek=addDays(
       state.currentWeek,
-      (finalDx<0?1:-1)*visibleDaysForZoom()
+      (finalDx<0?1:-1)*7
     );
       el.weekView.style.transition="none";el.weekView.style.transform="";el.weekView.style.opacity="";
       state.weekInitialScrollDone=false;renderPeriodLabel();renderWeek();haptic(10);
@@ -3096,8 +3096,6 @@ function renderWeek(){
     }
   },{passive:true});
 
-  setupWeekPagingGesture(bodyScroll);
-
   requestAnimationFrame(()=>{
     if(state.pendingWeekScroll){
       const saved=state.pendingWeekScroll;
@@ -3122,47 +3120,6 @@ function renderWeek(){
       state.weekInitialScrollDone=true;
     }
   });
-}
-
-function setupWeekPagingGesture(scrollElement){
-  let startX=0;
-  let startY=0;
-  let tracking=false;
-
-  scrollElement.addEventListener("touchstart",event=>{
-    if(event.touches.length!==1)return;
-    if(event.target.closest(".google-week-event"))return;
-    const touch=event.touches[0];
-    startX=touch.clientX;
-    startY=touch.clientY;
-    tracking=true;
-  },{passive:true});
-
-  scrollElement.addEventListener("touchend",event=>{
-    if(!tracking)return;
-    tracking=false;
-
-    const touch=event.changedTouches[0];
-    const dx=touch.clientX-startX;
-    const dy=touch.clientY-startY;
-
-    if(Math.abs(dx)<70)return;
-    if(Math.abs(dx)<Math.abs(dy)*1.25)return;
-
-    state.pendingWeekScroll={
-      top:scrollElement.scrollTop,
-      left:0,
-      pageX:window.scrollX,
-      pageY:window.scrollY
-    };
-
-    state.currentWeek=addDays(
-      state.currentWeek,
-      (dx<0?1:-1)*visibleDaysForZoom()
-    );
-    state.selectedDateKey=dateKey(state.currentWeek);
-    renderAll();
-  },{passive:true});
 }
 
 function scrollGoogleWeekToCurrentTime(){
@@ -7041,104 +6998,6 @@ async function removeEvent(){
     console.error(error);
     el.formError.textContent="일정을 삭제하지 못했습니다.";
   }
-}
-
-
-function shiftCalendarPeriod(direction){
-  if(state.currentView==="selected"){
-    state.selectedDateKey=dateKey(
-      addDays(parseDateKey(state.selectedDateKey),direction)
-    );
-  }else{
-    state.currentWeek=addDays(
-      state.currentWeek,
-      visibleDaysForZoom()*direction
-    );
-  }
-
-  renderAll();
-}
-function setupPageSwipeNavigation(){
-  const screens=[
-    {page:"calendar"},
-    {page:"week"},
-    {page:"habit"},
-    {page:"stats"}
-  ];
-
-  let startX=0;
-  let startY=0;
-  let tracking=false;
-
-  const currentIndex=()=>{
-    if(state.activePage==="calendar")return 0;
-    if(state.activePage==="week")return 1;
-    if(state.activePage==="habit")return 2;
-    return 3;
-  };
-
-  const showScreen=index=>{
-    if(index<0||index>=screens.length)return;
-
-    const previous=currentIndex();
-    const target=screens[index];
-
-    state.activePage=target.page;
-    state.currentView=target.page==="week"?"week":"selected";
-
-    renderAll();
-
-    const visible=[
-      el.calendarPage,
-      el.habitPage,
-      el.statsPage
-    ].find(page=>!page.hidden);
-
-    if(visible){
-      visible.style.setProperty(
-        "--page-swipe-offset",
-        index>previous?"18px":"-18px"
-      );
-      visible.classList.remove("page-swipe-in");
-      void visible.offsetWidth;
-      visible.classList.add("page-swipe-in");
-    }
-  };
-
-  document.addEventListener("touchstart",event=>{
-    if(event.touches.length!==1)return;
-    if(event.target.closest(
-      "input,select,textarea,button,.modal-backdrop.show,.sheet-backdrop.show,.week-event"
-    ))return;
-
-    const touch=event.touches[0];
-    startX=touch.clientX;
-    startY=touch.clientY;
-    tracking=true;
-  },{passive:true,capture:true});
-
-  document.addEventListener("touchend",event=>{
-    if(!tracking)return;
-    tracking=false;
-
-    const touch=event.changedTouches[0];
-    const dx=touch.clientX-startX;
-    const dy=touch.clientY-startY;
-
-    if(Math.abs(dx)<55)return;
-    if(Math.abs(dx)<Math.abs(dy)*1.15)return;
-
-    const index=currentIndex();
-    showScreen(dx<0?index+1:index-1);
-  },{passive:true,capture:true});
-
-  document.addEventListener("touchcancel",()=>{
-    tracking=false;
-  },{passive:true,capture:true});
-}
-
-function setupCalendarSwipe(){
-  // 주간 내부는 날짜 가로 스크롤, 화면 가장자리 스와이프는 화면 전환에 사용합니다.
 }
 
 

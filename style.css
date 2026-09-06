@@ -7978,24 +7978,6 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
   .four-week-table td small{font-size:8px!important}
 }
 
-/* Momentum v7.88 — force the weekly controls onto one mobile row */
-@media(max-width:720px){
-  #calendarPage .calendar-toolbar>.calendar-controls{
-    display:grid!important;
-    grid-template-columns:88px minmax(124px,1fr) auto 33px!important;
-    grid-template-rows:35px!important;
-    align-items:center!important;
-    column-gap:4px!important;
-    width:100%!important;
-    min-width:0!important;
-    overflow:visible!important;
-  }
-  #calendarPage .calendar-controls .week-zoom-controls{grid-column:1!important;grid-row:1!important;width:88px!important;min-width:0!important;margin:0!important}
-  #calendarPage .calendar-controls .period-navigation{grid-column:2!important;grid-row:1!important;width:100%!important;min-width:0!important;margin:0!important}
-  #calendarPage .calendar-controls .week-category-manager-button{grid-column:3!important;grid-row:1!important;width:auto!important;min-width:0!important;margin:0!important}
-  #calendarPage .calendar-controls .week-fit-icon{grid-column:4!important;grid-row:1!important;width:33px!important;min-width:33px!important;margin:0!important}
-}
-
 /* Momentum v7.89 final cascade — compact controls stay on one row */
 @media(max-width:900px){
   body:not(.selected-day-mode) #calendarPage .calendar-toolbar{padding:6px 4px!important}
