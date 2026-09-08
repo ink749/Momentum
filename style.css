@@ -7983,6 +7983,35 @@ body.selected-day-mode #calendarPage .calendar-toolbar{display:none!important}
 .four-week-table td small.change-down{color:#2876c7!important}
 .four-week-table td small.change-neutral{color:var(--green-dark)!important}
 
+/* Momentum v8.01 — home progress detail and comparison panel */
+.selected-progress-layout{display:grid;grid-template-columns:minmax(150px,.85fr) minmax(190px,1.15fr);align-items:center;width:100%;margin-top:10px}
+.selected-progress-ring-zone{position:relative;display:grid;place-items:center;min-width:0}
+.selected-completion-ring{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.selected-completion-ring:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+.selected-progress-breakdown{position:absolute;z-index:3;left:50%;bottom:calc(100% - 18px);width:max-content;min-width:150px;transform:translateX(-50%);padding:9px 11px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 8px 24px rgba(28,67,48,.14);pointer-events:none}
+.selected-progress-breakdown[hidden]{display:none!important}
+.selected-progress-breakdown span{display:flex;justify-content:space-between;gap:18px;color:var(--soft);font-size:10px;font-weight:750}
+.selected-progress-breakdown span+span{margin-top:5px}
+.selected-progress-breakdown strong{color:var(--green-dark);font-size:11px}
+.selected-progress-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding-left:16px;border-left:1px solid var(--line);text-align:left}
+.selected-progress-metrics>div{min-width:0;padding:7px 8px;border-radius:10px;background:var(--muted)}
+.selected-progress-metrics span,.selected-progress-metrics strong{display:block}
+.selected-progress-metrics span{color:var(--soft);font-size:9px;white-space:nowrap}
+.selected-progress-metrics strong{margin-top:3px;color:var(--green-dark);font-size:14px;line-height:1.1}
+.selected-progress-metrics .selected-event-total{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.selected-progress-metrics .selected-event-total strong{margin-top:0}
+.selected-progress-metrics strong.change-up{color:#c83b3b}
+.selected-progress-metrics strong.change-down{color:#2876c7}
+.selected-progress-metrics strong.change-neutral{color:var(--green-dark)}
+@media(max-width:720px){
+  .selected-progress-layout{grid-template-columns:minmax(112px,.78fr) minmax(150px,1.22fr);gap:10px}
+  .selected-progress-metrics{gap:5px;padding-left:10px}
+  .selected-progress-metrics>div{padding:6px}
+  .selected-progress-metrics span{font-size:8px}
+  .selected-progress-metrics strong{font-size:12px}
+  .selected-progress-breakdown{bottom:calc(100% - 10px);min-width:136px;padding:8px 10px}
+}
+
 @media(max-width:900px){
   body:not(.selected-day-mode) #calendarPage .calendar-toolbar{padding:6px 4px!important}
   body:not(.selected-day-mode) #calendarPage .calendar-toolbar>.calendar-controls{display:grid!important;grid-template-columns:82px minmax(110px,1fr) 52px 32px!important;grid-template-rows:34px!important;align-items:center!important;gap:3px!important;width:100%!important;min-width:0!important;max-width:none!important;overflow:visible!important}

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=8.00" />
+  <link rel="stylesheet" href="style.css?v=8.01" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -137,9 +137,25 @@
             <section class="summary-card selected-day-insight-card">
               <p id="selectedProgressEyebrow" class="eyebrow">TODAY PROGRESS</p>
               <h3 id="selectedProgressTitle">오늘 완료율</h3>
-              <div class="selected-completion-ring" id="selectedCompletionRing">
-                <strong id="selectedCompletionValue">0%</strong>
-                <span>완료</span>
+              <div class="selected-progress-layout">
+                <div class="selected-progress-ring-zone">
+                  <div id="selectedProgressBreakdown" class="selected-progress-breakdown" hidden>
+                    <span>일정 <strong id="selectedBreakdownEvent">0%</strong></span>
+                    <span>습관 <strong id="selectedBreakdownHabit">0%</strong></span>
+                    <span>할 일 <strong id="selectedBreakdownTodo">0%</strong></span>
+                  </div>
+                  <div class="selected-completion-ring" id="selectedCompletionRing" role="button" tabindex="0" aria-expanded="false" aria-controls="selectedProgressBreakdown" aria-label="항목별 완료율 보기">
+                    <strong id="selectedCompletionValue">0%</strong>
+                    <span>완료</span>
+                  </div>
+                </div>
+                <div class="selected-progress-metrics" aria-label="오늘 일정 성격별 완료율">
+                  <div><span>전날 대비</span><strong id="selectedPreviousDayChange">—</strong></div>
+                  <div><span>고정생활</span><strong id="selectedRoutineProgress">—</strong></div>
+                  <div><span>실행과제</span><strong id="selectedActionProgress">—</strong></div>
+                  <div><span>일반일정</span><strong id="selectedGeneralProgress">—</strong></div>
+                  <div class="selected-event-total"><span>전체 일정</span><strong id="selectedAllEventProgress">—</strong></div>
+                </div>
               </div>
               <p id="selectedCompletionDetail" class="selected-completion-detail">오늘의 기록을 시작해보세요.</p>
               <div class="selected-insight-chart">
@@ -671,6 +687,20 @@
   </div>
 
 
+  <div id="todoRepeatDeleteDialog" class="modal-backdrop choice-backdrop" aria-hidden="true">
+    <div class="choice-dialog" role="dialog" aria-modal="true" aria-labelledby="todoRepeatDeleteTitle">
+      <div class="modal-header">
+        <div><p class="eyebrow">DELETE REPEATING TO DO</p><h2 id="todoRepeatDeleteTitle">반복 할 일 삭제</h2></div>
+        <button id="closeTodoRepeatDeleteDialog" class="close-button" type="button">×</button>
+      </div>
+      <div class="choice-dialog-actions">
+        <button id="deleteOnlyThisTodoDateButton" class="secondary-button choice-action" type="button"><strong>이 날짜만 삭제</strong></button>
+        <button id="deleteAllTodoRepeatsButton" class="danger-outline-button choice-action" type="button"><strong>전체 반복 삭제</strong></button>
+        <button id="cancelTodoRepeatDeleteButton" class="secondary-button" type="button">취소</button>
+      </div>
+    </div>
+  </div>
+
   <div id="todoOverviewModal" class="modal-backdrop" aria-hidden="true">
     <div class="modal todo-overview-modal">
       <div class="modal-header">
@@ -835,6 +865,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=8.00"></script>
+  <script type="module" src="script.js?v=8.01"></script>
 </body>
 </html>

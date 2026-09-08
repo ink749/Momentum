@@ -85,6 +85,7 @@ const state = {
   skipEventSnapshotRenders:0,
   skipHabitSnapshotRenders:0,
   skipTodoSnapshotRenders:0,
+  progressDataReady:{events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false},
   snapshotSkipTimers:{},
   preservedViewScroll:null,
   suppressTimePickerUntil:0,
@@ -729,6 +730,9 @@ function combinedProgressForDate(key){
     ...todos.map(todo=>todo.status==="done"?100:0)
   ];
   return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):0;
+}
+function progressDataIsReady(){
+  return Object.values(state.progressDataReady).every(Boolean);
 }
 function monthKeys(date){
   const y=date.getFullYear(),m=date.getMonth(),last=new Date(y,m+1,0).getDate();
@@ -2080,11 +2084,14 @@ async function setHabitProgress(habitId,key,progress,{optimistic=false}={}){
 function listenHabits(user){
   if(state.unsubscribeHabits)state.unsubscribeHabits();
   if(state.unsubscribeHabitLogs)state.unsubscribeHabitLogs();
+  state.progressDataReady.habits=false;
+  state.progressDataReady.habitLogs=false;
   const habitsQuery=query(collection(db,"users",user.uid,"habits"),orderBy("startDate"));
-  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()})).filter(habit=>!habit.challengeId);renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
+  state.unsubscribeHabits=onSnapshot(habitsQuery,snap=>{state.habits=snap.docs.map(d=>({id:d.id,...d.data()})).filter(habit=>!habit.challengeId);state.progressDataReady.habits=true;renderAll();if(state.activePage==="stats")renderStats()},error=>{console.error(error);alert("습관을 불러오지 못했습니다.")});
   state.unsubscribeHabitLogs=onSnapshot(collection(db,"users",user.uid,"habitLogs"),snap=>{
     state.habitLogs={};
     snap.docs.forEach(d=>{state.habitLogs[d.id]={id:d.id,...d.data()}});
+    state.progressDataReady.habitLogs=true;
     if(state.skipHabitSnapshotRenders>0){
       state.skipHabitSnapshotRenders--;
       if(state.activePage==="stats")renderStats();
@@ -2176,6 +2183,8 @@ function syncSelectedEventProgressDom(){
 function listen(user){
   if(state.unsubscribe)state.unsubscribe();
   if(state.unsubscribeEventLogs)state.unsubscribeEventLogs();
+  state.progressDataReady.events=false;
+  state.progressDataReady.eventLogs=false;
 
   const q=query(collection(db,"users",user.uid,"events"),orderBy("date"),orderBy("time"));
   state.unsubscribe=onSnapshot(
@@ -2185,6 +2194,7 @@ function listen(user){
       const next=snap.docs.map(d=>({id:d.id,...d.data()}));
       const progressOnly=collectionChangedOnlyProgress(previous,next);
       state.events=next;
+      state.progressDataReady.events=true;
 
       if(progressOnly){
         clearSnapshotRenderSkip("Event");
@@ -2214,6 +2224,7 @@ function listen(user){
       const previous=Object.values(state.eventLogs);
       state.eventLogs={};
       snap.docs.forEach(d=>{state.eventLogs[d.id]={id:d.id,...d.data()}});
+      state.progressDataReady.eventLogs=true;
       const next=Object.values(state.eventLogs);
 
       if(collectionChangedOnlyProgress(previous,next)){
@@ -3791,6 +3802,7 @@ function todoLogKey(todoId,key){
 }
 function todoOccursOn(todo,key){
   if(todo?.backlog||!todo?.date||key<todo.date)return false;
+  if(Array.isArray(todo.exceptionDates)&&todo.exceptionDates.includes(key))return false;
 
   const repeat=todo.repeat||"none";
   if(repeat==="none")return key===todo.date;
@@ -3951,6 +3963,7 @@ function showTodoModal(){
   pushModalHistory("todo");
 }
 function closeTodoModal(){
+  closeTodoRepeatDeleteDialog();
   el.todoModal.classList.remove("show");
   document.body.style.overflow=state.dayViewOpen?"hidden":"";
   clearModalHistory("todo");
@@ -4048,6 +4061,12 @@ async function submitTodoForm(event){
 }
 async function deleteTodo(){
   if(!state.user||!el.todoEditId.value)return;
+  const source=state.todos.find(todo=>todo.id===el.todoEditId.value);
+  if(!source)return;
+  if((source.repeat||"none")!=="none"){
+    $("todoRepeatDeleteDialog").classList.add("show");
+    return;
+  }
   if(!confirm("이 할 일을 삭제할까요?"))return;
 
   try{
@@ -4060,6 +4079,48 @@ async function deleteTodo(){
   }catch(error){
     console.error(error);
     el.todoFormError.textContent="할 일을 삭제하지 못했습니다.";
+  }
+}
+function closeTodoRepeatDeleteDialog(){
+  $("todoRepeatDeleteDialog")?.classList.remove("show");
+}
+async function deleteOnlyCurrentTodoOccurrence(){
+  if(!state.user||!el.todoEditId.value)return;
+  const todoId=el.todoEditId.value;
+  const source=state.todos.find(todo=>todo.id===todoId);
+  if(!source)return;
+  const occurrenceDate=el.todoOccurrenceDate.value||source.date;
+  const exceptionDates=Array.from(new Set([
+    ...(Array.isArray(source.exceptionDates)?source.exceptionDates:[]),
+    occurrenceDate
+  ])).sort();
+  try{
+    await Promise.all([
+      updateDoc(doc(db,"users",state.user.uid,"todos",todoId),{exceptionDates,updatedAt:serverTimestamp()}),
+      deleteDoc(doc(db,"users",state.user.uid,"todoLogs",todoLogKey(todoId,occurrenceDate)))
+    ]);
+    closeTodoRepeatDeleteDialog();
+    closeTodoModal();
+  }catch(error){
+    console.error(error);
+    closeTodoRepeatDeleteDialog();
+    el.todoFormError.textContent="이 날짜의 반복 할 일을 삭제하지 못했습니다.";
+  }
+}
+async function deleteEntireTodoSeries(){
+  if(!state.user||!el.todoEditId.value)return;
+  try{
+    const todoId=el.todoEditId.value;
+    await Promise.all([
+      deleteDoc(doc(db,"users",state.user.uid,"todos",todoId)),
+      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id)))
+    ]);
+    closeTodoRepeatDeleteDialog();
+    closeTodoModal();
+  }catch(error){
+    console.error(error);
+    closeTodoRepeatDeleteDialog();
+    el.todoFormError.textContent="반복 할 일 전체를 삭제하지 못했습니다.";
   }
 }
 function renderTodoRow(todo,{compact=false,onBlank=null}={}){
@@ -4496,11 +4557,15 @@ async function rollPendingTodosToToday(){
 function listenTodos(user){
   if(state.unsubscribeTodos)state.unsubscribeTodos();
   if(state.unsubscribeTodoLogs)state.unsubscribeTodoLogs();
+  state.progressDataReady.todos=false;
+  state.progressDataReady.todoLogs=false;
 
   state.unsubscribeTodos=onSnapshot(
     collection(db,"users",user.uid,"todos"),
     snap=>{
       state.todos=snap.docs.map(d=>({id:d.id,...d.data()}));
+      state.progressDataReady.todos=true;
+      updateSelectedProgressMetrics(state.selectedDateKey);
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -4526,6 +4591,8 @@ function listenTodos(user){
       snap.docs.forEach(d=>{
         state.todoLogs[d.id]={id:d.id,...d.data()};
       });
+      state.progressDataReady.todoLogs=true;
+      updateSelectedProgressMetrics(state.selectedDateKey);
       if(state.skipTodoSnapshotRenders>0){
         state.skipTodoSnapshotRenders--;
         updateSelectedProgressMetrics(state.selectedDateKey);
@@ -4754,13 +4821,29 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
   if(key!==state.selectedDateKey)return;
   const d=parseDateKey(key);
   const items=eventsForDate(key);
+  const metricEvents=allEventsForDate(key);
   const insightHabits=activeHabitsOn(key);
-  const avg=average(items);
+  const avg=average(metricEvents);
   const habitAvg=habitAverageForDate(key);
   const selectedTodoStats=todoCompletionForKeys([key]);
   const todoRate=selectedTodoStats.progress;
   const combined=combinedProgressForDate(key);
   const isToday=key===dateKey(new Date());
+  const ready=progressDataIsReady();
+  const typeItems=type=>metricEvents.filter(item=>(item.evaluationType||"action")===type);
+  const setRate=(id,type)=>{
+    const element=$(id),matches=typeItems(type);
+    if(element)element.textContent=ready&&matches.length?`${average(matches)}%`:"—";
+  };
+
+  if(!ready){
+    el.dayProgress.textContent="—";
+    el.dayBar.style.width="0%";
+    if(el.selectedCompletionRing)el.selectedCompletionRing.style.setProperty("--completion","0deg");
+    if(el.selectedCompletionValue)el.selectedCompletionValue.textContent="—";
+    ["selectedBreakdownEvent","selectedBreakdownHabit","selectedBreakdownTodo","selectedPreviousDayChange","selectedRoutineProgress","selectedActionProgress","selectedGeneralProgress","selectedAllEventProgress"].forEach(id=>{if($(id))$(id).textContent="—"});
+    return;
+  }
 
   el.dayProgress.textContent=`${combined}%`;
   el.dayBar.style.width=`${combined}%`;
@@ -4779,6 +4862,31 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
     el.selectedCompletionRing.style.setProperty("--completion",`${combined*3.6}deg`);
   }
   if(el.selectedCompletionValue)el.selectedCompletionValue.textContent=`${combined}%`;
+  if($("selectedBreakdownEvent"))$("selectedBreakdownEvent").textContent=metricEvents.length?`${avg}%`:"—";
+  if($("selectedBreakdownHabit"))$("selectedBreakdownHabit").textContent=insightHabits.length?`${habitAvg}%`:"—";
+  if($("selectedBreakdownTodo"))$("selectedBreakdownTodo").textContent=selectedTodoStats.total?`${todoRate}%`:"—";
+  if($("selectedAllEventProgress"))$("selectedAllEventProgress").textContent=metricEvents.length?`${avg}%`:"—";
+  setRate("selectedRoutineProgress","routine");
+  setRate("selectedActionProgress","action");
+  setRate("selectedGeneralProgress","general");
+  const previousKey=dateKey(addDays(d,-1));
+  const previousValues=[
+    ...allEventsForDate(previousKey).map(event=>Number(event.progress||0)),
+    ...activeHabitsOn(previousKey).map(habit=>habitProgress(habit.id,previousKey)),
+    ...todosForDate(previousKey).map(todo=>todo.status==="done"?100:0)
+  ];
+  const previousChange=$("selectedPreviousDayChange");
+  if(previousChange){
+    previousChange.className="";
+    if(!previousValues.length){
+      previousChange.textContent="—";
+    }else{
+      const previous=Math.round(previousValues.reduce((sum,value)=>sum+value,0)/previousValues.length);
+      const difference=combined-previous;
+      previousChange.textContent=`${difference>0?"+":""}${difference}%p`;
+      previousChange.classList.add(difference>0?"change-up":difference<0?"change-down":"change-neutral");
+    }
+  }
   if(el.selectedCompletionDetail){
     el.selectedCompletionDetail.textContent=
       items.length||selectedTodoStats.total||insightHabits.length
@@ -7342,6 +7450,11 @@ if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("ev
 if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
 el.addTodoChecklistItemButton.onclick=addTodoChecklistItem;
 el.deleteTodoButton.onclick=deleteTodo;
+$("deleteOnlyThisTodoDateButton")?.addEventListener("click",deleteOnlyCurrentTodoOccurrence);
+$("deleteAllTodoRepeatsButton")?.addEventListener("click",deleteEntireTodoSeries);
+$("closeTodoRepeatDeleteDialog")?.addEventListener("click",closeTodoRepeatDeleteDialog);
+$("cancelTodoRepeatDeleteButton")?.addEventListener("click",closeTodoRepeatDeleteDialog);
+$("todoRepeatDeleteDialog")?.addEventListener("click",event=>{if(event.target===$("todoRepeatDeleteDialog"))closeTodoRepeatDeleteDialog()});
 $("closeTodoModal").onclick=closeTodoModal;
 $("cancelTodo").onclick=closeTodoModal;
 el.todoModal.onclick=event=>{
@@ -7402,6 +7515,11 @@ document.addEventListener("keydown",event=>{
     return;
   }
 
+  if($("todoRepeatDeleteDialog")?.classList.contains("show")){
+    closeTodoRepeatDeleteDialog();
+    return;
+  }
+
   if(el.searchModal.classList.contains("show")){
     closeSearchModal();
     return;
@@ -7448,6 +7566,10 @@ window.addEventListener("popstate",event=>{
     el.repeatDeleteDialog.classList.contains("show")
   ){
     closeRepeatDeleteDialog();
+  }else if(
+    $("todoRepeatDeleteDialog")?.classList.contains("show")
+  ){
+    closeTodoRepeatDeleteDialog();
   }else if(
     el.categoryManagerModal.classList.contains("show")
   ){
@@ -7520,6 +7642,19 @@ document.querySelectorAll("[data-weekly-metric]").forEach(button=>button.addEven
 
 renderHomeMemos();
 
+function toggleSelectedProgressBreakdown(){
+  const breakdown=$("selectedProgressBreakdown"),ring=el.selectedCompletionRing;
+  if(!breakdown||!ring)return;
+  breakdown.hidden=!breakdown.hidden;
+  ring.setAttribute("aria-expanded",String(!breakdown.hidden));
+}
+el.selectedCompletionRing?.addEventListener("click",toggleSelectedProgressBreakdown);
+el.selectedCompletionRing?.addEventListener("keydown",event=>{
+  if(event.key!=="Enter"&&event.key!==" ")return;
+  event.preventDefault();
+  toggleSelectedProgressBreakdown();
+});
+
 
 setupMondayFirstDatePicker();
 setupWheelTimePicker();
@@ -7533,6 +7668,7 @@ onAuthStateChanged(auth,async user=>{
   el.loading.hidden=true;
   if(!user){
     state.user=null;state.events=[];state.eventLogs={};state.habits=[];state.habitLogs={};state.goalProfile={directionGoals:{}};
+    state.progressDataReady={events:false,eventLogs:false,habits:false,habitLogs:false,todos:false,todoLogs:false};
     if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null}
     if(state.unsubscribeEventLogs){state.unsubscribeEventLogs();state.unsubscribeEventLogs=null}
     if(state.unsubscribeCategories){state.unsubscribeCategories();state.unsubscribeCategories=null}
