@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=8.01" />
+  <link rel="stylesheet" href="style.css?v=8.02" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen">
@@ -142,7 +142,6 @@
                   <div id="selectedProgressBreakdown" class="selected-progress-breakdown" hidden>
                     <span>일정 <strong id="selectedBreakdownEvent">0%</strong></span>
                     <span>습관 <strong id="selectedBreakdownHabit">0%</strong></span>
-                    <span>할 일 <strong id="selectedBreakdownTodo">0%</strong></span>
                   </div>
                   <div class="selected-completion-ring" id="selectedCompletionRing" role="button" tabindex="0" aria-expanded="false" aria-controls="selectedProgressBreakdown" aria-label="항목별 완료율 보기">
                     <strong id="selectedCompletionValue">0%</strong>
@@ -173,11 +172,6 @@
                   <strong id="selectedInsightHabitProgress">0%</strong>
                   <div class="selected-insight-bar"><i id="selectedInsightHabitBar"></i></div>
                   <span>습관</span>
-                </div>
-                <div class="selected-insight-column">
-                  <strong id="selectedInsightChecklist">0/0</strong>
-                  <div class="selected-insight-bar"><i id="selectedInsightChecklistBar"></i></div>
-                  <span>할 일</span>
                 </div>
               </div>
               <div class="progress-track" hidden><div id="dayProgressBar" class="progress-fill"></div></div>
@@ -311,7 +305,7 @@
               <div>
                 <p class="eyebrow">MONTH OVERVIEW</p>
                 <h2 id="statsMonthCalendarTitle">월간 성과</h2>
-                <div class="month-rate-summary"><span>종합 <strong id="monthRateCombined">—</strong></span><span>일정 <strong id="monthRateEvents">—</strong></span><span>습관 <strong id="monthRateHabits">—</strong></span><span>할 일 <strong id="monthRateTodos">—</strong></span></div>
+                <div class="month-rate-summary"><span>종합 <strong id="monthRateCombined">—</strong></span><span>일정 <strong id="monthRateEvents">—</strong></span><span>습관 <strong id="monthRateHabits">—</strong></span></div>
               </div>
               <div class="stats-month-navigation">
                 <button id="statsPrevMonthButton" class="round-button" type="button">‹</button>
@@ -334,7 +328,7 @@
                   <p class="eyebrow">LAST 7 DAYS</p>
                   <h2 id="statsWeeklyTitle">최근 7일 완료율</h2>
                 </div>
-                <div class="weekly-metric-switch" role="tablist"><button class="active" data-weekly-metric="combined" type="button">종합</button><button data-weekly-metric="events" type="button">일정</button><button data-weekly-metric="todos" type="button">할 일</button></div>
+                <div class="weekly-metric-switch" role="tablist"><button class="active" data-weekly-metric="combined" type="button">종합</button><button data-weekly-metric="events" type="button">일정</button></div>
               </div>
               <div id="weeklyProgressChart" class="weekly-progress-chart"></div>
             </section>
@@ -352,7 +346,6 @@
                 <div><span>활성 습관</span><strong id="statsMonthHabitCount">0개</strong></div>
                 <div><span>습관 평균 완료율</span><strong id="statsMonthHabitProgress">0%</strong></div>
                 <strong id="statsMonthPerfectHabitDays" hidden>0회</strong>
-                <div><span>할 일 평균 완료율</span><strong id="statsTodoAverage">0%</strong></div>
               </div>
             </section>
           </div>
@@ -380,10 +373,6 @@
       </section>
 
     <div hidden aria-hidden="true">
-<span id="statsChecklistLabel"></span><strong id="statsChecklistProgress">0%</strong>
-<small id="statsChecklistCount"></small><strong id="statsChecklistTotal">0개</strong>
-<strong id="statsChecklistDone">0개</strong><strong id="statsChecklistFailed">0개</strong>
-<strong id="statsTodoTotal">0개</strong><strong id="statsTodoDone">0개</strong><strong id="statsTodoCancelled">0개</strong>
 <span id="eventProgressSummary"></span><button id="emptyAdd" type="button"></button>
 </div>
 </main>
@@ -509,6 +498,7 @@
           <label class="event-category-field">카테고리
             <select id="eventCategory"></select>
           </label>
+          <label class="check-option stats-inclusion-option"><input id="eventIncludeInStats" type="checkbox" checked /> 통계에 포함</label>
         </div>
         <section class="event-datetime-card">
           <span class="form-section-label">날짜 및 시간</span>
@@ -663,6 +653,7 @@
           </select>
         </label>
         <label class="check-option"><input id="todoBacklog" type="checkbox" /> 날짜 없이 할 일 보관함에 쌓아두기</label>
+        <label class="check-option stats-inclusion-option"><input id="todoIncludeInStats" type="checkbox" /> 통계에 포함</label>
         <label>메모
           <textarea id="todoMemo" maxlength="500" rows="2" placeholder="할 일에 필요한 내용을 적어두세요."></textarea>
         </label>
@@ -821,10 +812,18 @@
         <div class="habit-option-grid">
           <label class="check-option"><input id="habitShowDday" type="checkbox" /> 홈과 습관에 D-day 표시</label>
           <label class="check-option"><input id="habitShowOnHome" type="checkbox" checked /> 홈 화면에 표시</label>
+          <label class="check-option"><input id="habitIncludeInStats" type="checkbox" checked /> 통계에 포함</label>
         </div>
         <label>목표 횟수 <span class="field-help">선택 사항 · 반복과 별도로 누적 횟수를 셉니다.</span>
           <input id="habitTargetCount" type="number" min="1" max="1000000" placeholder="예: 30" />
         </label>
+        <section class="checklist-editor habit-checklist-editor">
+          <div class="checklist-editor-heading">
+            <div><span class="form-section-label">체크리스트</span></div>
+            <button id="addHabitChecklistItemButton" class="secondary-button compact-button" type="button">+ 항목 추가</button>
+          </div>
+          <div id="habitChecklistItems" class="checklist-items"></div>
+        </section>
         <p id="habitFormError" class="error-message"></p>
         <div class="modal-actions event-modal-actions entity-modal-actions">
           <button id="deleteHabitButton" class="danger-button" type="button" hidden>삭제</button>
@@ -865,6 +864,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=8.01"></script>
+  <script type="module" src="script.js?v=8.02"></script>
 </body>
 </html>

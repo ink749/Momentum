@@ -8111,3 +8111,26 @@ body.week-page-mode .week-scroll,body.week-page-mode .google-week-body-scroll{ov
 
 /* Momentum v7.96 — stable home position while card lengths change */
 html{scrollbar-gutter:stable}
+
+/* Momentum v8.02 — shared checklist layout and statistical inclusion */
+.todo-main{display:grid;min-width:0;gap:5px}
+.todo-main .todo-name-button{width:100%;min-width:0;text-align:left}
+.todo-row:has(.entity-checklist-preview){align-items:start}
+.entity-checklist-preview{min-width:0;margin-top:2px}
+.entity-checklist-preview .event-checklist-row{width:100%;padding:0;border:0;background:transparent;text-align:left;cursor:pointer}
+.entity-checklist-preview .event-checklist-row i{display:grid;place-items:center;flex:0 0 14px;width:14px;height:14px;font-size:9px;font-style:normal}
+.selected-habit-row:has(.habit-checklist-preview){grid-template-rows:auto auto}
+.habit-checklist-preview{grid-column:1;grid-row:2;min-width:0}
+.selected-habit-row:has(.habit-checklist-preview)>.selected-habit-progress{grid-column:2;grid-row:1/3;align-self:center}
+#habitForm .habit-option-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.stats-inclusion-option{white-space:nowrap}
+.event-evaluation-row:has(.stats-inclusion-option){grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto!important}
+.month-insight-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media(max-width:600px){
+  .checklist-edit-row{display:grid!important;grid-template-columns:36px minmax(0,1fr) 36px!important;align-items:center!important;width:100%!important;gap:6px!important}
+  .checklist-edit-row>*{min-width:0!important;margin:0!important}
+  .checklist-edit-row .checklist-remove-button{grid-column:3!important;justify-self:end!important;width:36px!important;height:36px!important}
+  #habitForm .habit-option-grid{grid-template-columns:1fr!important}
+  .event-evaluation-row:has(.stats-inclusion-option){grid-template-columns:1fr 1fr!important}
+  .event-evaluation-row:has(.stats-inclusion-option) .stats-inclusion-option{grid-column:1/-1!important}
+}

@@ -57,7 +57,7 @@ const state = {
   weekZoom:100, weekFit:false, weekVisibleDays:7,
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null, reportWeekOffset:0,
-  habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
+  habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()), editingHabitChecklist:[],
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   todoOverviewMonth:startOfMonth(new Date()),
@@ -126,11 +126,9 @@ const el = {
   selectedEvents:$("selectedDayEvents"), dayProgress:$("dayProgressNumber"), dayBar:$("dayProgressBar"), dayCaption:$("dayProgressCaption"),
   selectedInsightEventProgress:$("selectedInsightEventProgress"),
   selectedInsightHabitProgress:$("selectedInsightHabitProgress"),
-  selectedInsightChecklist:$("selectedInsightChecklist"),
   selectedInsightCombinedBar:$("selectedInsightCombinedBar"),
   selectedInsightEventBar:$("selectedInsightEventBar"),
   selectedInsightHabitBar:$("selectedInsightHabitBar"),
-  selectedInsightChecklistBar:$("selectedInsightChecklistBar"),
   selectedHabitPreview:$("selectedHabitPreview"), selectedHabitMoreButton:$("selectedHabitMoreButton"),
   selectedCompletionRing:$("selectedCompletionRing"), selectedCompletionValue:$("selectedCompletionValue"),
   selectedCompletionDetail:$("selectedCompletionDetail"),
@@ -144,7 +142,7 @@ const el = {
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
   repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
-  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"),
+  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), eventIncludeInStats:$("eventIncludeInStats"),
   customRepeat:$("eventCustomRepeat"), repeatInterval:$("eventRepeatInterval"), repeatUnit:$("eventRepeatUnit"),
   repeatCount:$("eventRepeatCount"), repeatCountWrap:$("eventRepeatCountWrap"), repeatSetCountButton:$("repeatSetCountButton"),
   editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
@@ -170,7 +168,8 @@ const el = {
   habitHeatmapLabel:$("habitHeatmapLabel"), habitPeriodLabel:$("habitPeriodLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
-  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"),
+  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitIncludeInStats:$("habitIncludeInStats"),
+  habitChecklistItems:$("habitChecklistItems"), addHabitChecklistItemButton:$("addHabitChecklistItemButton"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
   mobileCalendarNav:$("mobileCalendarNavButton"), mobileWeekNav:$("mobileWeekNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
@@ -179,14 +178,12 @@ const el = {
   statsTodayHabitProgress:$("statsTodayHabitProgress"), statsTodayHabitCount:$("statsTodayHabitCount"),
   statsMonthCombinedProgress:$("statsMonthCombinedProgress"),
   statsDayEventLabel:$("statsDayEventLabel"), statsDayHabitLabel:$("statsDayHabitLabel"),
-  statsMonthCombinedLabel:$("statsMonthCombinedLabel"), statsChecklistLabel:$("statsChecklistLabel"),
+  statsMonthCombinedLabel:$("statsMonthCombinedLabel"),
   statsWeeklyTitle:$("statsWeeklyTitle"), statsMonthSummaryTitle:$("statsMonthSummaryTitle"),
   statsCategoryTitle:$("statsCategoryTitle"), statsHabitRankingTitle:$("statsHabitRankingTitle"),
   weeklyProgressChart:$("weeklyProgressChart"), statsMonthEventCount:$("statsMonthEventCount"), statsMonthEventProgress:$("statsMonthEventProgress"),
   statsMonthHabitCount:$("statsMonthHabitCount"), statsMonthHabitProgress:$("statsMonthHabitProgress"),
   statsMonthPerfectHabitDays:$("statsMonthPerfectHabitDays"),
-  statsChecklistProgress:$("statsChecklistProgress"), statsChecklistCount:$("statsChecklistCount"),
-  statsChecklistTotal:$("statsChecklistTotal"), statsChecklistDone:$("statsChecklistDone"), statsChecklistFailed:$("statsChecklistFailed"),
   statsMonthCalendarTitle:$("statsMonthCalendarTitle"),
   categoryAchievement:$("categoryAchievement"), habitRanking:$("habitRanking"),
   searchModal:$("searchModal"), openSearchButton:$("openSearchButton"),
@@ -200,14 +197,12 @@ const el = {
   todoOverviewPrevMonth:$("todoOverviewPrevMonth"), todoOverviewThisMonth:$("todoOverviewThisMonth"),
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
-  todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"),
+  todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"),
   todoBacklog:$("todoBacklog"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
   deleteTodoButton:$("deleteTodoButton"),
   statsTodoCount:$("statsTodoCount"),
-  statsTodoTotal:$("statsTodoTotal"), statsTodoDone:$("statsTodoDone"), statsTodoCancelled:$("statsTodoCancelled"),
-  statsTodoAverage:$("statsTodoAverage"),
   dayViewOverlay:$("dayViewOverlay"), dayViewTitle:$("dayViewTitle"),
   dayViewGrid:$("dayViewGrid"), dayViewScroll:$("dayViewScroll"),
   dayViewPrev:$("dayViewPrev"), dayViewToday:$("dayViewToday"),
@@ -715,19 +710,30 @@ function habitStreak(habit){
 function activeHabitsOn(key){
   return state.habits.filter(habit=>habitIsActive(habit,key));
 }
+function statisticalEventsForDate(key){
+  return allEventsForDate(key).filter(event=>event.includeInStats!==false);
+}
+function statisticalHabitsOn(key){
+  return activeHabitsOn(key).filter(habit=>habit.includeInStats!==false);
+}
+function statisticalTodosForDate(key){
+  return todosForDate(key).filter(todo=>todo.includeInStats===true);
+}
+function statisticalScheduleValuesForDate(key){
+  return [
+    ...statisticalEventsForDate(key).map(event=>Number(event.progress||0)),
+    ...statisticalTodosForDate(key).map(todo=>todo.status==="done"?100:0)
+  ];
+}
 function habitAverageForDate(key){
-  const habits=activeHabitsOn(key);
+  const habits=statisticalHabitsOn(key);
   if(!habits.length)return 0;
   return Math.round(habits.reduce((sum,habit)=>sum+habitProgress(habit.id,key),0)/habits.length);
 }
 function combinedProgressForDate(key){
-  const eventItems=allEventsForDate(key);
-  const habits=activeHabitsOn(key);
-  const todos=todosForDate(key);
   const values=[
-    ...eventItems.map(event=>Number(event.progress||0)),
-    ...habits.map(habit=>habitProgress(habit.id,key)),
-    ...todos.map(todo=>todo.status==="done"?100:0)
+    ...statisticalScheduleValuesForDate(key),
+    ...statisticalHabitsOn(key).map(habit=>habitProgress(habit.id,key))
   ];
   return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):0;
 }
@@ -759,16 +765,10 @@ function renderStats(){
   const todayKey=dateKey(new Date());
   const plannedKeys=monthKeys(monthAnchor);
   const keys=plannedKeys.filter(key=>key<=todayKey);
-  const monthEventOccurrences=keys.flatMap(key=>allEventsForDate(key));
-  const monthEventAvg=average(monthEventOccurrences);
+  const monthScheduleValues=keys.flatMap(key=>statisticalScheduleValuesForDate(key));
+  const monthEventAvg=monthScheduleValues.length?Math.round(monthScheduleValues.reduce((a,b)=>a+b,0)/monthScheduleValues.length):0;
 
-  const monthTodos=todoCompletionForKeys(keys);
-  const todoTotal=monthTodos.total;
-  const todoDone=monthTodos.done;
-  const todoCancelled=monthTodos.cancelled;
-  const todoProgress=monthTodos.progress;
-
-  const activeMonthHabits=state.habits.filter(habit=>
+  const activeMonthHabits=state.habits.filter(habit=>habit.includeInStats!==false&&
     keys.some(key=>habitIsActive(habit,key))
   );
   const monthHabitValues=[];
@@ -787,54 +787,45 @@ function renderStats(){
   const monthHabitAvg=monthHabitValues.length
     ?Math.round(monthHabitValues.reduce((a,b)=>a+b,0)/monthHabitValues.length)
     :0;
-  const monthTodoValues=keys.flatMap(key=>todosForDate(key))
-    .map(todo=>todo.status==="done"?100:0);
   const monthCombinedValues=[
-    ...monthEventOccurrences.map(event=>Number(event.progress||0)),
-    ...monthHabitValues,
-    ...monthTodoValues
+    ...monthScheduleValues,
+    ...monthHabitValues
   ];
   const monthCombined=monthCombinedValues.length
     ?Math.round(monthCombinedValues.reduce((a,b)=>a+b,0)/monthCombinedValues.length)
     :0;
 
   const plannedVolume=
-    plannedKeys.flatMap(key=>allEventsForDate(key)).length+
-    plannedKeys.flatMap(key=>activeHabitsOn(key)).length+
-    plannedKeys.flatMap(key=>todosForDate(key)).length;
+    plannedKeys.flatMap(key=>statisticalScheduleValuesForDate(key)).length+
+    plannedKeys.flatMap(key=>statisticalHabitsOn(key)).length;
   const executedVolume=monthCombinedValues.reduce((sum,value)=>sum+value,0)/100;
   el.statsDayEventLabel.textContent=`${selectedDate.getMonth()+1}월 종합 완료율`;
   el.statsDayHabitLabel.textContent=`${selectedDate.getMonth()+1}월 계획 항목`;
   el.statsMonthCombinedLabel.textContent=`${selectedDate.getMonth()+1}월 실행량`;
   el.statsTodayEventProgress.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
-  el.statsTodayEventCount.textContent="일정·습관·할 일을 함께 계산";
+  el.statsTodayEventCount.textContent="일정과 습관을 함께 계산";
   el.statsTodayHabitProgress.textContent=`${plannedVolume}`;
   el.statsTodayHabitCount.textContent="예정된 전체 항목";
   el.statsMonthCombinedProgress.textContent=plannedVolume?`${Number.isInteger(executedVolume)?executedVolume:executedVolume.toFixed(1)}`:"—";
-  if(el.statsTodoAverage)el.statsTodoAverage.textContent=todoTotal?`${todoProgress}%`:"—";
   if(el.statsTodoCount)el.statsTodoCount.textContent="부분 완료를 포함한 실행량";
 
-  const monthRateCombined=$("monthRateCombined"),monthRateEvents=$("monthRateEvents"),monthRateHabits=$("monthRateHabits"),monthRateTodos=$("monthRateTodos");
+  const monthRateCombined=$("monthRateCombined"),monthRateEvents=$("monthRateEvents"),monthRateHabits=$("monthRateHabits");
   if(monthRateCombined)monthRateCombined.textContent=monthCombinedValues.length?`${monthCombined}%`:"—";
-  if(monthRateEvents)monthRateEvents.textContent=monthEventOccurrences.length?`${monthEventAvg}%`:"—";
+  if(monthRateEvents)monthRateEvents.textContent=monthScheduleValues.length?`${monthEventAvg}%`:"—";
   if(monthRateHabits)monthRateHabits.textContent=monthHabitValues.length?`${monthHabitAvg}%`:"—";
-  if(monthRateTodos)monthRateTodos.textContent=todoTotal?`${todoProgress}%`:"—";
 
   el.statsMonthCalendarTitle.textContent=`${monthText} 성과`;
-  const weeklyLabel={combined:"종합",events:"일정",todos:"할 일"}[state.weeklyMetric||"combined"];
+  const weeklyLabel={combined:"종합",events:"일정"}[state.weeklyMetric||"combined"];
   el.statsWeeklyTitle.textContent=`${dayName} 기준 최근 7일 ${weeklyLabel} 완료율`;
   el.statsMonthSummaryTitle.textContent=`${monthText} 요약`;
   el.statsCategoryTitle.textContent=`카테고리별 ${selectedDate.getMonth()+1}월 성취도`;
   el.statsHabitRankingTitle.textContent=`습관별 ${selectedDate.getMonth()+1}월 달성률`;
 
-  el.statsMonthEventCount.textContent=`${monthEventOccurrences.length}개`;
+  el.statsMonthEventCount.textContent=`${monthScheduleValues.length}개`;
   el.statsMonthEventProgress.textContent=`${monthEventAvg}%`;
   el.statsMonthHabitCount.textContent=`${activeMonthHabits.length}개`;
   el.statsMonthHabitProgress.textContent=`${monthHabitAvg}%`;
   el.statsMonthPerfectHabitDays.textContent=`${perfectCount}회`;
-  if(el.statsTodoTotal)el.statsTodoTotal.textContent=`${todoTotal}개`;
-  if(el.statsTodoDone)el.statsTodoDone.textContent=`${todoDone}개`;
-  if(el.statsTodoCancelled)el.statsTodoCancelled.textContent=`${todoCancelled}개`;
 
   renderMonth();
   renderWorkloadChart(selectedDate);
@@ -845,12 +836,12 @@ function renderStats(){
   renderFourWeekChange(selectedDate);
 }
 function rangeSummary(keys){
-  const events=keys.flatMap(key=>allEventsForDate(key));
-  const habits=keys.flatMap(key=>activeHabitsOn(key).map(habit=>habitProgress(habit.id,key)));
-  const todos=keys.flatMap(key=>todosForDate(key));
-  const values=[...events.map(item=>Number(item.progress||0)),...habits,...todos.map(item=>item.status==="done"?100:0)];
+  const events=keys.flatMap(key=>statisticalEventsForDate(key));
+  const scheduleValues=keys.flatMap(key=>statisticalScheduleValuesForDate(key));
+  const habits=keys.flatMap(key=>statisticalHabitsOn(key).map(habit=>habitProgress(habit.id,key)));
+  const values=[...scheduleValues,...habits];
   return {
-    events,habits,todos,values,
+    events,habits,values,scheduleCount:scheduleValues.length,
     rate:values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null,
     planned:values.length,
     executed:values.reduce((a,b)=>a+b,0)/100
@@ -877,9 +868,8 @@ function renderFourWeekChange(referenceDate){
     {name:"수행률",value:summary=>summary.rate,suffix:"%",change:"%p"},
     {name:"계획 항목",value:summary=>summary.planned,suffix:"개",change:"개"},
     {name:"실행량",value:summary=>summary.executed,suffix:"",change:""},
-    {name:"일정",value:summary=>summary.events.length,suffix:"개",change:"개"},
-    {name:"습관",value:summary=>summary.habits.length,suffix:"회",change:"회"},
-    {name:"할 일",value:summary=>summary.todos.length,suffix:"개",change:"개"}
+    {name:"일정",value:summary=>summary.scheduleCount,suffix:"개",change:"개"},
+    {name:"습관",value:summary=>summary.habits.length,suffix:"회",change:"회"}
   ];
   const body=rows.map(row=>`<tr><th scope="row">${row.name}</th>${weeks.map((week,index)=>{
     const value=row.value(week.summary);
@@ -923,7 +913,7 @@ function renderEvaluationSplit(keys){
     {id:"general",name:"일반일정",description:"약속·행사 등 참고용 일정"}
   ];
   root.innerHTML=types.map(type=>{
-    const items=keys.flatMap(key=>allEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id);
+    const items=keys.flatMap(key=>statisticalEventsForDate(key)).filter(event=>(event.evaluationType||"action")===type.id);
     const value=average(items);
     return `<article><span>${type.name}</span><strong>${items.length?`${value}%`:"—"}</strong><div class="evaluation-bar"><i style="width:${items.length?value:0}%"></i></div></article>`;
   }).join("");
@@ -934,12 +924,12 @@ function reportData(){
   const start=startOfWeek(reference),end=addDays(start,6),keys=Array.from({length:7},(_,i)=>dateKey(addDays(start,i)));
   const todayKey=dateKey(new Date());
   const analysisKeys=end<parseDateKey(todayKey)?keys:keys.filter(key=>key<=todayKey);
-  const events=analysisKeys.flatMap(key=>allEventsForDate(key));
-  const habits=analysisKeys.flatMap(key=>activeHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
-  const todos=analysisKeys.flatMap(key=>todosForDate(key));
+  const events=analysisKeys.flatMap(key=>statisticalEventsForDate(key));
+  const scheduleValues=analysisKeys.flatMap(key=>statisticalScheduleValuesForDate(key));
+  const habits=analysisKeys.flatMap(key=>statisticalHabitsOn(key).map(habit=>({habit,key,progress:habitProgress(habit.id,key)})));
   const byType=id=>events.filter(item=>(item.evaluationType||"action")===id);
-  const values=[...events.map(item=>Number(item.progress||0)),...habits.map(item=>item.progress),...todos.map(item=>item.status==="done"?100:0)];
-  return {reference,start,end,keys,analysisKeys,events,habits,todos,values,byType};
+  const values=[...scheduleValues,...habits.map(item=>item.progress)];
+  return {reference,start,end,keys,analysisKeys,events,habits,scheduleValues,values,byType};
 }
 function openDetailedReport(){
   const modal=$("detailedReportModal"),content=$("detailedReportContent"),data=reportData();
@@ -951,7 +941,7 @@ function openDetailedReport(){
   const distribution=[0,25,50,75,100].map(value=>`${value}% ${data.values.filter(item=>Number(item)===value).length}개`).join(" · ");
   const typeCard=(name,items)=>`<p><b>${name} ${items.length?`${rate(items)}%`:"—"}</b><span>${items.length}개</span></p>`;
   const weekBoard=data.keys.map(key=>{
-    const date=parseDateKey(key),items=allEventsForDate(key);
+    const date=parseDateKey(key),items=statisticalEventsForDate(key);
     return `<article><header>${["일","월","화","수","목","금","토"][date.getDay()]} ${date.getMonth()+1}/${date.getDate()}</header>${items.length?items.map(item=>`<div class="report-week-event" style="--report-progress:${Number(item.progress||0)}%;--report-color:${categoryColor(eventCategory(item))}"><i></i><b>${escapeHtml(eventDisplayStart(item))}–${escapeHtml(eventDisplayEnd(item))}</b><span>${escapeHtml(item.title)}</span><small>수행률 ${Number(item.progress||0)}%</small></div>`).join(""):"<em>일정 없음</em>"}</article>`;
   }).join("");
   const categoryRows=state.categories.map(category=>{
@@ -962,10 +952,6 @@ function openDetailedReport(){
   const habitGroups=new Map();
   data.habits.forEach(entry=>{if(!habitGroups.has(entry.habit.id))habitGroups.set(entry.habit.id,{habit:entry.habit,values:[]});habitGroups.get(entry.habit.id).values.push(entry.progress)});
   const habitRows=[...habitGroups.values()].map(({habit,values})=>{const avg=Math.round(values.reduce((a,b)=>a+b,0)/values.length),counts=[0,25,50,75,100].map(value=>`${value}% ${values.filter(item=>item===value).length}`).join(" · ");return `<tr><td>${escapeHtml(habit.name)}</td><td>${values.length}일</td><td>${avg}%</td><td>${counts}</td><td>${habit.targetCount?`${Object.values(state.habitLogs).filter(log=>log.habitId===habit.id&&Number(log.progress)>0).length}/${habit.targetCount}회`:"—"}</td></tr>`}).join("");
-  const todoTotal=data.todos.length,todoDone=data.todos.filter(todo=>todo.status==="done").length;
-  const todoRolled=data.todos.filter(todo=>todo.status==="rolled").length,todoCancelled=data.todos.filter(todo=>todo.status==="cancelled").length;
-  const todoPending=Math.max(0,todoTotal-todoDone-todoRolled-todoCancelled),todoBacklog=state.todos.filter(todo=>todo.backlog).length;
-  const todoRate=value=>todoTotal?Math.round(value/todoTotal*100):0;
   const previousWeekKeys=Array.from({length:7},(_,i)=>dateKey(addDays(data.start,-7+i))),previousWeek=rangeSummary(previousWeekKeys);
   const currentMonthKeys=monthKeys(new Date(data.reference.getFullYear(),data.reference.getMonth(),1)).filter(key=>key<=dateKey(new Date()));
   const previousMonthDate=new Date(data.reference.getFullYear(),data.reference.getMonth()-1,1),previousMonth=rangeSummary(monthKeys(previousMonthDate)),currentMonth=rangeSummary(currentMonthKeys);
@@ -986,8 +972,7 @@ function openDetailedReport(){
     <section><h3>${year}년 목표와 분기 변화</h3><div class="report-goal"><b>올해 목표</b><p>${escapeHtml(goals.annual||"미설정").replace(/\n/g,"<br>")}</p></div><table><thead><tr><th>기간</th><th>목표</th><th>수행률</th><th>이전 분기 대비</th></tr></thead><tbody>${quarterRows}</tbody></table></section>
     <section><h3>월별 변화</h3><div class="report-scroll"><table><thead><tr><th>월</th><th>수행률</th><th>이전 달 대비</th><th>평가 항목</th></tr></thead><tbody>${monthRows}</tbody></table></div></section>
     <section><h3>습관 상세</h3><div class="report-scroll"><table><thead><tr><th>습관</th><th>대상</th><th>평균</th><th>수행률 분포</th><th>목표 횟수</th></tr></thead><tbody>${habitRows||"<tr><td colspan='5'>습관 기록 없음</td></tr>"}</tbody></table></div></section>
-    <section><h3>할 일 수치</h3><div class="report-todo-metrics"><article><span>전체</span><strong>${todoTotal}개</strong></article><article><span>완료율</span><strong>${todoRate(todoDone)}%</strong><small>${todoDone}개</small></article><article><span>미완료</span><strong>${todoPending}개</strong></article><article><span>이월률</span><strong>${todoRate(todoRolled)}%</strong><small>${todoRolled}개</small></article><article><span>취소율</span><strong>${todoRate(todoCancelled)}%</strong><small>${todoCancelled}개</small></article><article><span>보관함</span><strong>${todoBacklog}개</strong></article></div></section>
-    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 일정·활성 습관·할 일의 수행률 합계 ÷ 항목 수. 모든 일정은 통계에 포함하며 실제 실행시간은 추정하지 않습니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 ${data.events.length}개 · 습관 기록 ${data.habits.length}개 · 할 일 ${data.todos.length}개</p></section>`;
+    <section class="report-method"><h3>계산 방식과 데이터 범위</h3><p>수행률 = 통계에 포함한 일정·습관의 수행률 합계 ÷ 평가 항목 수. 통계에 포함한 할 일은 일정 1개로 환산하며 실제 실행시간은 추정하지 않습니다.</p><p>수행률 분포: ${distribution}</p><p>분석 기간 ${dateKey(data.start)}~${dateKey(data.end)} · 일정 환산 ${data.scheduleValues.length}개 · 습관 기록 ${data.habits.length}개</p></section>`;
   const offset=Math.abs(Number(state.reportWeekOffset||0)),periodName=offset===0?"이번 주":offset===1?"지난주":`${offset}주 전`;
   $("detailedReportTitle").textContent=`${periodName} · ${data.start.getMonth()+1}/${data.start.getDate()}–${data.end.getMonth()+1}/${data.end.getDate()}`;
   $("reportNextWeekButton").disabled=Number(state.reportWeekOffset||0)>=0;
@@ -1000,9 +985,8 @@ function renderWorkloadChart(referenceDate=parseDateKey(state.statsDate||dateKey
   for(let offset=6;offset>=0;offset--){
     const d=addDays(referenceDate,-offset),key=dateKey(d);
     const values=[
-      ...allEventsForDate(key).map(item=>Number(item.progress||0)),
-      ...activeHabitsOn(key).map(item=>habitProgress(item.id,key)),
-      ...todosForDate(key).map(item=>item.status==="done"?100:0)
+      ...statisticalScheduleValuesForDate(key),
+      ...statisticalHabitsOn(key).map(item=>habitProgress(item.id,key))
     ];
     days.push({d,planned:values.length,executed:values.reduce((sum,value)=>sum+value,0)/100});
   }
@@ -1041,18 +1025,15 @@ function renderWeeklyProgress(referenceDate=parseDateKey(state.statsDate||dateKe
   const today=new Date(referenceDate.getFullYear(),referenceDate.getMonth(),referenceDate.getDate());
   for(let offset=6;offset>=0;offset--){
     const d=addDays(today,-offset),key=dateKey(d);
-    const events=allEventsForDate(key),todos=todosForDate(key),habits=activeHabitsOn(key);
+    const schedules=statisticalScheduleValuesForDate(key),habits=statisticalHabitsOn(key);
     const metric=state.weeklyMetric||"combined";
     const values=metric==="events"
-      ?events.map(item=>Number(item.progress||0))
-      :metric==="todos"
-        ?todos.map(item=>item.status==="done"?100:0)
-        :[...events.map(item=>Number(item.progress||0)),...habits.map(item=>habitProgress(item.id,key)),...todos.map(item=>item.status==="done"?100:0)];
+      ?schedules
+      :[...schedules,...habits.map(item=>habitProgress(item.id,key))];
     const hasItems=values.length>0;
     const value=hasItems?Math.round(values.reduce((sum,item)=>sum+item,0)/values.length):0;
-    const todoRatio=metric==="todos"&&todos.length?`<small>${todos.filter(item=>item.status==="done").length}/${todos.length}</small>`:"";
     const col=document.createElement("div");col.className="weekly-chart-day";
-    col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}${todoRatio}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
+    col.innerHTML=`<span class="weekly-chart-value">${hasItems?`${value}%`:"—"}</span><div class="weekly-chart-track"><div class="weekly-chart-fill" style="height:${hasItems?Math.max(value,1):0}%"></div></div><strong class="weekly-chart-label">${["일","월","화","수","목","금","토"][d.getDay()]}</strong><span class="weekly-chart-date">${d.getMonth()+1}/${d.getDate()}</span>`;
     el.weeklyProgressChart.appendChild(col);
   }
 }
@@ -1063,7 +1044,7 @@ function renderCategoryAchievement(keys){
     const occurrences=[];
 
     keys.forEach(key=>{
-      allEventsForDate(key)
+      statisticalEventsForDate(key)
         .filter(event=>eventCategory(event)===category.id)
         .forEach(event=>occurrences.push(event));
     });
@@ -1099,11 +1080,12 @@ function renderCategoryAchievement(keys){
 
 function renderHabitRanking(keys){
   el.habitRanking.innerHTML="";
-  if(!state.habits.length){
+  const includedHabits=state.habits.filter(habit=>habit.includeInStats!==false);
+  if(!includedHabits.length){
     el.habitRanking.innerHTML='<div class="stats-empty">등록된 습관이 없습니다.</div>';
     return;
   }
-  const rows=state.habits.map(habit=>({habit,value:habitMonthAverage(habit,keys)})).sort((a,b)=>b.value-a.value);
+  const rows=includedHabits.map(habit=>({habit,value:habitMonthAverage(habit,keys)})).sort((a,b)=>b.value-a.value);
   rows.forEach(({habit,value})=>{
     const row=document.createElement("div");row.className="habit-rank-row";
     row.innerHTML=`<span class="habit-rank-name">${escapeHtml(habit.name)}</span><div class="habit-rank-track"><div class="habit-rank-fill" style="width:${value}%"></div></div><strong class="habit-rank-value">${value}%</strong>`;
@@ -1862,6 +1844,41 @@ function renderHabitHeatmap(){
     });
   }
 }
+function renderHabitChecklistEditor(){
+  if(!el.habitChecklistItems)return;
+  el.habitChecklistItems.innerHTML="";
+  state.editingHabitChecklist.forEach((item,index)=>{
+    const row=document.createElement("div");
+    row.className="checklist-edit-row";
+    const statusButton=document.createElement("button");
+    statusButton.type="button";
+    statusButton.className=`checklist-status-button status-${item.status||"pending"}`;
+    statusButton.textContent=checklistStatusIcon(item.status||"pending");
+    statusButton.onclick=()=>{
+      const status=nextChecklistStatus(state.editingHabitChecklist[index].status||"pending");
+      state.editingHabitChecklist[index]={...state.editingHabitChecklist[index],status,done:status==="done"};
+      renderHabitChecklistEditor();
+    };
+    const input=document.createElement("input");
+    input.type="text";
+    input.maxLength=80;
+    input.placeholder=`항목 ${index+1}`;
+    input.value=item.text||"";
+    input.oninput=()=>{state.editingHabitChecklist[index].text=input.value};
+    const remove=document.createElement("button");
+    remove.type="button";
+    remove.className="checklist-remove-button";
+    remove.textContent="×";
+    remove.onclick=()=>{state.editingHabitChecklist.splice(index,1);renderHabitChecklistEditor()};
+    row.append(statusButton,input,remove);
+    el.habitChecklistItems.appendChild(row);
+  });
+}
+function addHabitChecklistItem(){
+  state.editingHabitChecklist.push(createChecklistItem());
+  renderHabitChecklistEditor();
+  requestAnimationFrame(()=>el.habitChecklistItems?.querySelector(".checklist-edit-row:last-child input")?.focus());
+}
 function resetHabitForm(){
   el.habitForm.reset();
   el.habitId.value="";
@@ -1871,7 +1888,10 @@ function resetHabitForm(){
   el.habitEndDate.value="";
   el.habitShowDday.checked=false;
   el.habitShowOnHome.checked=true;
+  if(el.habitIncludeInStats)el.habitIncludeInStats.checked=true;
   el.habitTargetCount.value="";
+  state.editingHabitChecklist=[];
+  renderHabitChecklistEditor();
 }
 function openHabitCreate(){haptic(12);resetHabitForm();el.habitModalEyebrow.textContent="NEW HABIT";el.habitModalTitle.textContent="습관 추가";el.deleteHabitButton.hidden=true;showHabitModal()}
 function openHabitEdit(habit){
@@ -1883,7 +1903,10 @@ function openHabitEdit(habit){
   el.habitEndDate.value=habit.endDate||"";
   el.habitShowDday.checked=Boolean(habit.showDday);
   el.habitShowOnHome.checked=habit.showOnHome!==false;
+  if(el.habitIncludeInStats)el.habitIncludeInStats.checked=habit.includeInStats!==false;
   el.habitTargetCount.value=habit.targetCount||"";
+  state.editingHabitChecklist=normalizeChecklist(habit.checklist).map(item=>({...item}));
+  renderHabitChecklistEditor();
   el.habitModalEyebrow.textContent="EDIT HABIT";
   el.habitModalTitle.textContent="습관 수정";
   el.deleteHabitButton.hidden=false;
@@ -1916,7 +1939,9 @@ async function submitHabit(event){
   const endDate=el.habitEndDate.value||"";
   const showDday=Boolean(el.habitShowDday.checked);
   const showOnHome=Boolean(el.habitShowOnHome.checked);
+  const includeInStats=el.habitIncludeInStats?.checked!==false;
   const targetCount=el.habitTargetCount.value?Math.max(1,Number(el.habitTargetCount.value)):null;
+  const checklist=normalizeChecklist(state.editingHabitChecklist);
 
   if(!state.user||!name||!startDate)return;
 
@@ -1932,7 +1957,7 @@ async function submitHabit(event){
   const ref=collection(db,"users",state.user.uid,"habits");
 
   try{
-    const data={name,startDate,repeat,endDate,showDday,showOnHome,targetCount,updatedAt:serverTimestamp()};
+    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,targetCount,checklist,updatedAt:serverTimestamp()};
 
     if(el.habitId.value){
       const habitId=el.habitId.value;
@@ -2787,13 +2812,12 @@ function renderMonthDayInsightPopover(){
   const key=state.statsInsightDate;
   const date=parseDateKey(key);
   const combined=combinedProgressForDate(key);
-  const dayEvents=allEventsForDate(key);
-  const dayHabits=activeHabitsOn(key);
-  const eventAvg=average(dayEvents);
+  const dayScheduleValues=statisticalScheduleValuesForDate(key);
+  const dayHabits=statisticalHabitsOn(key);
+  const eventAvg=dayScheduleValues.length
+    ?Math.round(dayScheduleValues.reduce((sum,value)=>sum+value,0)/dayScheduleValues.length)
+    :0;
   const habitAvg=habitAverageForDate(key);
-
-  const dayTodoStats=todoCompletionForKeys([key]);
-  const todoRate=dayTodoStats.progress;
 
   const popover=document.createElement("aside");
   popover.className="month-day-insight-popover";
@@ -2805,9 +2829,8 @@ function renderMonthDayInsightPopover(){
     </div>
     <div class="month-insight-grid">
       <div><span>종합</span><strong>${combined}%</strong></div>
-      <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayEvents.length}개</small></div>
+      <div><span>일정</span><strong>${eventAvg}%</strong><small>${dayScheduleValues.length}개</small></div>
       <div><span>습관</span><strong>${habitAvg}%</strong><small>${dayHabits.length}개</small></div>
-      <div><span>할 일</span><strong>${todoRate}%</strong><small>${dayTodoStats.done}/${dayTodoStats.total} 완료</small></div>
     </div>
   `;
 
@@ -3870,7 +3893,17 @@ function renderTodoChecklistEditor(){
 
   state.editingTodoChecklist.forEach((item,index)=>{
     const row=document.createElement("div");
-    row.className="checklist-editor-row";
+    row.className="checklist-edit-row";
+
+    const statusButton=document.createElement("button");
+    statusButton.type="button";
+    statusButton.className=`checklist-status-button status-${item.status||"pending"}`;
+    statusButton.textContent=checklistStatusIcon(item.status||"pending");
+    statusButton.onclick=()=>{
+      const status=nextChecklistStatus(state.editingTodoChecklist[index].status||"pending");
+      state.editingTodoChecklist[index]={...state.editingTodoChecklist[index],status,done:status==="done"};
+      renderTodoChecklistEditor();
+    };
 
     const input=document.createElement("input");
     input.type="text";
@@ -3888,7 +3921,7 @@ function renderTodoChecklistEditor(){
       renderTodoChecklistEditor();
     };
 
-    row.append(input,remove);
+    row.append(statusButton,input,remove);
     el.todoChecklistItems.appendChild(row);
   });
 }
@@ -3948,6 +3981,7 @@ function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoRepeat.value="none";
   el.todoMemo.value="";
   if(el.todoBacklog)el.todoBacklog.checked=backlog;
+  if(el.todoIncludeInStats)el.todoIncludeInStats.checked=false;
   syncTodoBacklogForm();
   setImportance("todo",false);
   state.editingTodoChecklist=[];
@@ -3991,6 +4025,7 @@ function openTodoEdit(todo){
   el.todoRepeat.value=todo.repeat||"none";
   el.todoMemo.value=todo.memo||"";
   if(el.todoBacklog)el.todoBacklog.checked=Boolean(todo.backlog);
+  if(el.todoIncludeInStats)el.todoIncludeInStats.checked=todo.includeInStats===true;
   syncTodoBacklogForm();
   setImportance("todo",Boolean(todo.important));
   state.editingTodoChecklist=normalizeChecklist(todo.checklist).map(item=>({...item}));
@@ -4011,6 +4046,7 @@ async function submitTodoForm(event){
   const memo=el.todoMemo.value.trim();
   const important=Boolean(state.todoImportant);
   const backlog=Boolean(el.todoBacklog?.checked);
+  const includeInStats=Boolean(el.todoIncludeInStats?.checked);
   const checklist=normalizedTodoChecklist();
 
   if(!text||(!date&&!backlog)){
@@ -4019,7 +4055,7 @@ async function submitTodoForm(event){
   }
 
   const data={
-    text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,
+    text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,includeInStats,
     status:"pending",
     rolledFrom:"",
     rolledTo:"",
@@ -4037,7 +4073,7 @@ async function submitTodoForm(event){
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",id),
         {
-          text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,
+          text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,includeInStats,
           ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
           updatedAt:serverTimestamp()
         }
@@ -4152,6 +4188,14 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
     if(row.dataset.swiped==="true")return;
     openTodoEdit(todo);
   };
+  const main=document.createElement("div");
+  main.className="todo-main";
+  main.appendChild(text);
+  const checklistPreview=entityChecklistPreview(
+    todoChecklistForOccurrence(todo),
+    (itemId,status)=>toggleTodoChecklistItem(todo,itemId,status)
+  );
+  if(checklistPreview)main.appendChild(checklistPreview);
 
   const meta=document.createElement("small");
   meta.className="todo-meta";
@@ -4175,7 +4219,7 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
     setTodoStatus(todo,next);
   };
 
-  row.append(btn,text,meta);
+  row.append(btn,main,meta);
   if(!todo.backlog)bindTodoArchiveSwipe(row,todo);
   return row;
 }
@@ -4269,7 +4313,7 @@ async function addHabitBacklog(){
   const input=$("habitBacklogInput"),text=input?.value.trim();if(!state.user||!text)return;
   try{
     await addDoc(collection(db,"users",state.user.uid,"todos"),{
-      text,date:"",repeat:"none",memo:"",checklist:[],important:false,backlog:true,status:"pending",rolledFrom:"",rolledTo:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+      text,date:"",repeat:"none",memo:"",checklist:[],important:false,backlog:true,includeInStats:false,status:"pending",rolledFrom:"",rolledTo:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
     input.value="";
   }catch(error){console.error(error);showToast("보관함에 저장하지 못했습니다.")}
@@ -4287,6 +4331,7 @@ async function addTodo(){
         memo:"",
         checklist:[],
         important:false,
+        includeInStats:false,
         status:"pending",
         rolledFrom:"",
         rolledTo:"",
@@ -4466,6 +4511,7 @@ async function createRolledTodo(todo,nextKey,key){
       memo:todo.memo||"",
       checklist:normalizeChecklist(todo.checklist),
       important:Boolean(todo.important),
+      includeInStats:todo.includeInStats===true,
       status:"pending",
       rolledFrom:todo.id,
       sourceTodoId:sourceId,
@@ -4820,13 +4866,13 @@ function renderSelected(){
 function updateSelectedProgressMetrics(key=state.selectedDateKey){
   if(key!==state.selectedDateKey)return;
   const d=parseDateKey(key);
-  const items=eventsForDate(key);
-  const metricEvents=allEventsForDate(key);
-  const insightHabits=activeHabitsOn(key);
-  const avg=average(metricEvents);
+  const metricEvents=statisticalEventsForDate(key);
+  const scheduleValues=statisticalScheduleValuesForDate(key);
+  const insightHabits=statisticalHabitsOn(key);
+  const avg=scheduleValues.length
+    ?Math.round(scheduleValues.reduce((sum,value)=>sum+value,0)/scheduleValues.length)
+    :0;
   const habitAvg=habitAverageForDate(key);
-  const selectedTodoStats=todoCompletionForKeys([key]);
-  const todoRate=selectedTodoStats.progress;
   const combined=combinedProgressForDate(key);
   const isToday=key===dateKey(new Date());
   const ready=progressDataIsReady();
@@ -4841,39 +4887,35 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
     el.dayBar.style.width="0%";
     if(el.selectedCompletionRing)el.selectedCompletionRing.style.setProperty("--completion","0deg");
     if(el.selectedCompletionValue)el.selectedCompletionValue.textContent="—";
-    ["selectedBreakdownEvent","selectedBreakdownHabit","selectedBreakdownTodo","selectedPreviousDayChange","selectedRoutineProgress","selectedActionProgress","selectedGeneralProgress","selectedAllEventProgress"].forEach(id=>{if($(id))$(id).textContent="—"});
+    ["selectedBreakdownEvent","selectedBreakdownHabit","selectedPreviousDayChange","selectedRoutineProgress","selectedActionProgress","selectedGeneralProgress","selectedAllEventProgress"].forEach(id=>{if($(id))$(id).textContent="—"});
     return;
   }
 
   el.dayProgress.textContent=`${combined}%`;
   el.dayBar.style.width=`${combined}%`;
   el.dayCaption.textContent=
-    items.length||selectedTodoStats.total||insightHabits.length
-      ?`${d.getMonth()+1}월 ${d.getDate()}일의 일정 · 할 일 · 습관 성과`
-      :"등록된 일정과 할 일, 습관이 없습니다.";
+    scheduleValues.length||insightHabits.length
+      ?`${d.getMonth()+1}월 ${d.getDate()}일의 일정 · 습관 성과`
+      :"통계에 포함된 일정과 습관이 없습니다.";
   if(el.selectedInsightEventProgress)el.selectedInsightEventProgress.textContent=`${avg}%`;
   if(el.selectedInsightHabitProgress)el.selectedInsightHabitProgress.textContent=`${habitAvg}%`;
-  if(el.selectedInsightChecklist)el.selectedInsightChecklist.textContent=`${todoRate}%`;
   if(el.selectedInsightCombinedBar)el.selectedInsightCombinedBar.style.height=`${combined}%`;
   if(el.selectedInsightEventBar)el.selectedInsightEventBar.style.height=`${avg}%`;
   if(el.selectedInsightHabitBar)el.selectedInsightHabitBar.style.height=`${habitAvg}%`;
-  if(el.selectedInsightChecklistBar)el.selectedInsightChecklistBar.style.height=`${todoRate}%`;
   if(el.selectedCompletionRing){
     el.selectedCompletionRing.style.setProperty("--completion",`${combined*3.6}deg`);
   }
   if(el.selectedCompletionValue)el.selectedCompletionValue.textContent=`${combined}%`;
-  if($("selectedBreakdownEvent"))$("selectedBreakdownEvent").textContent=metricEvents.length?`${avg}%`:"—";
+  if($("selectedBreakdownEvent"))$("selectedBreakdownEvent").textContent=scheduleValues.length?`${avg}%`:"—";
   if($("selectedBreakdownHabit"))$("selectedBreakdownHabit").textContent=insightHabits.length?`${habitAvg}%`:"—";
-  if($("selectedBreakdownTodo"))$("selectedBreakdownTodo").textContent=selectedTodoStats.total?`${todoRate}%`:"—";
-  if($("selectedAllEventProgress"))$("selectedAllEventProgress").textContent=metricEvents.length?`${avg}%`:"—";
+  if($("selectedAllEventProgress"))$("selectedAllEventProgress").textContent=scheduleValues.length?`${avg}%`:"—";
   setRate("selectedRoutineProgress","routine");
   setRate("selectedActionProgress","action");
   setRate("selectedGeneralProgress","general");
   const previousKey=dateKey(addDays(d,-1));
   const previousValues=[
-    ...allEventsForDate(previousKey).map(event=>Number(event.progress||0)),
-    ...activeHabitsOn(previousKey).map(habit=>habitProgress(habit.id,previousKey)),
-    ...todosForDate(previousKey).map(todo=>todo.status==="done"?100:0)
+    ...statisticalScheduleValuesForDate(previousKey),
+    ...statisticalHabitsOn(previousKey).map(habit=>habitProgress(habit.id,previousKey))
   ];
   const previousChange=$("selectedPreviousDayChange");
   if(previousChange){
@@ -4889,8 +4931,8 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
   }
   if(el.selectedCompletionDetail){
     el.selectedCompletionDetail.textContent=
-      items.length||selectedTodoStats.total||insightHabits.length
-        ?`일정 ${items.length} · 할 일 ${selectedTodoStats.total} · 습관 ${insightHabits.length}`
+      scheduleValues.length||insightHabits.length
+        ?`일정 ${scheduleValues.length} · 습관 ${insightHabits.length}`
         :(isToday?"오늘의 기록을 시작해보세요.":"이날의 기록을 시작해보세요.");
   }
 }
@@ -4925,6 +4967,14 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=
         {optimistic:true}
       );
     };
+    const checklistPreview=entityChecklistPreview(
+      habitChecklistForDate(habit,key),
+      (itemId,status)=>toggleHabitChecklistItem(habit,key,itemId,status)
+    );
+    if(checklistPreview){
+      checklistPreview.classList.add("habit-checklist-preview");
+      row.querySelector(".selected-habit-name")?.insertAdjacentElement("afterend",checklistPreview);
+    }
     el.selectedHabitPreview.appendChild(row);
   });
 }
@@ -4988,6 +5038,65 @@ function nextChecklistStatus(status){
   if(status==="pending")return "done";
   if(status==="done")return "failed";
   return "pending";
+}
+function entityChecklistPreview(items,onToggle){
+  if(!items.length)return null;
+  const preview=document.createElement("div");
+  preview.className="event-checklist-preview entity-checklist-preview";
+  items.slice(0,3).forEach(item=>{
+    const button=document.createElement("button");
+    button.type="button";
+    button.className=`event-checklist-row status-${item.status||"pending"}${item.status==="done"?" done":""}`;
+    button.innerHTML=`<i>${checklistStatusIcon(item.status||"pending")}</i><span>${escapeHtml(item.text)}</span>`;
+    button.onclick=event=>{
+      event.preventDefault();event.stopPropagation();
+      onToggle(item.id,nextChecklistStatus(item.status||"pending"));
+    };
+    preview.appendChild(button);
+  });
+  if(items.length>3){
+    const more=document.createElement("small");
+    more.className="event-checklist-summary";
+    more.textContent=`외 ${items.length-3}개`;
+    preview.appendChild(more);
+  }
+  return preview;
+}
+function todoChecklistForOccurrence(todo){
+  const base=normalizeChecklist(todo.checklist);
+  if((todo.repeat||"none")==="none")return base;
+  const key=todo.occurrenceDate||todo.date;
+  const statuses=state.todoLogs[todoLogKey(todo.id,key)]?.checklistStatuses||{};
+  return base.map(item=>({...item,status:statuses[item.id]||item.status,done:(statuses[item.id]||item.status)==="done"}));
+}
+async function toggleTodoChecklistItem(todo,itemId,status){
+  const key=todo.occurrenceDate||todo.date;
+  try{
+    if((todo.repeat||"none")!=="none"){
+      const logId=todoLogKey(todo.id,key),existing=state.todoLogs[logId]||{};
+      const checklistStatuses={...(existing.checklistStatuses||{}),[itemId]:status};
+      state.todoLogs[logId]={...existing,id:logId,todoId:todo.id,date:key,checklistStatuses};
+      await setDoc(doc(db,"users",state.user.uid,"todoLogs",logId),{todoId:todo.id,date:key,checklistStatuses,updatedAt:serverTimestamp()},{merge:true});
+    }else{
+      const source=state.todos.find(item=>item.id===todo.id);if(!source)return;
+      source.checklist=normalizeChecklist(source.checklist).map(item=>item.id===itemId?{...item,status,done:status==="done"}:item);
+      await updateDoc(doc(db,"users",state.user.uid,"todos",todo.id),{checklist:source.checklist,updatedAt:serverTimestamp()});
+    }
+    renderTodos();
+  }catch(error){console.error(error);showToast("체크리스트를 저장하지 못했습니다.")}
+}
+function habitChecklistForDate(habit,key){
+  const statuses=state.habitLogs[habitLogKey(habit.id,key)]?.checklistStatuses||{};
+  return normalizeChecklist(habit.checklist).map(item=>({...item,status:statuses[item.id]||item.status,done:(statuses[item.id]||item.status)==="done"}));
+}
+async function toggleHabitChecklistItem(habit,key,itemId,status){
+  const logId=habitLogKey(habit.id,key),existing=state.habitLogs[logId]||{};
+  const checklistStatuses={...(existing.checklistStatuses||{}),[itemId]:status};
+  state.habitLogs[logId]={...existing,id:logId,habitId:habit.id,date:key,checklistStatuses};
+  try{
+    await setDoc(doc(db,"users",state.user.uid,"habitLogs",logId),{habitId:habit.id,date:key,checklistStatuses,updatedAt:serverTimestamp()},{merge:true});
+    renderSelectedHabitPreview(key);
+  }catch(error){console.error(error);showToast("체크리스트를 저장하지 못했습니다.")}
 }
 function checklistForOccurrence(event){
   const base=normalizeChecklist(event.checklist);
@@ -5329,6 +5438,7 @@ function resetForm(){
   setSelectedRepeatWeekdays([]);
   if(el.repeatWeekdays)el.repeatWeekdays.hidden=true;
   if(el.evaluationType)el.evaluationType.value="action";
+  if(el.eventIncludeInStats)el.eventIncludeInStats.checked=true;
   el.repeatEndDate.value="";
   if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
   el.repeatEndWrap.hidden=true;
@@ -5387,6 +5497,7 @@ function openEdit(event){
   el.title.value=event.title;
   el.category.value=eventCategory(event);
   if(el.evaluationType)el.evaluationType.value=event.evaluationType||"action";
+  if(el.eventIncludeInStats)el.eventIncludeInStats.checked=event.includeInStats!==false;
   el.date.value=recurring
     ?occurrenceStart
     :event.date;
@@ -6394,6 +6505,7 @@ function currentEventFormData(){
     repeatUnit:el.repeat.value==="custom"?(el.repeatUnit?.value||"week"):"",
     repeatCount:el.repeat.value==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1),
     evaluationType:el.evaluationType?.value||"action",
+    includeInStats:el.eventIncludeInStats?.checked!==false,
     memo:el.memo.value.trim(),
     checklist:normalizeChecklist(state.editingChecklist),
     important:Boolean(state.eventImportant)
@@ -6868,6 +6980,7 @@ async function submit(event){
   const repeatWeekdays=(repeat==="weekly"||(repeat==="custom"&&repeatUnit==="week"))?selectedRepeatWeekdays():[];
   const repeatCount=repeat==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1);
   const evaluationType=el.evaluationType?.value||"action";
+  const includeInStats=el.eventIncludeInStats?.checked!==false;
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
@@ -6912,6 +7025,7 @@ async function submit(event){
         repeatUnit,
         repeatCount,
         evaluationType,
+        includeInStats,
         memo,
         checklist,
         important,
@@ -6972,6 +7086,7 @@ async function submit(event){
         repeatUnit,
         repeatCount,
         evaluationType,
+        includeInStats,
         memo,
         checklist,
         important,
@@ -7489,6 +7604,7 @@ $("openHabitModal").onclick=openHabitCreate;
 $("closeHabitModal").onclick=closeHabitModal;
 $("cancelHabit").onclick=closeHabitModal;
 el.habitForm.onsubmit=submitHabit;
+el.addHabitChecklistItemButton?.addEventListener("click",addHabitChecklistItem);
 el.deleteHabitButton.onclick=deleteHabit;
 el.habitEndDate.addEventListener("click",()=>{
   if(!el.habitEndDate.value)return;
