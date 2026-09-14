@@ -710,6 +710,9 @@ function habitStreak(habit){
 function activeHabitsOn(key){
   return state.habits.filter(habit=>habitIsActive(habit,key));
 }
+function habitIsVisible(habit){
+  return !habit.archived;
+}
 function statisticalEventsForDate(key){
   return allEventsForDate(key).filter(event=>event.includeInStats!==false);
 }
@@ -1181,7 +1184,7 @@ function renderSearch(){
   }
 
   if(state.searchFilter==="all"||state.searchFilter==="habits"){
-    state.habits.forEach(habit=>{
+    state.habits.filter(habitIsVisible).forEach(habit=>{
       if(habitSearchText(habit).includes(normalizedQuery)){
         results.push({
           type:"habit",
@@ -1799,6 +1802,7 @@ function renderHabitHeatmap(){
   el.habitHeatmap.className="habit-heatmap compact-heatmap";
 
   const visibleHabits=state.habits.filter(habit=>{
+    if(!habitIsVisible(habit))return false;
     if(!habitExistsInHeatmapPeriod(habit))return false;
 
     const rows=heatmapRowsForHabit(habit);
@@ -2002,6 +2006,11 @@ async function deleteHabit(){
     await updateDoc(doc(db,"users",state.user.uid,"habits",habitId),{
       archived:true,archivedDate:dateKey(new Date()),archivedAt:serverTimestamp(),updatedAt:serverTimestamp()
     });
+    if(source){
+      source.archived=true;
+      source.archivedDate=dateKey(new Date());
+      renderAll();
+    }
 
     pushUndo("습관 삭제",async()=>{
       await setDoc(
@@ -4107,15 +4116,47 @@ async function deleteTodo(){
 
   try{
     const todoId=el.todoEditId.value;
-    await Promise.all([
-      deleteDoc(doc(db,"users",state.user.uid,"todos",todoId)),
-      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id)))
-    ]);
+    await deleteTodoWithRolloverHistory(todoId);
     closeTodoModal();
   }catch(error){
     console.error(error);
     el.todoFormError.textContent="할 일을 삭제하지 못했습니다.";
   }
+}
+function relatedTodoIds(todoId){
+  const source=state.todos.find(todo=>todo.id===todoId);
+  if(!source)return new Set([todoId]);
+
+  const rootId=source.sourceTodoId||source.id;
+  const ids=new Set([todoId,rootId]);
+  let changed=true;
+
+  while(changed){
+    changed=false;
+    state.todos.forEach(todo=>{
+      if(
+        todo.id===rootId
+        ||todo.sourceTodoId===rootId
+        ||ids.has(todo.rolledFrom)
+      ){
+        if(!ids.has(todo.id)){
+          ids.add(todo.id);
+          changed=true;
+        }
+      }
+    });
+  }
+  return ids;
+}
+async function deleteTodoWithRolloverHistory(todoId){
+  const todoIds=relatedTodoIds(todoId);
+  const logIds=Object.values(state.todoLogs)
+    .filter(log=>todoIds.has(log.todoId))
+    .map(log=>log.id);
+  await Promise.all([
+    ...[...todoIds].map(id=>deleteDoc(doc(db,"users",state.user.uid,"todos",id))),
+    ...logIds.map(id=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",id)))
+  ]);
 }
 function closeTodoRepeatDeleteDialog(){
   $("todoRepeatDeleteDialog")?.classList.remove("show");
@@ -4147,10 +4188,7 @@ async function deleteEntireTodoSeries(){
   if(!state.user||!el.todoEditId.value)return;
   try{
     const todoId=el.todoEditId.value;
-    await Promise.all([
-      deleteDoc(doc(db,"users",state.user.uid,"todos",todoId)),
-      ...Object.values(state.todoLogs).filter(log=>log.todoId===todoId).map(log=>deleteDoc(doc(db,"users",state.user.uid,"todoLogs",log.id)))
-    ]);
+    await deleteTodoWithRolloverHistory(todoId);
     closeTodoRepeatDeleteDialog();
     closeTodoModal();
   }catch(error){
@@ -4936,9 +4974,9 @@ function updateSelectedProgressMetrics(key=state.selectedDateKey){
         :(isToday?"오늘의 기록을 시작해보세요.":"이날의 기록을 시작해보세요.");
   }
 }
-function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=>habit.showOnHome!==false)){
+function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=>habit.showOnHome!==false&&habitIsVisible(habit))){
   if(!el.selectedHabitPreview)return;
-  habits=habits.filter(habit=>habit.showOnHome!==false);
+  habits=habits.filter(habit=>habit.showOnHome!==false&&habitIsVisible(habit));
   el.selectedHabitPreview.innerHTML="";
 
   if(!habits.length){
@@ -4984,7 +5022,7 @@ function renderSummary(){
   el.monthAverage.textContent=`${average(items)}%`;
 
   el.summaryHabitNames.innerHTML="";
-  const habits=activeHabitsOn(dateKey(new Date()));
+  const habits=activeHabitsOn(dateKey(new Date())).filter(habitIsVisible);
 
   if(!habits.length){
     el.summaryHabitNames.innerHTML='<span class="summary-habit-empty">등록된 습관이 없습니다.</span>';

@@ -184,6 +184,17 @@ body.week-fullscreen #calendarPage .calendar-controls{
   .event-progress-inline{grid-template-columns:48px minmax(0,1fr);padding:4px 6px!important;gap:5px}.event-progress-inline .progress-options{gap:3px}.event-progress-inline .progress-options button{font-size:9px;min-height:28px!important}
 }
 
+/* Momentum v8.03 — checklist controls behave like plain checkboxes */
+.checklist-status-button,
+.checklist-status-button.status-done,
+.checklist-status-button.status-failed,
+.entity-checklist-preview .event-checklist-row{
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.checklist-status-button{border-radius:0!important}
+
 /* Momentum v7.42 — DAY/TODAY, compact white system, cyclic progress */
 :root{
   --bg:#fff;
