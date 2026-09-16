@@ -72,9 +72,6 @@ const state = {
   editingCategories:[],
   unsubscribeCategories:null,
   modalHistoryType:null,
-  dragEvent:null,
-  dragGrabOffsetMinutes:0,
-  pendingWeekScroll:null,
   weekInitialScrollDone:false,
   dayViewDate:null,
   dayViewOpen:false,
@@ -2509,150 +2506,6 @@ function closeDatePickerModal(){
   el.datePickerModal.setAttribute("aria-hidden","true");
 }
 
-function isRecurringEvent(event){
-  return (event.repeat||"none")!=="none";
-}
-function canDirectlyMoveEvent(event){
-  return Boolean(event);
-}
-async function detachRecurringOccurrence(event,overrides={}){
-  if(!state.user||!event)return;
-
-  const source=state.events.find(item=>item.id===event.id)||event;
-  const occurrenceDate=event.occurrenceDate||event.date;
-  const exceptionDates=Array.from(
-    new Set([
-      ...(Array.isArray(source.exceptionDates)?source.exceptionDates:[]),
-      occurrenceDate
-    ])
-  ).sort();
-
-  const newDate=overrides.date||occurrenceDate;
-  const newTime=overrides.time||event.time||"09:00";
-  const newEndTime=overrides.endTime||event.endTime||defaultEndTime(newTime);
-
-  await updateDoc(
-    doc(db,"users",state.user.uid,"events",event.id),
-    {
-      exceptionDates,
-      updatedAt:serverTimestamp()
-    }
-  );
-
-  const created=await addDoc(
-    collection(db,"users",state.user.uid,"events"),
-    {
-      title:event.title||"",
-      category:eventCategory(event),
-      date:newDate,
-      time:newTime,
-      endTime:newEndTime,
-      repeat:"none",
-      memo:event.memo||"",
-      checklist:normalizeChecklist(event.checklist),
-      progress:Number(event.progress||0),
-      sourceRepeatEventId:event.id,
-      sourceOccurrenceDate:occurrenceDate,
-      createdAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
-    }
-  );
-
-  try{
-    await deleteDoc(
-      doc(db,"users",state.user.uid,"eventLogs",eventLogKey(event.id,occurrenceDate))
-    );
-  }catch(error){
-    console.debug("반복 일정 날짜별 완료 기록이 없거나 이미 삭제되었습니다.",error);
-  }
-
-  return created;
-}
-async function moveEventTo(event,newDate,newTime){
-  if(!state.user||!event)return;
-
-  const currentWeekScroll=
-    el.weekView?.querySelector(".google-week-body-scroll");
-
-  if(state.currentView==="week"&&currentWeekScroll){
-    state.pendingWeekScroll={
-      top:currentWeekScroll.scrollTop,
-      left:currentWeekScroll.scrollLeft,
-      pageX:window.scrollX,
-      pageY:window.scrollY
-    };
-  }
-
-  const originalStart=timeToMinutes(event.time||"09:00");
-  const originalEnd=timeToMinutes(event.endTime||defaultEndTime(event.time||"09:00"));
-  const duration=Math.max(30,originalEnd-originalStart);
-
-  let movedStart=timeToMinutes(newTime||event.time||"09:00");
-  movedStart=Math.min(movedStart,24*60-duration);
-  movedStart=Math.max(0,movedStart);
-
-  const movedTime=minutesToTime(movedStart);
-  const movedEndTime=minutesToTime(movedStart+duration);
-
-  try{
-    if(isRecurringEvent(event)){
-      await detachRecurringOccurrence(event,{
-        date:newDate,
-        time:movedTime,
-        endTime:movedEndTime
-      });
-    }else{
-      skipSnapshotRenders("Event",2);
-
-      await updateDoc(
-        doc(db,"users",state.user.uid,"events",event.id),
-        {
-          date:newDate,
-          endDate:newDate,
-          time:movedTime,
-          endTime:movedEndTime,
-          updatedAt:serverTimestamp()
-        }
-      );
-
-      const localIndex=state.events.findIndex(item=>item.id===event.id);
-      if(localIndex>=0){
-        state.events[localIndex]={
-          ...state.events[localIndex],
-          date:newDate,
-          endDate:newDate,
-          time:movedTime,
-          endTime:movedEndTime
-        };
-      }
-
-      // 주간 캘린더만 다시 그려 화면 깜박임을 줄입니다.
-      if(state.currentView==="week"){
-        renderWeek();
-      }
-
-      pushUndo("일정 이동",async()=>{
-        await updateDoc(
-          doc(db,"users",state.user.uid,"events",event.id),
-          {
-            date:event.date,
-            endDate:event.endDate||event.date,
-            time:event.time,
-            endTime:event.endTime||defaultEndTime(event.time),
-            updatedAt:serverTimestamp()
-          }
-        );
-      });
-    }
-
-    haptic([16,24,16]);
-  }catch(error){
-    state.pendingWeekScroll=null;
-    console.error(error);
-    alert("일정을 이동하지 못했습니다.");
-  }
-}
-
 function setupMobileWeekSwipe(){
   let sx=0,sy=0,dx=0,tracking=false,horizontal=false;
   el.weekView.addEventListener("touchstart",e=>{
@@ -2693,45 +2546,6 @@ function setupMobileWeekSwipe(){
   el.weekView.addEventListener("touchcancel",()=>{tracking=false;horizontal=false;el.weekView.style.transform="";el.weekView.style.opacity=""},{passive:true});
 }
 
-function bindDesktopDrag(element,event){
-  if(!canDirectlyMoveEvent(event))return;
-
-  element.draggable=true;
-
-  element.addEventListener("dragstart",dragEvent=>{
-    if(!window.matchMedia("(pointer:fine)").matches){
-      dragEvent.preventDefault();
-      return;
-    }
-
-    const rect=element.getBoundingClientRect();
-    const rowHeight=parseFloat(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--week-row-height")
-    )||40;
-
-    const grabPixels=Math.max(
-      0,
-      Math.min(rect.height,dragEvent.clientY-rect.top)
-    );
-
-    state.dragGrabOffsetMinutes=Math.round(
-      (grabPixels/rowHeight*60)/30
-    )*30;
-
-    state.dragEvent=event;
-    element.classList.add("dragging");
-    dragEvent.dataTransfer.effectAllowed="move";
-    dragEvent.dataTransfer.setData("text/plain",event.id);
-  });
-
-  element.addEventListener("dragend",()=>{
-    element.classList.remove("dragging");
-    state.dragEvent=null;
-    state.dragGrabOffsetMinutes=0;
-    document.querySelectorAll(".drag-over").forEach(item=>item.classList.remove("drag-over"));
-  });
-}
 function renderMonth(){
   if(!el.statsMonthGrid)return;
 
@@ -2995,7 +2809,6 @@ function renderWeek(){
     if(key===dateKey(new Date()))column.classList.add("today");
 
     bindWeekCreateGesture(column,key);
-    bindGoogleWeekDrop(column,key);
 
     const layout=layoutOverlappingEvents(eventsForCalendarDate(key));
 
@@ -3058,16 +2871,8 @@ function renderWeek(){
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
 
-        if(block.dataset.moved==="true"){
-          block.dataset.moved="false";
-          return;
-        }
-
         openEdit(event);
       });
-
-      bindDesktopDrag(block,event);
-      bindGoogleMobileMove(block,event);
 
       column.appendChild(block);
     });
@@ -3142,24 +2947,6 @@ function renderWeek(){
   },{passive:true});
 
   requestAnimationFrame(()=>{
-    if(state.pendingWeekScroll){
-      const saved=state.pendingWeekScroll;
-
-      bodyScroll.scrollTop=saved.top;
-      bodyScroll.scrollLeft=saved.left;
-      headerScroll.scrollLeft=saved.left;
-
-      window.scrollTo({
-        left:saved.pageX,
-        top:saved.pageY,
-        behavior:"auto"
-      });
-
-      state.pendingWeekScroll=null;
-      state.weekInitialScrollDone=true;
-      return;
-    }
-
     if(!state.weekInitialScrollDone){
       scrollGoogleWeekToCurrentTime();
       state.weekInitialScrollDone=true;
@@ -3178,94 +2965,6 @@ function scrollGoogleWeekToCurrentTime(){
 
   const initialHour=Math.max(0,Math.min(20,new Date().getHours()-2));
   bodyScroll.scrollTop=initialHour*rowHeight;
-}
-
-function googleWeekPointerMinutes(column,clientY){
-  const rect=column.getBoundingClientRect();
-  const rowHeight=parseFloat(
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--week-row-height")
-  )||28;
-
-  return Math.max(
-    0,
-    Math.min(
-      23*60+30,
-      Math.floor(((clientY-rect.top)/rowHeight*60)/30)*30
-    )
-  );
-}
-
-function bindGoogleWeekDrop(column,date){
-  let silhouette=null;
-
-  const removeSilhouette=()=>{
-    silhouette?.remove();
-    silhouette=null;
-  };
-
-  const drawSilhouette=(dragged,clientY)=>{
-    const pointerMinutes=googleWeekPointerMinutes(column,clientY);
-    const duration=Math.max(
-      30,
-      timeToMinutes(dragged.endTime||defaultEndTime(dragged.time))
-      -timeToMinutes(dragged.time)
-    );
-
-    const adjustedMinutes=Math.max(
-      0,
-      Math.min(
-        24*60-duration,
-        pointerMinutes-(state.dragGrabOffsetMinutes||0)
-      )
-    );
-
-    if(!silhouette){
-      silhouette=document.createElement("div");
-      silhouette.className="google-week-drop-silhouette";
-      silhouette.innerHTML="<span></span>";
-      column.appendChild(silhouette);
-    }
-
-    silhouette.style.top=
-      `calc(var(--week-row-height) * ${adjustedMinutes/60})`;
-    silhouette.style.height=
-      `calc(var(--week-row-height) * ${duration/60})`;
-    silhouette.querySelector("span").textContent=
-      `${minutesToTime(adjustedMinutes)}–${minutesToTime(adjustedMinutes+duration)}`;
-
-    return adjustedMinutes;
-  };
-
-  column.addEventListener("dragover",event=>{
-    if(!state.dragEvent)return;
-
-    event.preventDefault();
-    column.classList.add("drag-over");
-    drawSilhouette(state.dragEvent,event.clientY);
-  });
-
-  column.addEventListener("dragleave",event=>{
-    if(column.contains(event.relatedTarget))return;
-    column.classList.remove("drag-over");
-    removeSilhouette();
-  });
-
-  column.addEventListener("drop",event=>{
-    if(!state.dragEvent)return;
-
-    event.preventDefault();
-    column.classList.remove("drag-over");
-
-    const dragged=state.dragEvent;
-    const adjustedMinutes=drawSilhouette(dragged,event.clientY);
-
-    state.dragEvent=null;
-    state.dragGrabOffsetMinutes=0;
-    removeSilhouette();
-
-    moveEventTo(dragged,date,minutesToTime(adjustedMinutes));
-  });
 }
 
 function weekPointerMinutes(column,clientY){
@@ -3531,224 +3230,6 @@ function layoutOverlappingEvents(events){
 
   flush();
   return result;
-}
-
-function bindGoogleMobileMove(block,event){
-  if(
-    !canDirectlyMoveEvent(event)
-    ||(event.endDate&&event.endDate!==event.date)
-  )return;
-
-  let pointerId=null;
-  let holdTimer=null;
-  let active=false;
-  let startX=0;
-  let startY=0;
-  let ghost=null;
-  let targetColumn=null;
-  let targetDate=null;
-  let targetTime=null;
-  let grabOffsetMinutes=0;
-  let grabOffsetX=0;
-  let grabOffsetY=0;
-  let dropPreview=null;
-
-  const clearTarget=()=>{
-    targetColumn=null;
-    targetDate=null;
-    targetTime=null;
-  };
-
-  const cleanup=()=>{
-    clearTimeout(holdTimer);
-    holdTimer=null;
-    block.classList.remove("google-moving");
-    ghost?.remove();
-    ghost=null;
-    dropPreview?.remove();
-    dropPreview=null;
-    clearTarget();
-
-    if(pointerId!==null){
-      try{block.releasePointerCapture?.(pointerId)}catch{}
-    }
-
-    pointerId=null;
-    active=false;
-  };
-
-  const begin=pointerEvent=>{
-    active=true;
-    block.dataset.moved="true";
-    block.classList.add("google-moving");
-    block.setPointerCapture?.(pointerEvent.pointerId);
-    haptic(22);
-
-    const rect=block.getBoundingClientRect();
-    const rowHeight=parseFloat(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--week-row-height")
-    )||40;
-
-    const grabPixels=Math.max(
-      0,
-      Math.min(rect.height,pointerEvent.clientY-rect.top)
-    );
-
-    grabOffsetMinutes=Math.round(
-      (grabPixels/rowHeight*60)/30
-    )*30;
-    grabOffsetX=pointerEvent.clientX-rect.left;
-    grabOffsetY=pointerEvent.clientY-rect.top;
-
-    ghost=block.cloneNode(true);
-    ghost.classList.remove("google-moving");
-    ghost.classList.add("week-google-ghost");
-    ghost.style.width=`${rect.width}px`;
-    ghost.style.height=`${rect.height}px`;
-    ghost.style.left=`${rect.left}px`;
-    ghost.style.top=`${rect.top}px`;
-    document.body.appendChild(ghost);
-  };
-
-  const update=pointerEvent=>{
-    if(!active)return;
-
-    pointerEvent.preventDefault();
-    ghost.style.left=`${pointerEvent.clientX-grabOffsetX}px`;
-    ghost.style.top=`${pointerEvent.clientY-grabOffsetY}px`;
-
-    const column=document
-      .elementsFromPoint(pointerEvent.clientX,pointerEvent.clientY)
-      .find(item=>item.classList?.contains("google-week-day-column"));
-
-    if(!column){
-      clearTarget();
-      return;
-    }
-
-    if(targetColumn!==column){
-      clearTarget();
-      targetColumn=column;
-    }
-
-    targetDate=targetColumn.dataset.date;
-
-    const duration=Math.max(
-      30,
-      timeToMinutes(event.endTime||defaultEndTime(event.time))
-      -timeToMinutes(event.time)
-    );
-
-    const pointerMinutes=googleWeekPointerMinutes(
-      targetColumn,
-      pointerEvent.clientY
-    );
-
-    const adjustedMinutes=Math.max(
-      0,
-      Math.min(
-        24*60-duration,
-        pointerMinutes-grabOffsetMinutes
-      )
-    );
-
-    targetTime=minutesToTime(adjustedMinutes);
-    if(!dropPreview){
-      dropPreview=document.createElement("div");
-      dropPreview.className="week-drop-time-preview";
-      document.body.appendChild(dropPreview);
-    }
-
-    dropPreview.textContent=`${targetDate} ${targetTime}`;
-    dropPreview.style.left=`${pointerEvent.clientX}px`;
-    dropPreview.style.top=`${pointerEvent.clientY}px`;
-  };
-
-  block.addEventListener("pointerdown",pointerEvent=>{
-    if(!["touch","pen"].includes(pointerEvent.pointerType))return;
-    pointerId=pointerEvent.pointerId;
-    startX=pointerEvent.clientX;
-    startY=pointerEvent.clientY;
-
-    holdTimer=setTimeout(()=>{
-      if(pointerId===pointerEvent.pointerId)begin(pointerEvent);
-    },300);
-  });
-
-  block.addEventListener("pointermove",pointerEvent=>{
-    if(pointerId!==pointerEvent.pointerId)return;
-
-    if(!active){
-      const distance=Math.hypot(
-        pointerEvent.clientX-startX,
-        pointerEvent.clientY-startY
-      );
-
-      if(distance>14){
-        clearTimeout(holdTimer);
-        holdTimer=null;
-      }
-      return;
-    }
-
-    update(pointerEvent);
-  },{passive:false});
-
-  const finish=async pointerEvent=>{
-    if(pointerId!==pointerEvent.pointerId)return;
-
-    clearTimeout(holdTimer);
-
-    if(active&&targetDate&&targetTime){
-      const date=targetDate;
-      const time=targetTime;
-      cleanup();
-      await moveEventTo(event,date,time);
-    }else{
-      cleanup();
-    }
-
-    setTimeout(()=>{
-      block.dataset.moved="false";
-    },100);
-  };
-
-  block.addEventListener("pointerup",finish);
-  block.addEventListener("pointercancel",finish);
-}
-
-
-function bindTimedColumnDrop(column,date){
-  column.addEventListener("dragover",event=>{
-    if(!state.dragEvent)return;
-    event.preventDefault();
-    column.classList.add("drag-over");
-  });
-
-  column.addEventListener("dragleave",()=>{
-    column.classList.remove("drag-over");
-  });
-
-  column.addEventListener("drop",event=>{
-    if(!state.dragEvent)return;
-    event.preventDefault();
-    column.classList.remove("drag-over");
-
-    const rect=column.getBoundingClientRect();
-    const rowHeight=parseFloat(getComputedStyle(el.weekScroll).getPropertyValue("--week-row-height"))||26;
-    const minutes=Math.max(
-      0,
-      Math.min(
-        23*60+30,
-        Math.round(((event.clientY-rect.top)/rowHeight*60)/30)*30
-      )
-    );
-
-    const dragged=state.dragEvent;
-    state.dragEvent=null;
-    moveEventTo(dragged,date,minutesToTime(minutes));
-  });
 }
 
 async function setEventProgressFromCard(event,value,button=null){

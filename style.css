@@ -2007,23 +2007,6 @@ button:active,
   }
 }
 
-/* PC 드래그 앤 드롭 */
-.event-chip[draggable="true"],
-.week-event[draggable="true"]{
-  cursor:grab;
-}
-.event-chip.dragging,
-.week-event.dragging{
-  opacity:.42;
-  transform:scale(.97);
-  cursor:grabbing;
-}
-.day-cell.drag-over,
-.week-slot.drag-over{
-  outline:2px solid var(--green);
-  outline-offset:-2px;
-  background:var(--green-soft);
-}
 .drag-toast{
   position:fixed;
   left:50%;
@@ -2153,9 +2136,6 @@ button:active,
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-}
-.week-event[draggable="true"]{
-  cursor:grab;
 }
 
 /* 모바일 저장 버튼 과대 표시 해제 */
@@ -2352,39 +2332,6 @@ button:active,
 }
 
 
-/* Momentum v2.9 — 꾹 눌러 이동 / 생성 드래그 지연 / 버튼 정렬 */
-.week-event.long-press-moving{
-  z-index:30;
-  opacity:.76;
-  transform:scale(1.02);
-  box-shadow:0 12px 28px rgba(20,55,38,.24);
-  pointer-events:none;
-}
-.week-move-ghost{
-  position:fixed;
-  z-index:240;
-  max-width:180px;
-  padding:8px 10px;
-  border-radius:9px;
-  background:var(--text);
-  color:#fff;
-  box-shadow:0 12px 28px rgba(20,55,38,.24);
-  font-size:10px;
-  font-weight:800;
-  pointer-events:none;
-  transform:translate(-50%,-115%);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.week-day-column.move-drop-target{
-  background-color:rgba(31,138,91,.12);
-  box-shadow:inset 0 0 0 2px var(--green);
-}
-.week-create-selection.waiting{
-  opacity:.5;
-}
-
 /* 모바일: 별도 왼쪽 하단 배치를 없애고 세 버튼을 한 줄 동일 크기로 */
 @media(max-width:720px){
   .event-modal-actions{
@@ -2435,25 +2382,6 @@ button:active,
   border-radius:0;
   background:transparent;
   font-size:16px;
-}
-.week-event.move-armed{
-  z-index:20;
-  outline:2px solid var(--green);
-  outline-offset:1px;
-  cursor:grab;
-  box-shadow:0 8px 20px rgba(20,55,38,.2);
-}
-.week-event.move-armed::after{
-  content:"이동 준비";
-  position:absolute;
-  top:2px;
-  right:3px;
-  padding:1px 4px;
-  border-radius:999px;
-  background:rgba(255,255,255,.92);
-  color:var(--green-dark);
-  font-size:7px;
-  font-weight:800;
 }
 .week-scroll{
   overscroll-behavior-y:auto;
@@ -2517,12 +2445,6 @@ button:active,
   margin-top:7px;
   font-variant-numeric:tabular-nums;
 }
-.week-event.move-armed{
-  cursor:grab;
-}
-.week-event.move-armed.dragging{
-  cursor:grabbing;
-}
 .page-swipe-surface{
   touch-action:pan-y;
 }
@@ -2535,36 +2457,6 @@ button:active,
 .week-event.timed-event{
   cursor:pointer;
   touch-action:none;
-}
-@media(pointer:fine){
-  .week-event.timed-event{
-    cursor:grab;
-  }
-  .week-event.timed-event.dragging{
-    cursor:grabbing;
-  }
-}
-.week-event.google-moving{
-  z-index:40;
-  opacity:.74;
-  box-shadow:0 12px 30px rgba(20,55,38,.24);
-}
-.week-google-ghost{
-  position:fixed;
-  z-index:250;
-  max-width:190px;
-  padding:8px 10px;
-  border-radius:9px;
-  background:var(--text);
-  color:#fff;
-  box-shadow:0 12px 28px rgba(20,55,38,.24);
-  font-size:10px;
-  font-weight:800;
-  pointer-events:none;
-  transform:translate(-50%,-118%);
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
 }
 .week-create-selection{
   z-index:2;
@@ -2829,11 +2721,9 @@ body.week-fullscreen #weekView{display:block!important;flex:1 1 auto;min-width:0
 .google-week-time-label{position:absolute;left:0;right:0;height:var(--week-row-height);padding:3px 5px;box-sizing:border-box;border-bottom:1px solid var(--line);color:var(--soft);text-align:right;font-size:8px}
 .google-week-day-column{position:relative;min-width:0;height:calc(var(--week-row-height) * 24);border-right:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--week-row-height)/2 - 1px),rgba(28,64,46,.045) calc(var(--week-row-height)/2 - 1px),rgba(28,64,46,.045) calc(var(--week-row-height)/2),transparent calc(var(--week-row-height)/2),transparent calc(var(--week-row-height) - 1px),var(--line) calc(var(--week-row-height) - 1px),var(--line) var(--week-row-height))}
 .google-week-day-column.today{background-color:rgba(31,138,91,.035)}
-.google-week-day-column.drag-over,.google-week-day-column.move-drop-target{box-shadow:inset 0 0 0 2px var(--green);background-color:rgba(31,138,91,.11)}
 .google-week-event{position:absolute;z-index:3;min-height:12px;padding:4px 5px 5px 8px;box-sizing:border-box;overflow:hidden;border-left:3px solid var(--event-category-color,var(--green));border-radius:6px;color:var(--text);cursor:pointer;touch-action:none}
 .google-week-event strong,.google-week-event small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .google-week-event strong{font-size:8px;line-height:1.15}.google-week-event small{margin-top:2px;font-size:7px;color:var(--soft)}
-.google-week-event.dragging,.google-week-event.google-moving{opacity:.72;z-index:30;box-shadow:0 10px 24px rgba(20,55,38,.2)}
 .google-week-selection{position:absolute;left:2px;right:2px;z-index:2;min-height:calc(var(--week-row-height)/2);border:1px dashed var(--green);border-radius:6px;background:rgba(31,138,91,.18);pointer-events:none}
 .google-week-selection span{position:absolute;left:4px;top:3px;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,.92);color:var(--green-dark);font-size:8px;font-weight:800;white-space:nowrap}
 body.week-fullscreen{--google-day-width:calc((100vw - var(--week-time-width))/7)}
@@ -2963,11 +2853,6 @@ body.week-fullscreen #weekView[hidden]{
 .google-week-day-column.today{
   background-color:rgba(31,138,91,.035);
 }
-.google-week-day-column.drag-over,
-.google-week-day-column.move-drop-target{
-  box-shadow:inset 0 0 0 2px var(--green);
-  background-color:rgba(31,138,91,.11);
-}
 .google-week-event{
   position:absolute;
   z-index:3;
@@ -2990,12 +2875,6 @@ body.week-fullscreen #weekView[hidden]{
 }
 .google-week-event strong{font-size:8px;line-height:1.15}
 .google-week-event small{margin-top:2px;font-size:7px;color:var(--soft)}
-.google-week-event.dragging,
-.google-week-event.google-moving{
-  opacity:.72;
-  z-index:30;
-  box-shadow:0 10px 24px rgba(20,55,38,.2);
-}
 .google-week-selection{
   position:absolute;
   left:2px;
@@ -3270,21 +3149,6 @@ body.week-fullscreen .main-area{
   overscroll-behavior-y:auto!important;
   -webkit-overflow-scrolling:touch;
   scrollbar-gutter:stable;
-}
-
-/* 드래그 중 시간 안내 */
-.week-drop-time-preview{
-  position:fixed;
-  z-index:300;
-  padding:7px 10px;
-  border-radius:999px;
-  background:var(--text);
-  color:#fff;
-  font-size:11px;
-  font-weight:800;
-  pointer-events:none;
-  transform:translate(-50%,-130%);
-  box-shadow:0 8px 22px rgba(23,49,39,.2);
 }
 
 /* 확대/축소 상태에서도 정렬 유지 */
@@ -3638,38 +3502,6 @@ body.week-fullscreen .quick-add-controls input::placeholder{
   .topbar .desktop-add,
   body.week-fullscreen .topbar .primary-button{
     display:none!important;
-  }
-}
-
-/* 일정 이동 예정 위치 실루엣 */
-.google-week-drop-silhouette{
-  position:absolute;
-  z-index:18;
-  left:2px;
-  right:2px;
-  min-height:calc(var(--week-row-height) / 2);
-  border:2px dashed var(--green);
-  border-radius:8px;
-  background:rgba(31,138,91,.13);
-  box-shadow:0 0 0 1px rgba(255,255,255,.7) inset;
-  pointer-events:none;
-}
-.google-week-drop-silhouette span{
-  position:absolute;
-  left:6px;
-  top:5px;
-  padding:2px 5px;
-  border-radius:5px;
-  background:rgba(255,255,255,.94);
-  color:var(--green-dark);
-  font-size:9px;
-  font-weight:800;
-  white-space:nowrap;
-}
-
-@media(max-width:720px){
-  .google-week-drop-silhouette span{
-    font-size:8px;
   }
 }
 
@@ -5917,15 +5749,6 @@ body.week-four-weeks .week-event-checklist{
 }
 
 
-/* Final stabilization: drag target shows position preview only */
-.drag-over,
-.week-slot.drag-over,
-.google-week-day-column.drag-over{
-  background:transparent!important;
-  outline:none!important;
-  box-shadow:none!important;
-}
-
 /* SELECTED DAY insight */
 .selected-insight-grid{
   grid-template-columns:1fr!important;
@@ -7870,9 +7693,6 @@ body.selected-day-mode #calendarPage .calendar-controls{margin-left:auto}
 .calendar-controls .week-add-event-button{order:10}.calendar-controls .week-category-manager-button{order:11}.calendar-controls .week-zoom-controls{order:20!important;margin-left:auto!important}.calendar-controls .week-fit-icon{order:21!important}
 body.selected-day-mode #calendarPage .calendar-controls{width:auto!important;justify-content:flex-end!important}
 .google-week-day-column{border-right:4px solid var(--surface)!important;background:repeating-linear-gradient(to bottom,var(--muted) 0,var(--muted) calc(var(--week-row-height) - 4px),transparent calc(var(--week-row-height) - 4px),transparent var(--week-row-height))!important}
-.google-week-day-column.drag-over,.google-week-day-column.move-drop-target{box-shadow:none!important;background-color:transparent!important}.google-week-event.google-moving{opacity:.3!important;transform:none!important}
-.week-google-ghost{position:fixed!important;z-index:250!important;margin:0!important;padding:5px 6px!important;max-width:none!important;box-sizing:border-box;border-radius:8px!important;background:var(--event-progress-color,var(--muted))!important;color:var(--text)!important;box-shadow:0 10px 28px rgba(20,55,38,.22)!important;transform:none!important;opacity:.88!important;pointer-events:none!important;transition:left 45ms linear,top 45ms linear!important}
-.google-week-drop-silhouette{border:0!important;border-radius:8px!important;background:color-mix(in srgb,var(--green) 20%,transparent)!important;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 38%,transparent)!important}
 .week-create-selection{z-index:35!important;pointer-events:auto!important;border:2px solid var(--green)!important;border-radius:9px!important;background:color-mix(in srgb,var(--green) 14%,var(--surface))!important;box-shadow:0 5px 16px rgba(24,111,72,.16)!important;cursor:pointer}.week-create-selection span{left:8px!important;top:8px!important;background:transparent!important;font-size:10px!important}
 .event-custom-repeat{display:grid;grid-template-columns:1fr 64px 92px;align-items:center;gap:7px;margin-top:8px;padding:9px;border-radius:11px;background:var(--muted)}.event-custom-repeat[hidden]{display:none!important}.event-custom-repeat>span{font-size:10px;font-weight:800;color:var(--soft)}.event-custom-repeat input,.event-custom-repeat select{height:34px;min-height:34px;margin:0;padding:4px 7px;font-size:12px}
 .event-repeat-end{grid-template-columns:auto repeat(3,1fr)!important}.repeat-count-wrap{grid-column:2/-1;display:flex!important;align-items:center;gap:7px;margin:0}.repeat-count-wrap[hidden]{display:none!important}.repeat-count-wrap input{display:block!important;width:84px!important;margin:0!important}.repeat-count-wrap span{font-size:10px;white-space:nowrap}
