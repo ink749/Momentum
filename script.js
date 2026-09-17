@@ -194,7 +194,8 @@ const el = {
   todoOverviewPrevMonth:$("todoOverviewPrevMonth"), todoOverviewThisMonth:$("todoOverviewThisMonth"),
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
-  todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"),
+  todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"),
+  todoRepeatEndDate:$("todoRepeatEndDate"), todoRepeatEndLabel:$("todoRepeatEndLabel"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"),
   todoBacklog:$("todoBacklog"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
@@ -3315,6 +3316,7 @@ function todoLogKey(todoId,key){
 }
 function todoOccursOn(todo,key){
   if(todo?.backlog||!todo?.date||key<todo.date)return false;
+  if(todo.endDate&&key>todo.endDate)return false;
   if(Array.isArray(todo.exceptionDates)&&todo.exceptionDates.includes(key))return false;
 
   const repeat=todo.repeat||"none";
@@ -3460,8 +3462,17 @@ function syncTodoBacklogForm(){
   el.todoDate.required=!backlog;
   el.todoDate.disabled=backlog;
   el.todoRepeat.disabled=backlog;
+  el.todoRepeatEndDate.disabled=backlog;
   el.todoDate.closest("label").classList.toggle("field-disabled",backlog);
   el.todoRepeat.closest("label").classList.toggle("field-disabled",backlog);
+  syncTodoRepeatEndForm();
+}
+function syncTodoRepeatEndForm(){
+  const repeating=!el.todoBacklog?.checked&&(el.todoRepeat.value||"none")!=="none";
+  el.todoRepeatEndLabel.hidden=!repeating;
+  el.todoRepeatEndDate.disabled=!repeating;
+  el.todoRepeatEndDate.min=el.todoDate.value||"";
+  if(!repeating)el.todoRepeatEndDate.value="";
 }
 function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoForm.reset();
@@ -3469,6 +3480,7 @@ function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoOccurrenceDate.value="";
   el.todoDate.value=date||dateKey(new Date());
   el.todoRepeat.value="none";
+  el.todoRepeatEndDate.value="";
   el.todoMemo.value="";
   if(el.todoBacklog)el.todoBacklog.checked=backlog;
   if(el.todoIncludeInStats)el.todoIncludeInStats.checked=false;
@@ -3513,10 +3525,12 @@ function openTodoEdit(todo){
   el.todoName.value=todo.text||"";
   el.todoDate.value=todo.date;
   el.todoRepeat.value=todo.repeat||"none";
+  el.todoRepeatEndDate.value=todo.endDate||"";
   el.todoMemo.value=todo.memo||"";
   if(el.todoBacklog)el.todoBacklog.checked=Boolean(todo.backlog);
   if(el.todoIncludeInStats)el.todoIncludeInStats.checked=todo.includeInStats===true;
   syncTodoBacklogForm();
+  syncTodoRepeatEndForm();
   setImportance("todo",Boolean(todo.important));
   state.editingTodoChecklist=normalizeChecklist(todo.checklist).map(item=>({...item}));
   renderTodoChecklistEditor();
@@ -3536,6 +3550,7 @@ async function submitTodoForm(event){
   const memo=el.todoMemo.value.trim();
   const important=Boolean(state.todoImportant);
   const backlog=Boolean(el.todoBacklog?.checked);
+  const endDate=repeat!=="none"&&!backlog?el.todoRepeatEndDate.value||"":"";
   const includeInStats=Boolean(el.todoIncludeInStats?.checked);
   const checklist=normalizedTodoChecklist();
 
@@ -3543,9 +3558,13 @@ async function submitTodoForm(event){
     el.todoFormError.textContent="이름과 날짜를 입력하세요.";
     return;
   }
+  if(endDate&&endDate<date){
+    el.todoFormError.textContent="반복 종료일은 시작일보다 빠를 수 없습니다.";
+    return;
+  }
 
   const data={
-    text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,includeInStats,
+    text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,
     status:"pending",
     rolledFrom:"",
     rolledTo:"",
@@ -3563,7 +3582,7 @@ async function submitTodoForm(event){
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",id),
         {
-          text,date,repeat:backlog?"none":repeat,memo,checklist,important,backlog,includeInStats,
+          text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,
           ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
           updatedAt:serverTimestamp()
         }
@@ -6863,6 +6882,8 @@ $("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals()
 el.todoBacklog?.addEventListener("change",()=>{
   syncTodoBacklogForm();
 });
+el.todoRepeat?.addEventListener("change",syncTodoRepeatEndForm);
+el.todoDate?.addEventListener("change",syncTodoRepeatEndForm);
 el.mobileCalendarNav.onclick=()=>navigateToPage("calendar");
 el.mobileWeekNav.onclick=()=>navigateToPage("week");
 el.mobileHabitNav.onclick=()=>navigateToPage("habit");
