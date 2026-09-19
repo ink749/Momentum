@@ -2853,6 +2853,7 @@ function renderWeek(){
       block.innerHTML=`
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
         <small class="week-event-progress">${progress}%</small>
+        ${event.memo?`<p class="entity-memo-preview week-event-memo">${escapeHtml(event.memo)}</p>`:""}
         ${checklistHtml}
       `;
 
@@ -3729,6 +3730,12 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   const main=document.createElement("div");
   main.className="todo-main";
   main.appendChild(text);
+  if(todo.memo){
+    const memo=document.createElement("p");
+    memo.className="entity-memo-preview todo-memo-preview";
+    memo.textContent=todo.memo;
+    main.appendChild(memo);
+  }
   const checklistPreview=entityChecklistPreview(
     todoChecklistForOccurrence(todo),
     (itemId,status)=>toggleTodoChecklistItem(todo,itemId,status)
@@ -4324,7 +4331,7 @@ function renderSelected(){
   else items.forEach(event=>{const item=document.createElement("article");item.className="selected-event";if(event.important)item.classList.add("is-important");{
       const main=document.createElement("div");
       main.className="selected-event-main";
-      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong>${event.memo?`<small>${escapeHtml(event.memo)}</small>`:""}`;
+      main.innerHTML=`<strong>${importanceMark(event.important)}${escapeHtml(event.title)} ${event.repeat&&event.repeat!=="none"?"↻":""}</strong>${event.memo?`<p class="entity-memo-preview selected-event-memo">${escapeHtml(event.memo)}</p>`:""}`;
 
       const summary=checklistSummary(event);
       if(summary){
@@ -5449,6 +5456,7 @@ function renderDayView(){
 
       block.innerHTML=`
         <strong class="event-title-trigger">${importanceMark(event.important)}${escapeHtml(event.title)}</strong>
+        ${event.memo?`<p class="entity-memo-preview day-view-event-memo">${escapeHtml(event.memo)}</p>`:""}
         ${
           checklist.length
             ?(

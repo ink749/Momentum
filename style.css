@@ -195,6 +195,28 @@ body.week-fullscreen #calendarPage .calendar-controls{
 }
 .checklist-status-button{border-radius:0!important}
 
+/* Momentum v8.06 — show saved notes without opening an editor */
+.entity-memo-preview{
+  display:-webkit-box;
+  min-width:0;
+  margin:3px 0 0;
+  overflow:hidden;
+  color:var(--soft);
+  font-size:9px;
+  font-weight:500;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+  white-space:pre-line;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+.selected-event-memo,.todo-memo-preview{font-size:10px}
+.week-event-memo,.day-view-event-memo{position:relative;z-index:1;font-size:7px}
+.todo-row:has(.todo-memo-preview){align-items:start}
+@media(max-width:720px){
+  .selected-event-memo,.todo-memo-preview{font-size:9px}
+}
+
 /* Momentum v7.42 — DAY/TODAY, compact white system, cyclic progress */
 :root{
   --bg:#fff;
