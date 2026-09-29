@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDcrq-223O2A8E0yJoVNgXnDARH1bfwrgw",
@@ -160,7 +160,8 @@ const el = {
   editFromThisDateButton:$("editFromThisDateButton"),
   editAllRepeatsButton:$("editAllRepeatsButton"),
   repeatDeleteDialog:$("repeatDeleteDialog"),
-  deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
+  deleteOnlyThisDateButton:$("deleteOnlyThisDateButton"), deleteFromThisDateButton:$("deleteFromThisDateButton"),
+  deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
   calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), weekNav:$("weekNavButton"), habitNav:$("habitNavButton"),
   habitHeatmapLabel:$("habitHeatmapLabel"), habitPeriodLabel:$("habitPeriodLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
@@ -6735,6 +6736,38 @@ async function deleteEntireRepeatSeries(){
   }
 }
 
+async function deleteRepeatSeriesFromCurrentDate(){
+  if(!state.user||!el.eventId.value)return;
+
+  const eventId=el.eventId.value;
+  const source=state.events.find(event=>event.id===eventId);
+  if(!source)return;
+
+  const occurrenceDate=el.eventOccurrenceDate.value||source.date;
+  const previousDate=dateKey(addDays(parseDateKey(occurrenceDate),-1));
+  const futureLogs=Object.values(state.eventLogs).filter(log=>
+    log.eventId===eventId&&String(log.date||"")>=occurrenceDate
+  );
+
+  try{
+    const batch=writeBatch(db);
+    batch.update(
+      doc(db,"users",state.user.uid,"events",eventId),
+      {repeatEndDate:previousDate,updatedAt:serverTimestamp()}
+    );
+    futureLogs.forEach(log=>batch.delete(
+      doc(db,"users",state.user.uid,"eventLogs",log.id)
+    ));
+    await batch.commit();
+    closeRepeatDeleteDialog();
+    closeModal();
+  }catch(error){
+    console.error(error);
+    closeRepeatDeleteDialog();
+    el.formError.textContent="이 날짜 이후의 반복 일정을 삭제하지 못했습니다.";
+  }
+}
+
 async function removeEvent(){
   if(!state.user||!el.eventId.value)return;
 
@@ -6867,6 +6900,7 @@ el.repeatEditDialog.onclick=event=>{
   if(event.target===el.repeatEditDialog)closeRepeatEditDialog();
 };
 el.deleteOnlyThisDateButton.onclick=deleteOnlyCurrentOccurrence;
+el.deleteFromThisDateButton.onclick=deleteRepeatSeriesFromCurrentDate;
 el.deleteAllRepeatsButton.onclick=deleteEntireRepeatSeries;
 $("closeRepeatDeleteDialog").onclick=closeRepeatDeleteDialog;
 $("cancelRepeatDeleteButton").onclick=closeRepeatDeleteDialog;
