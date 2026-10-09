@@ -139,7 +139,7 @@ const el = {
   endHour:$("eventEndHour"), endMinute:$("eventEndMinute"),
   mobileStartTime:$("eventStartTimeMobile"), mobileEndTime:$("eventEndTimeMobile"),
   repeat:$("eventRepeat"), repeatEndDate:$("eventRepeatEndDate"), repeatEndWrap:$("eventRepeatEndWrap"),
-  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), eventIncludeInStats:$("eventIncludeInStats"),
+  repeatWeekdays:$("eventRepeatWeekdays"), evaluationType:$("eventEvaluationType"), eventIncludeInStats:$("eventIncludeInStats"), eventHideInWidget:$("eventHideInWidget"),
   customRepeat:$("eventCustomRepeat"), repeatInterval:$("eventRepeatInterval"), repeatUnit:$("eventRepeatUnit"),
   repeatCount:$("eventRepeatCount"), repeatCountWrap:$("eventRepeatCountWrap"), repeatSetCountButton:$("repeatSetCountButton"),
   editScopeSection:$("eventEditScopeSection"), editScope:$("eventEditScope"),
@@ -166,7 +166,7 @@ const el = {
   habitHeatmapLabel:$("habitHeatmapLabel"), habitPeriodLabel:$("habitPeriodLabel"), habitHeatmap:$("habitHeatmap"),
   habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
-  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitIncludeInStats:$("habitIncludeInStats"),
+  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitIncludeInStats:$("habitIncludeInStats"), habitHideInWidget:$("habitHideInWidget"),
   habitChecklistItems:$("habitChecklistItems"), addHabitChecklistItemButton:$("addHabitChecklistItemButton"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
@@ -196,7 +196,7 @@ const el = {
   todoOverviewNextMonth:$("todoOverviewNextMonth"),
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"),
-  todoRepeatEndDate:$("todoRepeatEndDate"), todoRepeatEndLabel:$("todoRepeatEndLabel"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"),
+  todoRepeatEndDate:$("todoRepeatEndDate"), todoRepeatEndLabel:$("todoRepeatEndLabel"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"), todoHideInWidget:$("todoHideInWidget"),
   todoBacklog:$("todoBacklog"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
@@ -327,6 +327,13 @@ function categoryLabel(category){
 }
 function categoryColor(category){
   return categoryById(category).color;
+}
+function syncEventWidgetPrivacy(){
+  if(!el.eventHideInWidget)return;
+  const forced=categoryLabel(el.category.value)==="하나님의 일";
+  if(forced)el.eventHideInWidget.checked=true;
+  el.eventHideInWidget.disabled=forced;
+  el.eventHideInWidget.closest("label")?.classList.toggle("field-disabled",forced);
 }
 function passesCategoryFilter(event){
   return state.categoryFilter==="all"||eventCategory(event)===state.categoryFilter;
@@ -1892,6 +1899,7 @@ function resetHabitForm(){
   el.habitShowDday.checked=false;
   el.habitShowOnHome.checked=true;
   if(el.habitIncludeInStats)el.habitIncludeInStats.checked=true;
+  if(el.habitHideInWidget)el.habitHideInWidget.checked=false;
   el.habitTargetCount.value="";
   state.editingHabitChecklist=[];
   renderHabitChecklistEditor();
@@ -1907,6 +1915,7 @@ function openHabitEdit(habit){
   el.habitShowDday.checked=Boolean(habit.showDday);
   el.habitShowOnHome.checked=habit.showOnHome!==false;
   if(el.habitIncludeInStats)el.habitIncludeInStats.checked=habit.includeInStats!==false;
+  if(el.habitHideInWidget)el.habitHideInWidget.checked=Boolean(habit.hideInWidget);
   el.habitTargetCount.value=habit.targetCount||"";
   state.editingHabitChecklist=normalizeChecklist(habit.checklist).map(item=>({...item}));
   renderHabitChecklistEditor();
@@ -1943,6 +1952,7 @@ async function submitHabit(event){
   const showDday=Boolean(el.habitShowDday.checked);
   const showOnHome=Boolean(el.habitShowOnHome.checked);
   const includeInStats=el.habitIncludeInStats?.checked!==false;
+  const hideInWidget=Boolean(el.habitHideInWidget?.checked);
   const targetCount=el.habitTargetCount.value?Math.max(1,Number(el.habitTargetCount.value)):null;
   const checklist=normalizeChecklist(state.editingHabitChecklist);
 
@@ -1960,7 +1970,7 @@ async function submitHabit(event){
   const ref=collection(db,"users",state.user.uid,"habits");
 
   try{
-    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,targetCount,checklist,updatedAt:serverTimestamp()};
+    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,hideInWidget,targetCount,checklist,updatedAt:serverTimestamp()};
 
     if(el.habitId.value){
       const habitId=el.habitId.value;
@@ -3486,6 +3496,7 @@ function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoMemo.value="";
   if(el.todoBacklog)el.todoBacklog.checked=backlog;
   if(el.todoIncludeInStats)el.todoIncludeInStats.checked=false;
+  if(el.todoHideInWidget)el.todoHideInWidget.checked=false;
   syncTodoBacklogForm();
   setImportance("todo",false);
   state.editingTodoChecklist=[];
@@ -3531,6 +3542,7 @@ function openTodoEdit(todo){
   el.todoMemo.value=todo.memo||"";
   if(el.todoBacklog)el.todoBacklog.checked=Boolean(todo.backlog);
   if(el.todoIncludeInStats)el.todoIncludeInStats.checked=todo.includeInStats===true;
+  if(el.todoHideInWidget)el.todoHideInWidget.checked=Boolean(todo.hideInWidget);
   syncTodoBacklogForm();
   syncTodoRepeatEndForm();
   setImportance("todo",Boolean(todo.important));
@@ -3554,6 +3566,7 @@ async function submitTodoForm(event){
   const backlog=Boolean(el.todoBacklog?.checked);
   const endDate=repeat!=="none"&&!backlog?el.todoRepeatEndDate.value||"":"";
   const includeInStats=Boolean(el.todoIncludeInStats?.checked);
+  const hideInWidget=Boolean(el.todoHideInWidget?.checked);
   const checklist=normalizedTodoChecklist();
 
   if(!text||(!date&&!backlog)){
@@ -3566,7 +3579,7 @@ async function submitTodoForm(event){
   }
 
   const data={
-    text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,
+    text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,hideInWidget,
     status:"pending",
     rolledFrom:"",
     rolledTo:"",
@@ -3584,7 +3597,7 @@ async function submitTodoForm(event){
       await updateDoc(
         doc(db,"users",state.user.uid,"todos",id),
         {
-          text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,
+          text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,hideInWidget,
           ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
           updatedAt:serverTimestamp()
         }
@@ -4985,6 +4998,8 @@ function resetForm(){
   if(el.repeatWeekdays)el.repeatWeekdays.hidden=true;
   if(el.evaluationType)el.evaluationType.value="action";
   if(el.eventIncludeInStats)el.eventIncludeInStats.checked=true;
+  if(el.eventHideInWidget)el.eventHideInWidget.checked=false;
+  syncEventWidgetPrivacy();
   el.repeatEndDate.value="";
   if(el.repeatCountWrap)el.repeatCountWrap.hidden=true;
   el.repeatEndWrap.hidden=true;
@@ -5044,6 +5059,8 @@ function openEdit(event){
   el.category.value=eventCategory(event);
   if(el.evaluationType)el.evaluationType.value=event.evaluationType||"action";
   if(el.eventIncludeInStats)el.eventIncludeInStats.checked=event.includeInStats!==false;
+  if(el.eventHideInWidget)el.eventHideInWidget.checked=Boolean(event.hideInWidget)||categoryLabel(eventCategory(event))==="하나님의 일";
+  syncEventWidgetPrivacy();
   el.date.value=recurring
     ?occurrenceStart
     :event.date;
@@ -6053,6 +6070,7 @@ function currentEventFormData(){
     repeatCount:el.repeat.value==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1),
     evaluationType:el.evaluationType?.value||"action",
     includeInStats:el.eventIncludeInStats?.checked!==false,
+    hideInWidget:Boolean(el.eventHideInWidget?.checked),
     memo:el.memo.value.trim(),
     checklist:normalizeChecklist(state.editingChecklist),
     important:Boolean(state.eventImportant)
@@ -6528,6 +6546,7 @@ async function submit(event){
   const repeatCount=repeat==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1);
   const evaluationType=el.evaluationType?.value||"action";
   const includeInStats=el.eventIncludeInStats?.checked!==false;
+  const hideInWidget=Boolean(el.eventHideInWidget?.checked)||categoryLabel(category)==="하나님의 일";
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);
@@ -6573,6 +6592,7 @@ async function submit(event){
         repeatCount,
         evaluationType,
         includeInStats,
+        hideInWidget,
         memo,
         checklist,
         important,
@@ -6634,6 +6654,7 @@ async function submit(event){
         repeatCount,
         evaluationType,
         includeInStats,
+        hideInWidget,
         memo,
         checklist,
         important,
@@ -6908,6 +6929,7 @@ el.repeatDeleteDialog.onclick=event=>{
   if(event.target===el.repeatDeleteDialog)closeRepeatDeleteDialog();
 };
 $("progressOptions").onclick=e=>{const b=e.target.closest("button[data-value]");if(b)setProgress(b.dataset.value)};el.modal.onclick=e=>{if(e.target===el.modal)closeModal()};
+el.category?.addEventListener("change",syncEventWidgetPrivacy);
 el.calendarNav.onclick=()=>navigateToPage("calendar");
 el.weekNav.onclick=()=>navigateToPage("week");
 el.habitNav.onclick=()=>navigateToPage("habit");
