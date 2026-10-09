@@ -330,10 +330,8 @@ function categoryColor(category){
 }
 function syncEventWidgetPrivacy(){
   if(!el.eventHideInWidget)return;
-  const forced=categoryLabel(el.category.value)==="하나님의 일";
-  if(forced)el.eventHideInWidget.checked=true;
-  el.eventHideInWidget.disabled=forced;
-  el.eventHideInWidget.closest("label")?.classList.toggle("field-disabled",forced);
+  el.eventHideInWidget.disabled=false;
+  el.eventHideInWidget.closest("label")?.classList.remove("field-disabled");
 }
 function passesCategoryFilter(event){
   return state.categoryFilter==="all"||eventCategory(event)===state.categoryFilter;
@@ -5059,7 +5057,7 @@ function openEdit(event){
   el.category.value=eventCategory(event);
   if(el.evaluationType)el.evaluationType.value=event.evaluationType||"action";
   if(el.eventIncludeInStats)el.eventIncludeInStats.checked=event.includeInStats!==false;
-  if(el.eventHideInWidget)el.eventHideInWidget.checked=Boolean(event.hideInWidget)||categoryLabel(eventCategory(event))==="하나님의 일";
+  if(el.eventHideInWidget)el.eventHideInWidget.checked=Boolean(event.hideInWidget);
   syncEventWidgetPrivacy();
   el.date.value=recurring
     ?occurrenceStart
@@ -6546,7 +6544,7 @@ async function submit(event){
   const repeatCount=repeat==="none"||el.repeatCountWrap?.hidden?0:Math.max(1,Number(el.repeatCount?.value)||1);
   const evaluationType=el.evaluationType?.value||"action";
   const includeInStats=el.eventIncludeInStats?.checked!==false;
-  const hideInWidget=Boolean(el.eventHideInWidget?.checked)||categoryLabel(category)==="하나님의 일";
+  const hideInWidget=Boolean(el.eventHideInWidget?.checked);
   const memo=el.memo.value.trim();
   const important=Boolean(state.eventImportant);
   const checklist=normalizeChecklist(state.editingChecklist);

@@ -7975,15 +7975,30 @@ html{scrollbar-gutter:stable}
 .selected-habit-row:has(.habit-checklist-preview){grid-template-rows:auto auto}
 .habit-checklist-preview{grid-column:1;grid-row:2;min-width:0}
 .selected-habit-row:has(.habit-checklist-preview)>.selected-habit-progress{grid-column:2;grid-row:1/3;align-self:center}
-#habitForm .habit-option-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#habitForm .habit-option-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .stats-inclusion-option{white-space:nowrap}
-.event-evaluation-row:has(.stats-inclusion-option){grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto!important}
+.security-option{white-space:nowrap}
+.event-evaluation-row:has(.stats-inclusion-option){grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto!important}
+.privacy-stats-grid{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px solid #dce9e2;border-radius:16px;background:#f8fbf9}
+.privacy-stats-grid .check-option{min-width:0;margin:0!important;padding:0!important;background:transparent!important}
 .month-insight-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 @media(max-width:600px){
   .checklist-edit-row{display:grid!important;grid-template-columns:36px minmax(0,1fr) 36px!important;align-items:center!important;width:100%!important;gap:6px!important}
   .checklist-edit-row>*{min-width:0!important;margin:0!important}
   .checklist-edit-row .checklist-remove-button{grid-column:3!important;justify-self:end!important;width:36px!important;height:36px!important}
-  #habitForm .habit-option-grid{grid-template-columns:1fr!important}
+  #habitForm .habit-option-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .event-evaluation-row:has(.stats-inclusion-option){grid-template-columns:1fr 1fr!important}
-  .event-evaluation-row:has(.stats-inclusion-option) .stats-inclusion-option{grid-column:1/-1!important}
+  .event-evaluation-row:has(.stats-inclusion-option) .stats-inclusion-option,
+  .event-evaluation-row:has(.stats-inclusion-option) .security-option{grid-column:auto!important}
+}
+
+/* Momentum v8.08 — middle emphasis for deleting future repeat events */
+.future-delete-button{
+  min-height:42px;
+  padding:0 16px;
+  border:1px solid #ead6d2;
+  border-radius:12px;
+  background:#fffbfa;
+  color:#a86660;
+  font-weight:700;
 }

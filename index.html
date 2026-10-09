@@ -499,8 +499,8 @@
             <select id="eventCategory"></select>
           </label>
           <label class="check-option stats-inclusion-option"><input id="eventIncludeInStats" type="checkbox" checked /> 통계에 포함</label>
+          <label class="check-option security-option"><input id="eventHideInWidget" type="checkbox" /> 보안</label>
         </div>
-        <label class="check-option"><input id="eventHideInWidget" type="checkbox" /> 위젯에서 이름 숨기기</label>
         <section class="event-datetime-card">
           <span class="form-section-label">날짜 및 시간</span>
           <div class="event-datetime-line"><strong>시작</strong><label><span class="sr-only">시작 날짜</span>
@@ -657,8 +657,10 @@
           <input id="todoRepeatEndDate" type="date" />
         </label>
         <label class="check-option"><input id="todoBacklog" type="checkbox" /> 날짜 없이 할 일 보관함에 쌓아두기</label>
-        <label class="check-option stats-inclusion-option"><input id="todoIncludeInStats" type="checkbox" /> 통계에 포함</label>
-        <label class="check-option"><input id="todoHideInWidget" type="checkbox" /> 위젯에서 이름 숨기기</label>
+        <div class="privacy-stats-grid">
+          <label class="check-option stats-inclusion-option"><input id="todoIncludeInStats" type="checkbox" /> 통계에 포함</label>
+          <label class="check-option security-option"><input id="todoHideInWidget" type="checkbox" /> 보안</label>
+        </div>
         <label>메모
           <textarea id="todoMemo" maxlength="500" rows="2" placeholder="할 일에 필요한 내용을 적어두세요."></textarea>
         </label>
@@ -822,7 +824,7 @@
           <label class="check-option"><input id="habitShowDday" type="checkbox" /> 홈과 습관에 D-day 표시</label>
           <label class="check-option"><input id="habitShowOnHome" type="checkbox" checked /> 홈 화면에 표시</label>
           <label class="check-option"><input id="habitIncludeInStats" type="checkbox" checked /> 통계에 포함</label>
-          <label class="check-option"><input id="habitHideInWidget" type="checkbox" /> 위젯에서 이름 숨기기</label>
+          <label class="check-option security-option"><input id="habitHideInWidget" type="checkbox" /> 보안</label>
         </div>
         <label>목표 횟수 <span class="field-help">선택 사항 · 반복과 별도로 누적 횟수를 셉니다.</span>
           <input id="habitTargetCount" type="number" min="1" max="1000000" placeholder="예: 30" />
