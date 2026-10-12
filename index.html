@@ -592,7 +592,7 @@
               <span class="form-section-label">체크리스트</span>
 
             </div>
-            <button id="addChecklistItemButton" class="secondary-button compact-button" type="button">+ 항목 추가</button>
+            <button id="addChecklistItemButton" class="checklist-inline-add" type="button" aria-label="체크리스트 항목 추가" title="항목 추가">+</button>
           </div>
           <div id="checklistItems" class="checklist-items"></div>
         </section></details>
@@ -656,6 +656,14 @@
         <label id="todoRepeatEndLabel" hidden>반복 종료일
           <input id="todoRepeatEndDate" type="date" />
         </label>
+        <fieldset id="todoEditScopeSection" class="entity-edit-scope" hidden>
+          <legend>수정 범위</legend>
+          <div class="entity-edit-scope-options">
+            <label><input type="radio" name="todoEditScope" value="single" checked /> 이 할 일만 수정</label>
+            <label><input type="radio" name="todoEditScope" value="all" /> 전체 반복 할 일 수정</label>
+          </div>
+          <small>날짜·반복·종료일 변경은 전체 반복 수정에만 적용됩니다.</small>
+        </fieldset>
         <label class="check-option"><input id="todoBacklog" type="checkbox" /> 날짜 없이 할 일 보관함에 쌓아두기</label>
         <div class="privacy-stats-grid">
           <label class="check-option stats-inclusion-option"><input id="todoIncludeInStats" type="checkbox" /> 통계에 포함</label>
@@ -667,7 +675,7 @@
         <section class="checklist-editor todo-checklist-editor">
           <div class="checklist-editor-heading">
             <div><span class="form-section-label">체크리스트</span></div>
-            <button id="addTodoChecklistItemButton" class="secondary-button compact-button" type="button">+ 항목 추가</button>
+            <button id="addTodoChecklistItemButton" class="checklist-inline-add" type="button" aria-label="체크리스트 항목 추가" title="항목 추가">+</button>
           </div>
           <div id="todoChecklistItems" class="checklist-items"></div>
         </section>
@@ -806,6 +814,7 @@
       </div>
       <form id="habitForm" class="entity-form-compact">
         <input id="habitId" type="hidden" />
+        <input id="habitOccurrenceDate" type="hidden" />
         <label>습관 이름<input id="habitName" type="text" maxlength="40" placeholder="예: 물 2L 마시기" required /></label>
         <label>시작일<input id="habitStartDate" type="date" required /></label>
         <label>반복
@@ -820,6 +829,14 @@
         <label>종료일
           <input id="habitEndDate" type="date" />
         </label>
+        <fieldset id="habitEditScopeSection" class="entity-edit-scope" hidden>
+          <legend>수정 범위</legend>
+          <div class="entity-edit-scope-options">
+            <label><input type="radio" name="habitEditScope" value="single" checked /> 이 날짜의 습관만 수정</label>
+            <label><input type="radio" name="habitEditScope" value="all" /> 전체 반복 습관 수정</label>
+          </div>
+          <small>시작일·반복·종료일 변경은 전체 반복 수정에만 적용됩니다.</small>
+        </fieldset>
         <div class="habit-option-grid">
           <label class="check-option"><input id="habitShowDday" type="checkbox" /> 홈과 습관에 D-day 표시</label>
           <label class="check-option"><input id="habitShowOnHome" type="checkbox" checked /> 홈 화면에 표시</label>
@@ -829,10 +846,13 @@
         <label>목표 횟수 <span class="field-help">선택 사항 · 반복과 별도로 누적 횟수를 셉니다.</span>
           <input id="habitTargetCount" type="number" min="1" max="1000000" placeholder="예: 30" />
         </label>
+        <label>메모
+          <textarea id="habitMemo" maxlength="500" rows="2" placeholder="이 습관에 필요한 내용을 적어두세요."></textarea>
+        </label>
         <section class="checklist-editor habit-checklist-editor">
           <div class="checklist-editor-heading">
             <div><span class="form-section-label">체크리스트</span></div>
-            <button id="addHabitChecklistItemButton" class="secondary-button compact-button" type="button">+ 항목 추가</button>
+            <button id="addHabitChecklistItemButton" class="checklist-inline-add" type="button" aria-label="체크리스트 항목 추가" title="항목 추가">+</button>
           </div>
           <div id="habitChecklistItems" class="checklist-items"></div>
         </section>

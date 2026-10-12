@@ -164,9 +164,10 @@ const el = {
   deleteAllRepeatsButton:$("deleteAllRepeatsButton"),
   calendarPage:$("calendarPage"), habitPage:$("habitPage"), calendarNav:$("calendarNavButton"), weekNav:$("weekNavButton"), habitNav:$("habitNavButton"),
   habitHeatmapLabel:$("habitHeatmapLabel"), habitPeriodLabel:$("habitPeriodLabel"), habitHeatmap:$("habitHeatmap"),
-  habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitName:$("habitName"),
+  habitModal:$("habitModal"), habitForm:$("habitForm"), habitId:$("habitId"), habitOccurrenceDate:$("habitOccurrenceDate"), habitName:$("habitName"),
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
-  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitIncludeInStats:$("habitIncludeInStats"), habitHideInWidget:$("habitHideInWidget"),
+  habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitMemo:$("habitMemo"), habitIncludeInStats:$("habitIncludeInStats"), habitHideInWidget:$("habitHideInWidget"),
+  habitEditScopeSection:$("habitEditScopeSection"),
   habitChecklistItems:$("habitChecklistItems"), addHabitChecklistItemButton:$("addHabitChecklistItemButton"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
@@ -197,7 +198,7 @@ const el = {
   todoModal:$("todoModal"), todoForm:$("todoForm"), todoEditId:$("todoEditId"), todoOccurrenceDate:$("todoOccurrenceDate"),
   todoName:$("todoName"), todoImportantButton:$("todoImportantButton"), todoDate:$("todoDate"), todoRepeat:$("todoRepeat"),
   todoRepeatEndDate:$("todoRepeatEndDate"), todoRepeatEndLabel:$("todoRepeatEndLabel"), todoMemo:$("todoMemo"), todoIncludeInStats:$("todoIncludeInStats"), todoHideInWidget:$("todoHideInWidget"),
-  todoBacklog:$("todoBacklog"),
+  todoBacklog:$("todoBacklog"), todoEditScopeSection:$("todoEditScopeSection"),
   todoChecklistItems:$("todoChecklistItems"), addTodoChecklistItemButton:$("addTodoChecklistItemButton"),
   todoFormError:$("todoFormError"), todoModalEyebrow:$("todoModalEyebrow"), todoModalTitle:$("todoModalTitle"),
   deleteTodoButton:$("deleteTodoButton"),
@@ -712,7 +713,23 @@ function habitStreak(habit){
 }
 
 function activeHabitsOn(key){
-  return state.habits.filter(habit=>habitIsActive(habit,key));
+  return state.habits
+    .filter(habit=>habitIsActive(habit,key))
+    .map(habit=>habitForDate(habit,key));
+}
+function habitForDate(habit,key){
+  if(!habit)return habit;
+  const sourceHabitId=habit.sourceHabitId||habit.id;
+  const source=state.habits.find(item=>item.id===sourceHabitId)||habit;
+  const log=state.habitLogs[habitLogKey(sourceHabitId,key)];
+  const override=log?.override&&typeof log.override==="object"?log.override:{};
+  return {
+    ...source,
+    ...override,
+    id:sourceHabitId,
+    sourceHabitId,
+    occurrenceDate:key
+  };
 }
 function habitIsVisible(habit){
   return !habit.archived;
@@ -1873,6 +1890,9 @@ function renderHabitChecklistEditor(){
     input.placeholder=`항목 ${index+1}`;
     input.value=item.text||"";
     input.oninput=()=>{state.editingHabitChecklist[index].text=input.value};
+    input.onkeydown=event=>handleChecklistEditorEnter(
+      event,index,state.editingHabitChecklist.length,addHabitChecklistItem,el.habitChecklistItems
+    );
     const remove=document.createElement("button");
     remove.type="button";
     remove.className="checklist-remove-button";
@@ -1887,9 +1907,29 @@ function addHabitChecklistItem(){
   renderHabitChecklistEditor();
   requestAnimationFrame(()=>el.habitChecklistItems?.querySelector(".checklist-edit-row:last-child input")?.focus());
 }
+function handleChecklistEditorEnter(event,index,total,addItem,container){
+  if(event.key!=="Enter"||event.isComposing||event.keyCode===229)return;
+  event.preventDefault();
+  if(index>=total-1){
+    addItem();
+    return;
+  }
+  container?.querySelectorAll(".checklist-edit-row input")[index+1]?.focus();
+}
+function syncHabitEditScopeForm(){
+  if(!el.habitForm)return;
+  const editing=Boolean(el.habitId?.value);
+  const single=editing&&(el.habitForm.querySelector('input[name="habitEditScope"]:checked')?.value||"single")==="single";
+  [el.habitStartDate,el.habitRepeat,el.habitEndDate].forEach(field=>{
+    if(!field)return;
+    field.disabled=single;
+    field.closest("label")?.classList.toggle("field-disabled",single);
+  });
+}
 function resetHabitForm(){
   el.habitForm.reset();
   el.habitId.value="";
+  el.habitOccurrenceDate.value="";
   el.habitFormError.textContent="";
   el.habitStartDate.value=dateKey(new Date());
   el.habitRepeat.value="daily";
@@ -1899,24 +1939,38 @@ function resetHabitForm(){
   if(el.habitIncludeInStats)el.habitIncludeInStats.checked=true;
   if(el.habitHideInWidget)el.habitHideInWidget.checked=false;
   el.habitTargetCount.value="";
+  if(el.habitMemo)el.habitMemo.value="";
+  if(el.habitEditScopeSection)el.habitEditScopeSection.hidden=true;
+  const singleScope=el.habitForm.querySelector('input[name="habitEditScope"][value="single"]');
+  if(singleScope)singleScope.checked=true;
   state.editingHabitChecklist=[];
   renderHabitChecklistEditor();
+  syncHabitEditScopeForm();
 }
 function openHabitCreate(){haptic(12);resetHabitForm();el.habitModalEyebrow.textContent="NEW HABIT";el.habitModalTitle.textContent="습관 추가";el.deleteHabitButton.hidden=true;showHabitModal()}
 function openHabitEdit(habit){
+  const sourceId=habit?.sourceHabitId||habit?.id;
+  const source=state.habits.find(item=>item.id===sourceId)||habit;
+  if(!source)return;
+  const occurrenceDate=habit?.occurrenceDate||state.selectedHabitDateKey||dateKey(new Date());
+  const effective=habitForDate(source,occurrenceDate);
   resetHabitForm();
-  el.habitId.value=habit.id;
-  el.habitName.value=habit.name;
-  el.habitStartDate.value=habit.startDate;
-  el.habitRepeat.value=habit.repeat||"daily";
-  el.habitEndDate.value=habit.endDate||"";
-  el.habitShowDday.checked=Boolean(habit.showDday);
-  el.habitShowOnHome.checked=habit.showOnHome!==false;
-  if(el.habitIncludeInStats)el.habitIncludeInStats.checked=habit.includeInStats!==false;
-  if(el.habitHideInWidget)el.habitHideInWidget.checked=Boolean(habit.hideInWidget);
-  el.habitTargetCount.value=habit.targetCount||"";
-  state.editingHabitChecklist=normalizeChecklist(habit.checklist).map(item=>({...item}));
+  el.habitId.value=source.id;
+  el.habitOccurrenceDate.value=occurrenceDate;
+  el.habitName.value=effective.name;
+  el.habitStartDate.value=source.startDate;
+  el.habitRepeat.value=source.repeat||"daily";
+  el.habitEndDate.value=source.endDate||"";
+  el.habitShowDday.checked=Boolean(effective.showDday);
+  el.habitShowOnHome.checked=effective.showOnHome!==false;
+  if(el.habitIncludeInStats)el.habitIncludeInStats.checked=effective.includeInStats!==false;
+  if(el.habitHideInWidget)el.habitHideInWidget.checked=Boolean(effective.hideInWidget);
+  el.habitTargetCount.value=effective.targetCount||"";
+  if(el.habitMemo)el.habitMemo.value=effective.memo||"";
+  state.editingHabitChecklist=habitChecklistForDate(effective,occurrenceDate).map(item=>({...item}));
   renderHabitChecklistEditor();
+  if(el.habitEditScopeSection)el.habitEditScopeSection.hidden=false;
+  syncHabitEditScopeForm();
   el.habitModalEyebrow.textContent="EDIT HABIT";
   el.habitModalTitle.textContent="습관 수정";
   el.deleteHabitButton.hidden=false;
@@ -1952,6 +2006,7 @@ async function submitHabit(event){
   const includeInStats=el.habitIncludeInStats?.checked!==false;
   const hideInWidget=Boolean(el.habitHideInWidget?.checked);
   const targetCount=el.habitTargetCount.value?Math.max(1,Number(el.habitTargetCount.value)):null;
+  const memo=el.habitMemo?.value.trim()||"";
   const checklist=normalizeChecklist(state.editingHabitChecklist);
 
   if(!state.user||!name||!startDate)return;
@@ -1968,7 +2023,7 @@ async function submitHabit(event){
   const ref=collection(db,"users",state.user.uid,"habits");
 
   try{
-    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,hideInWidget,targetCount,checklist,updatedAt:serverTimestamp()};
+    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo,checklist,updatedAt:serverTimestamp()};
 
     if(el.habitId.value){
       const habitId=el.habitId.value;
@@ -1976,15 +2031,30 @@ async function submitHabit(event){
         habit=>habit.id===habitId
       );
       const previousHabitData=firestoreRecordData(previousHabit);
-
-      await updateDoc(doc(ref,habitId),data);
-
-      pushUndo("습관 수정",async()=>{
-        await setDoc(
-          doc(ref,habitId),
-          previousHabitData
-        );
-      });
+      const occurrenceDate=el.habitOccurrenceDate.value||state.selectedHabitDateKey||startDate;
+      const editScope=el.habitForm.querySelector('input[name="habitEditScope"]:checked')?.value||"single";
+      if(editScope==="single"){
+        const logId=habitLogKey(habitId,occurrenceDate);
+        const existing=state.habitLogs[logId]||{};
+        const override={name,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo,checklist};
+        state.habitLogs[logId]={...existing,id:logId,habitId,date:occurrenceDate,override};
+        await setDoc(doc(db,"users",state.user.uid,"habitLogs",logId),{
+          habitId,date:occurrenceDate,override,updatedAt:serverTimestamp()
+        },{merge:true});
+      }else{
+        await updateDoc(doc(ref,habitId),data);
+        const logId=habitLogKey(habitId,occurrenceDate);
+        if(state.habitLogs[logId]?.override){
+          state.habitLogs[logId]={...state.habitLogs[logId],override:null};
+          await setDoc(doc(db,"users",state.user.uid,"habitLogs",logId),{override:null,updatedAt:serverTimestamp()},{merge:true});
+        }
+        pushUndo("습관 수정",async()=>{
+          await setDoc(
+            doc(ref,habitId),
+            previousHabitData
+          );
+        });
+      }
     }else{
       const created=await addDoc(
         ref,
@@ -3360,8 +3430,11 @@ function todoOccurrence(todo,key){
   }
 
   const log=state.todoLogs[todoLogKey(todo.id,key)];
+  const override=log?.override&&typeof log.override==="object"?log.override:{};
   return {
     ...todo,
+    ...override,
+    id:todo.id,
     occurrenceDate:key,
     sourceTodoId:todo.id,
     status:log?.status||"pending",
@@ -3413,6 +3486,9 @@ function renderTodoChecklistEditor(){
     input.value=item.text||"";
     input.placeholder="체크리스트 항목";
     input.oninput=()=>{state.editingTodoChecklist[index].text=input.value};
+    input.onkeydown=event=>handleChecklistEditorEnter(
+      event,index,state.editingTodoChecklist.length,addTodoChecklistItem,el.todoChecklistItems
+    );
 
     const remove=document.createElement("button");
     remove.type="button";
@@ -3434,6 +3510,7 @@ function addTodoChecklistItem(){
     status:"pending"
   });
   renderTodoChecklistEditor();
+  requestAnimationFrame(()=>el.todoChecklistItems?.querySelector(".checklist-edit-row:last-child input")?.focus());
 }
 function normalizedTodoChecklist(){
   return state.editingTodoChecklist
@@ -3476,6 +3553,7 @@ function syncTodoBacklogForm(){
   el.todoDate.closest("label").classList.toggle("field-disabled",backlog);
   el.todoRepeat.closest("label").classList.toggle("field-disabled",backlog);
   syncTodoRepeatEndForm();
+  syncTodoEditScopeForm();
 }
 function syncTodoRepeatEndForm(){
   const repeating=!el.todoBacklog?.checked&&(el.todoRepeat.value||"none")!=="none";
@@ -3483,6 +3561,17 @@ function syncTodoRepeatEndForm(){
   el.todoRepeatEndDate.disabled=!repeating;
   el.todoRepeatEndDate.min=el.todoDate.value||"";
   if(!repeating)el.todoRepeatEndDate.value="";
+}
+function syncTodoEditScopeForm(){
+  if(!el.todoForm)return;
+  const source=state.todos.find(todo=>todo.id===el.todoEditId?.value);
+  const recurring=Boolean(source&&(source.repeat||"none")!=="none");
+  const single=recurring&&(el.todoForm.querySelector('input[name="todoEditScope"]:checked')?.value||"single")==="single";
+  [el.todoDate,el.todoRepeat,el.todoRepeatEndDate,el.todoBacklog].forEach(field=>{
+    if(!field)return;
+    if(single)field.disabled=true;
+    field.closest("label")?.classList.toggle("scope-field-disabled",single);
+  });
 }
 function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   el.todoForm.reset();
@@ -3495,6 +3584,9 @@ function resetTodoForm(date=state.selectedDateKey,{backlog=false}={}){
   if(el.todoBacklog)el.todoBacklog.checked=backlog;
   if(el.todoIncludeInStats)el.todoIncludeInStats.checked=false;
   if(el.todoHideInWidget)el.todoHideInWidget.checked=false;
+  if(el.todoEditScopeSection)el.todoEditScopeSection.hidden=true;
+  const singleScope=el.todoForm.querySelector('input[name="todoEditScope"][value="single"]');
+  if(singleScope)singleScope.checked=true;
   syncTodoBacklogForm();
   setImportance("todo",false);
   state.editingTodoChecklist=[];
@@ -3529,26 +3621,32 @@ function openTodoCreate(date=state.selectedDateKey,options={}){
 }
 function openTodoEdit(todo){
   if(!todo)return;
-  resetTodoForm(todo.occurrenceDate||todo.date);
+  const source=state.todos.find(item=>item.id===todo.id)||todo;
+  const occurrenceDate=todo.occurrenceDate||source.date;
+  const effective=(source.repeat||"none")!=="none"?(todoOccurrence(source,occurrenceDate)||todo):source;
+  resetTodoForm(occurrenceDate);
 
-  el.todoEditId.value=todo.id;
-  el.todoOccurrenceDate.value=todo.occurrenceDate||todo.date;
-  el.todoName.value=todo.text||"";
-  el.todoDate.value=todo.date;
-  el.todoRepeat.value=todo.repeat||"none";
-  el.todoRepeatEndDate.value=todo.endDate||"";
-  el.todoMemo.value=todo.memo||"";
-  if(el.todoBacklog)el.todoBacklog.checked=Boolean(todo.backlog);
-  if(el.todoIncludeInStats)el.todoIncludeInStats.checked=todo.includeInStats===true;
-  if(el.todoHideInWidget)el.todoHideInWidget.checked=Boolean(todo.hideInWidget);
+  el.todoEditId.value=source.id;
+  el.todoOccurrenceDate.value=occurrenceDate;
+  el.todoName.value=effective.text||"";
+  el.todoDate.value=source.date;
+  el.todoRepeat.value=source.repeat||"none";
+  el.todoRepeatEndDate.value=source.endDate||"";
+  el.todoMemo.value=effective.memo||"";
+  if(el.todoBacklog)el.todoBacklog.checked=Boolean(source.backlog);
+  if(el.todoIncludeInStats)el.todoIncludeInStats.checked=effective.includeInStats===true;
+  if(el.todoHideInWidget)el.todoHideInWidget.checked=Boolean(effective.hideInWidget);
   syncTodoBacklogForm();
   syncTodoRepeatEndForm();
-  setImportance("todo",Boolean(todo.important));
-  state.editingTodoChecklist=normalizeChecklist(todo.checklist).map(item=>({...item}));
+  setImportance("todo",Boolean(effective.important));
+  state.editingTodoChecklist=todoChecklistForOccurrence(effective).map(item=>({...item}));
   renderTodoChecklistEditor();
 
+  if(el.todoEditScopeSection)el.todoEditScopeSection.hidden=(source.repeat||"none")==="none";
+  syncTodoBacklogForm();
+
   el.todoModalEyebrow.textContent="EDIT TO DO";
-  el.todoModalTitle.textContent=(todo.repeat||"none")!=="none"?"반복 할 일 수정":"할 일 수정";
+  el.todoModalTitle.textContent=(source.repeat||"none")!=="none"?"반복 할 일 수정":"할 일 수정";
   el.deleteTodoButton.hidden=false;
   showTodoModal();
 }
@@ -3590,20 +3688,37 @@ async function submitTodoForm(event){
       const source=state.todos.find(todo=>todo.id===id);
       if(!source)return;
       const occurrenceDate=el.todoOccurrenceDate.value||source.date;
-      const existingOccurrence=todoOccurrence(source,occurrenceDate);
-      const overdue=occurrenceDate<dateKey(new Date())&&!["done","cancelled","rolled"].includes(existingOccurrence?.status||source.status||"pending");
-      await updateDoc(
-        doc(db,"users",state.user.uid,"todos",id),
-        {
-          text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,hideInWidget,
-          ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
-          updatedAt:serverTimestamp()
-        }
-      );
-      if((repeat||"none")!=="none"&&overdue){
-        await setDoc(doc(db,"users",state.user.uid,"todoLogs",todoLogKey(id,occurrenceDate)),{
-          todoId:id,date:occurrenceDate,status:"rolled",rolledTo:dateKey(new Date()),updatedAt:serverTimestamp()
+      const recurring=(source.repeat||"none")!=="none";
+      const editScope=recurring?(el.todoForm.querySelector('input[name="todoEditScope"]:checked')?.value||"single"):"all";
+      if(editScope==="single"){
+        const logId=todoLogKey(id,occurrenceDate);
+        const existing=state.todoLogs[logId]||{};
+        const override={text,memo,checklist,important,includeInStats,hideInWidget};
+        state.todoLogs[logId]={...existing,id:logId,todoId:id,date:occurrenceDate,override};
+        await setDoc(doc(db,"users",state.user.uid,"todoLogs",logId),{
+          todoId:id,date:occurrenceDate,override,updatedAt:serverTimestamp()
         },{merge:true});
+      }else{
+        const existingOccurrence=todoOccurrence(source,occurrenceDate);
+        const overdue=occurrenceDate<dateKey(new Date())&&!["done","cancelled","rolled"].includes(existingOccurrence?.status||source.status||"pending");
+        await updateDoc(
+          doc(db,"users",state.user.uid,"todos",id),
+          {
+            text,date,repeat:backlog?"none":repeat,endDate,memo,checklist,important,backlog,includeInStats,hideInWidget,
+            ...((repeat||"none")==="none"&&overdue?{status:"rolled",rolledTo:dateKey(new Date())}:{}),
+            updatedAt:serverTimestamp()
+          }
+        );
+        const logId=todoLogKey(id,occurrenceDate);
+        if(state.todoLogs[logId]?.override){
+          state.todoLogs[logId]={...state.todoLogs[logId],override:null};
+          await setDoc(doc(db,"users",state.user.uid,"todoLogs",logId),{override:null,updatedAt:serverTimestamp()},{merge:true});
+        }
+        if((repeat||"none")!=="none"&&overdue){
+          await setDoc(doc(db,"users",state.user.uid,"todoLogs",logId),{
+            todoId:id,date:occurrenceDate,status:"rolled",rolledTo:dateKey(new Date()),updatedAt:serverTimestamp()
+          },{merge:true});
+        }
       }
     }else{
       await addDoc(
@@ -4515,6 +4630,12 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=
       <button class="selected-habit-name" type="button"><strong>${escapeHtml(habit.name)}</strong><small>${habitMeta}</small></button>
       <button class="selected-habit-progress" type="button" style="--habit-progress:${progress*3.6}deg">${progress}%</button>
     `;
+    if(habit.memo){
+      const memo=document.createElement("span");
+      memo.className="entity-memo-preview habit-memo-preview";
+      memo.textContent=habit.memo;
+      row.querySelector(".selected-habit-name")?.appendChild(memo);
+    }
     row.querySelector(".selected-habit-name").onclick=()=>openHabitEdit(habit);
     row.querySelector(".selected-habit-progress").onclick=()=>{
       setHabitProgress(
@@ -4756,6 +4877,9 @@ function renderChecklistEditor(){
     input.addEventListener("input",()=>{
       state.editingChecklist[index].text=input.value;
     });
+    input.addEventListener("keydown",event=>handleChecklistEditorEnter(
+      event,index,state.editingChecklist.length,addChecklistItem,el.checklistItems
+    ));
 
     const remove=document.createElement("button");
     remove.type="button";
@@ -7163,6 +7287,9 @@ if(el.todayNextDateButton)el.todayNextDateButton.onclick=()=>shiftSelectedHomeDa
 if(el.homeHabitPrevDateButton)el.homeHabitPrevDateButton.onclick=()=>shiftSelectedHomeDate(-1,homeDateAnchors.habit);
 if(el.homeHabitNextDateButton)el.homeHabitNextDateButton.onclick=()=>shiftSelectedHomeDate(1,homeDateAnchors.habit);
 el.todoForm.onsubmit=submitTodoForm;
+el.todoForm.querySelectorAll('input[name="todoEditScope"]').forEach(input=>{
+  input.addEventListener("change",syncTodoBacklogForm);
+});
 if(el.eventImportantButton)el.eventImportantButton.onclick=()=>setImportance("event",!state.eventImportant);
 if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo",!state.todoImportant);
 el.addTodoChecklistItemButton.onclick=addTodoChecklistItem;
@@ -7206,6 +7333,9 @@ $("openHabitModal").onclick=openHabitCreate;
 $("closeHabitModal").onclick=closeHabitModal;
 $("cancelHabit").onclick=closeHabitModal;
 el.habitForm.onsubmit=submitHabit;
+el.habitForm.querySelectorAll('input[name="habitEditScope"]').forEach(input=>{
+  input.addEventListener("change",syncHabitEditScopeForm);
+});
 el.addHabitChecklistItemButton?.addEventListener("click",addHabitChecklistItem);
 el.deleteHabitButton.onclick=deleteHabit;
 el.habitEndDate.addEventListener("click",()=>{
