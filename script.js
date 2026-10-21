@@ -57,7 +57,7 @@ const state = {
   weekZoom:100, weekFit:false, weekVisibleDays:7,
   activePage:"calendar",
   statsDate:dateKey(new Date()), statsInsightDate:null, reportWeekOffset:0,
-  habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()), editingHabitChecklist:[],
+  habits:[], habitLogs:{}, selectedHabitDateKey:dateKey(new Date()),
   todos:[], todoLogs:{}, unsubscribeTodos:null, unsubscribeTodoLogs:null, todoRolloverRunning:false, todoDedupeRunning:false,
   editingTodoChecklist:[], eventImportant:false, todoImportant:false,
   todoOverviewMonth:startOfMonth(new Date()),
@@ -168,7 +168,6 @@ const el = {
   habitStartDate:$("habitStartDate"), habitRepeat:$("habitRepeat"), habitEndDate:$("habitEndDate"),
   habitShowDday:$("habitShowDday"), habitShowOnHome:$("habitShowOnHome"), habitTargetCount:$("habitTargetCount"), habitMemo:$("habitMemo"), habitIncludeInStats:$("habitIncludeInStats"), habitHideInWidget:$("habitHideInWidget"),
   habitEditScopeSection:$("habitEditScopeSection"),
-  habitChecklistItems:$("habitChecklistItems"), addHabitChecklistItemButton:$("addHabitChecklistItemButton"),
   habitModalEyebrow:$("habitModalEyebrow"), habitModalTitle:$("habitModalTitle"), habitFormError:$("habitFormError"),
   deleteHabitButton:$("deleteHabitButton"), saveHabitButton:$("saveHabitButton"),
   mobileCalendarNav:$("mobileCalendarNavButton"), mobileWeekNav:$("mobileWeekNavButton"), mobileHabitNav:$("mobileHabitNavButton"), mobileStatsNav:$("mobileStatsNavButton"),
@@ -741,7 +740,7 @@ function statisticalHabitsOn(key){
   return activeHabitsOn(key).filter(habit=>habit.includeInStats!==false);
 }
 function statisticalTodosForDate(key){
-  return todosForDate(key).filter(todo=>todo.includeInStats===true);
+  return todosForDate(key).filter(todo=>todo.includeInStats===true&&!["cancelled","failed","rolled"].includes(todo.status));
 }
 function statisticalScheduleValuesForDate(key){
   return [
@@ -1869,44 +1868,6 @@ function renderHabitHeatmap(){
     });
   }
 }
-function renderHabitChecklistEditor(){
-  if(!el.habitChecklistItems)return;
-  el.habitChecklistItems.innerHTML="";
-  state.editingHabitChecklist.forEach((item,index)=>{
-    const row=document.createElement("div");
-    row.className="checklist-edit-row";
-    const statusButton=document.createElement("button");
-    statusButton.type="button";
-    statusButton.className=`checklist-status-button status-${item.status||"pending"}`;
-    statusButton.textContent=checklistStatusIcon(item.status||"pending");
-    statusButton.onclick=()=>{
-      const status=nextChecklistStatus(state.editingHabitChecklist[index].status||"pending");
-      state.editingHabitChecklist[index]={...state.editingHabitChecklist[index],status,done:status==="done"};
-      renderHabitChecklistEditor();
-    };
-    const input=document.createElement("input");
-    input.type="text";
-    input.maxLength=80;
-    input.placeholder=`항목 ${index+1}`;
-    input.value=item.text||"";
-    input.oninput=()=>{state.editingHabitChecklist[index].text=input.value};
-    input.onkeydown=event=>handleChecklistEditorEnter(
-      event,index,state.editingHabitChecklist.length,addHabitChecklistItem,el.habitChecklistItems
-    );
-    const remove=document.createElement("button");
-    remove.type="button";
-    remove.className="checklist-remove-button";
-    remove.textContent="×";
-    remove.onclick=()=>{state.editingHabitChecklist.splice(index,1);renderHabitChecklistEditor()};
-    row.append(statusButton,input,remove);
-    el.habitChecklistItems.appendChild(row);
-  });
-}
-function addHabitChecklistItem(){
-  state.editingHabitChecklist.push(createChecklistItem());
-  renderHabitChecklistEditor();
-  requestAnimationFrame(()=>el.habitChecklistItems?.querySelector(".checklist-edit-row:last-child input")?.focus());
-}
 function handleChecklistEditorEnter(event,index,total,addItem,container){
   if(event.key!=="Enter"||event.isComposing||event.keyCode===229)return;
   event.preventDefault();
@@ -1943,8 +1904,6 @@ function resetHabitForm(){
   if(el.habitEditScopeSection)el.habitEditScopeSection.hidden=true;
   const singleScope=el.habitForm.querySelector('input[name="habitEditScope"][value="single"]');
   if(singleScope)singleScope.checked=true;
-  state.editingHabitChecklist=[];
-  renderHabitChecklistEditor();
   syncHabitEditScopeForm();
 }
 function openHabitCreate(){haptic(12);resetHabitForm();el.habitModalEyebrow.textContent="NEW HABIT";el.habitModalTitle.textContent="습관 추가";el.deleteHabitButton.hidden=true;showHabitModal()}
@@ -1967,8 +1926,6 @@ function openHabitEdit(habit){
   if(el.habitHideInWidget)el.habitHideInWidget.checked=Boolean(effective.hideInWidget);
   el.habitTargetCount.value=effective.targetCount||"";
   if(el.habitMemo)el.habitMemo.value=effective.memo||"";
-  state.editingHabitChecklist=habitChecklistForDate(effective,occurrenceDate).map(item=>({...item}));
-  renderHabitChecklistEditor();
   if(el.habitEditScopeSection)el.habitEditScopeSection.hidden=false;
   syncHabitEditScopeForm();
   el.habitModalEyebrow.textContent="EDIT HABIT";
@@ -2007,7 +1964,6 @@ async function submitHabit(event){
   const hideInWidget=Boolean(el.habitHideInWidget?.checked);
   const targetCount=el.habitTargetCount.value?Math.max(1,Number(el.habitTargetCount.value)):null;
   const memo=el.habitMemo?.value.trim()||"";
-  const checklist=normalizeChecklist(state.editingHabitChecklist);
 
   if(!state.user||!name||!startDate)return;
 
@@ -2023,7 +1979,7 @@ async function submitHabit(event){
   const ref=collection(db,"users",state.user.uid,"habits");
 
   try{
-    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo,checklist,updatedAt:serverTimestamp()};
+    const data={name,startDate,repeat,endDate,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo,updatedAt:serverTimestamp()};
 
     if(el.habitId.value){
       const habitId=el.habitId.value;
@@ -2036,7 +1992,7 @@ async function submitHabit(event){
       if(editScope==="single"){
         const logId=habitLogKey(habitId,occurrenceDate);
         const existing=state.habitLogs[logId]||{};
-        const override={name,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo,checklist};
+        const override={name,showDday,showOnHome,includeInStats,hideInWidget,targetCount,memo};
         state.habitLogs[logId]={...existing,id:logId,habitId,date:occurrenceDate,override};
         await setDoc(doc(db,"users",state.user.uid,"habitLogs",logId),{
           habitId,date:occurrenceDate,override,updatedAt:serverTimestamp()
@@ -3425,7 +3381,7 @@ function todoOccurrence(todo,key){
       ...todo,
       occurrenceDate:key,
       sourceTodoId:todo.sourceTodoId||todo.id,
-      status:todo.status||"pending"
+      status:todo.status==="failed"?"cancelled":todo.status||"pending"
     };
   }
 
@@ -3437,7 +3393,7 @@ function todoOccurrence(todo,key){
     id:todo.id,
     occurrenceDate:key,
     sourceTodoId:todo.id,
-    status:log?.status||"pending",
+    status:log?.status==="failed"?"cancelled":log?.status||"pending",
     rolledTo:log?.rolledTo||"",
     occurrenceLogId:log?.id||""
   };
@@ -3454,12 +3410,13 @@ function todosForDate(key){
 }
 function todoCompletionForKeys(keys){
   const items=keys.flatMap(key=>todosForDate(key));
+  const eligible=items.filter(todo=>!["cancelled","failed","rolled"].includes(todo.status));
   const done=items.filter(todo=>todo.status==="done");
   return {
-    total:items.length,
+    total:eligible.length,
     done:done.length,
     cancelled:items.filter(todo=>todo.status==="cancelled"||todo.status==="rolled").length,
-    progress:items.length?Math.round(done.length/items.length*100):0
+    progress:eligible.length?Math.round(done.length/eligible.length*100):0
   };
 }
 function renderTodoChecklistEditor(){
@@ -4332,12 +4289,13 @@ function listenTodos(user){
 
 function todoDayCompletion(key){
   const items=todosForDate(key);
+  const eligible=items.filter(item=>!["cancelled","failed","rolled"].includes(item.status));
   const done=items.filter(item=>item.status==="done").length;
   return {
     items,
     done,
-    total:items.length,
-    progress:items.length?Math.round(done/items.length*100):0
+    total:eligible.length,
+    progress:eligible.length?Math.round(done/eligible.length*100):0
   };
 }
 function showTodoOverview(){
@@ -4486,8 +4444,8 @@ function renderSelected(){
         const count=document.createElement("div");
         count.className="event-checklist-summary";
         count.textContent=
-          summary.failed
-            ?`완료 ${summary.done} · 실패 ${summary.failed} · 전체 ${summary.total}`
+          summary.cancelled
+            ?`완료 ${summary.done} · 취소 ${summary.cancelled} · 전체 ${summary.total}`
             :`완료 ${summary.done}/${summary.total}`;
         list.appendChild(count);
         main.appendChild(list);
@@ -4645,14 +4603,6 @@ function renderSelectedHabitPreview(key,habits=activeHabitsOn(key).filter(habit=
         {optimistic:true}
       );
     };
-    const checklistPreview=entityChecklistPreview(
-      habitChecklistForDate(habit,key),
-      (itemId,status)=>toggleHabitChecklistItem(habit,key,itemId,status)
-    );
-    if(checklistPreview){
-      checklistPreview.classList.add("habit-checklist-preview");
-      row.querySelector(".selected-habit-name")?.insertAdjacentElement("afterend",checklistPreview);
-    }
     el.selectedHabitPreview.appendChild(row);
   });
 }
@@ -4686,7 +4636,8 @@ function normalizeChecklist(items){
   return items
     .map(item=>{
       const legacyDone=Boolean(item.done);
-      const status=["pending","done","failed"].includes(item.status)
+      if(item.status==="failed")item={...item,status:"cancelled"};
+      const status=["pending","done","cancelled"].includes(item.status)
         ?item.status
         :(legacyDone?"done":"pending");
 
@@ -4709,12 +4660,12 @@ function createChecklistItem(text="",status="pending"){
 }
 function checklistStatusIcon(status){
   if(status==="done")return "✓";
-  if(status==="failed")return "×";
+  if(status==="cancelled")return "×";
   return "□";
 }
 function nextChecklistStatus(status){
   if(status==="pending")return "done";
-  if(status==="done")return "failed";
+  if(status==="done")return "cancelled";
   return "pending";
 }
 function entityChecklistPreview(items,onToggle){
@@ -4744,7 +4695,7 @@ function todoChecklistForOccurrence(todo){
   const base=normalizeChecklist(todo.checklist);
   if((todo.repeat||"none")==="none")return base;
   const key=todo.occurrenceDate||todo.date;
-  const statuses=state.todoLogs[todoLogKey(todo.id,key)]?.checklistStatuses||{};
+  const statuses=Object.fromEntries(Object.entries(state.todoLogs[todoLogKey(todo.id,key)]?.checklistStatuses||{}).map(([id,status])=>[id,status==="failed"?"cancelled":status]));
   return base.map(item=>({...item,status:statuses[item.id]||item.status,done:(statuses[item.id]||item.status)==="done"}));
 }
 async function toggleTodoChecklistItem(todo,itemId,status){
@@ -4763,19 +4714,6 @@ async function toggleTodoChecklistItem(todo,itemId,status){
     renderTodos();
   }catch(error){console.error(error);showToast("체크리스트를 저장하지 못했습니다.")}
 }
-function habitChecklistForDate(habit,key){
-  const statuses=state.habitLogs[habitLogKey(habit.id,key)]?.checklistStatuses||{};
-  return normalizeChecklist(habit.checklist).map(item=>({...item,status:statuses[item.id]||item.status,done:(statuses[item.id]||item.status)==="done"}));
-}
-async function toggleHabitChecklistItem(habit,key,itemId,status){
-  const logId=habitLogKey(habit.id,key),existing=state.habitLogs[logId]||{};
-  const checklistStatuses={...(existing.checklistStatuses||{}),[itemId]:status};
-  state.habitLogs[logId]={...existing,id:logId,habitId:habit.id,date:key,checklistStatuses};
-  try{
-    await setDoc(doc(db,"users",state.user.uid,"habitLogs",logId),{habitId:habit.id,date:key,checklistStatuses,updatedAt:serverTimestamp()},{merge:true});
-    renderSelectedHabitPreview(key);
-  }catch(error){console.error(error);showToast("체크리스트를 저장하지 못했습니다.")}
-}
 function checklistForOccurrence(event){
   const base=normalizeChecklist(event.checklist);
   if((event.repeat||"none")==="none")return base;
@@ -4785,10 +4723,10 @@ function checklistForOccurrence(event){
     ||event.occurrenceDate
     ||event.date;
   const log=state.eventLogs[eventLogKey(event.id,occurrenceDate)];
-  const statuses=log?.checklistStatuses||{};
+  const statuses=Object.fromEntries(Object.entries(log?.checklistStatuses||{}).map(([id,status])=>[id,status==="failed"?"cancelled":status]));
 
   return base.map(item=>{
-    const status=["pending","done","failed"].includes(statuses[item.id])
+    const status=["pending","done","cancelled"].includes(statuses[item.id])
       ?statuses[item.id]
       :item.status;
 
@@ -4919,8 +4857,8 @@ function checklistSummary(event){
   const items=checklistForOccurrence(event);
   if(!items.length)return null;
   const done=items.filter(item=>item.status==="done").length;
-  const failed=items.filter(item=>item.status==="failed").length;
-  return {items,done,failed,total:items.length};
+  const cancelled=items.filter(item=>item.status==="cancelled").length;
+  return {items,done,cancelled,total:items.length};
 }
 function checklistOccurrenceDate(event){
   return event.occurrenceStartDate
@@ -4931,7 +4869,7 @@ function updateChecklistButtonVisual(button,status){
   button.classList.remove(
     "status-pending",
     "status-done",
-    "status-failed",
+    "status-cancelled",
     "done"
   );
   button.classList.add(`status-${status}`);
@@ -5088,8 +5026,8 @@ function bindChecklistTaps(container,event,selector){
       const current=
         button.classList.contains("status-done")
           ?"done"
-          :button.classList.contains("status-failed")
-            ?"failed"
+          :button.classList.contains("status-cancelled")
+            ?"cancelled"
             :"pending";
 
       toggleChecklistItem(
@@ -7336,7 +7274,6 @@ el.habitForm.onsubmit=submitHabit;
 el.habitForm.querySelectorAll('input[name="habitEditScope"]').forEach(input=>{
   input.addEventListener("change",syncHabitEditScopeForm);
 });
-el.addHabitChecklistItemButton?.addEventListener("click",addHabitChecklistItem);
 el.deleteHabitButton.onclick=deleteHabit;
 el.habitEndDate.addEventListener("click",()=>{
   if(!el.habitEndDate.value)return;
