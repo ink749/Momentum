@@ -3782,6 +3782,31 @@ async function deleteEntireTodoSeries(){
     el.todoFormError.textContent="반복 할 일 전체를 삭제하지 못했습니다.";
   }
 }
+function todoRolloverOrigin(todo){
+  let current=todo;
+  const seen=new Set();
+  let origin="";
+  while(current&&!seen.has(current.id)){
+    seen.add(current.id);
+    if(current.rolloverOriginDate)return current.rolloverOriginDate;
+    if(!current.rolledFrom)break;
+    if(current.sourceOccurrenceDate)origin=current.sourceOccurrenceDate;
+    const parent=state.todos.find(item=>item.id===current.rolledFrom);
+    if(!parent)break;
+    if((parent.repeat||"none")!=="none")break;
+    origin=parent.date||origin;
+    current=parent;
+  }
+  return origin;
+}
+function todoRolloverDays(todo){
+  if(todo.backlog)return 0;
+  const origin=todoRolloverOrigin(todo);
+  const end=todo.occurrenceDate||todo.date;
+  const utc=key=>/^\d{4}-\d{2}-\d{2}$/.test(key||"")?Date.parse(`${key}T00:00:00Z`):NaN;
+  const days=Math.round((utc(end)-utc(origin))/86400000);
+  return Number.isFinite(days)?Math.max(0,days):0;
+}
 function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   const row=document.createElement("div");
   row.className=`todo-row${compact?" compact":""} status-${todo.status||"pending"}`;
@@ -3814,6 +3839,15 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   const main=document.createElement("div");
   main.className="todo-main";
   main.appendChild(text);
+  const rolloverDays=todoRolloverDays(todo);
+  if(rolloverDays>0){
+    const count=document.createElement("small");
+    count.className="todo-rollover-days";
+    count.textContent=String(rolloverDays);
+    count.title=`최초 예정일부터 ${rolloverDays}일 이월`;
+    count.setAttribute("aria-label",count.title);
+    text.appendChild(count);
+  }
   if(todo.memo){
     const memo=document.createElement("p");
     memo.className="entity-memo-preview todo-memo-preview";
@@ -4145,6 +4179,7 @@ async function createRolledTodo(todo,nextKey,key){
       rolledFrom:todo.id,
       sourceTodoId:sourceId,
       sourceOccurrenceDate:key,
+      rolloverOriginDate:todoRolloverOrigin(todo)||key,
       rolledTo:"",
       createdAt:serverTimestamp(),
       updatedAt:serverTimestamp()
