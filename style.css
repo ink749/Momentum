@@ -8059,4 +8059,6 @@ html{scrollbar-gutter:stable}
   .entity-edit-scope-options{grid-template-columns:1fr}
 }
 /* Small numeric age beside carried tasks; no extra row or badge. */
-.todo-rollover-days{font-size:10px;font-weight:400;margin-inline-start:6px;color:var(--muted);white-space:nowrap;vertical-align:super;}
+.todo-name-line{display:flex;align-items:center;gap:6px;min-width:0;}
+.todo-main .todo-name-line .todo-name-button{width:auto;flex:0 1 auto;min-width:0;}
+.todo-rollover-days{display:block;flex:0 0 auto;font-size:10px;font-weight:400;color:var(--green);white-space:nowrap;line-height:1.2;}

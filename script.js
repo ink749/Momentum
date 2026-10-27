@@ -3838,7 +3838,10 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
   };
   const main=document.createElement("div");
   main.className="todo-main";
-  main.appendChild(text);
+  const heading=document.createElement("div");
+  heading.className="todo-name-line";
+  heading.appendChild(text);
+  main.appendChild(heading);
   const rolloverDays=todoRolloverDays(todo);
   if(rolloverDays>0){
     const count=document.createElement("small");
@@ -3846,7 +3849,7 @@ function renderTodoRow(todo,{compact=false,onBlank=null}={}){
     count.textContent=String(rolloverDays);
     count.title=`최초 예정일부터 ${rolloverDays}일 이월`;
     count.setAttribute("aria-label",count.title);
-    text.appendChild(count);
+    heading.appendChild(count);
   }
   if(todo.memo){
     const memo=document.createElement("p");
