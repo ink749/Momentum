@@ -54,7 +54,11 @@ export function buildMomentumReport(api,start,end,today){
   habitRows.push([D(h.key),days[P(h.key).getDay()],x.id,x.name,x.category?api.categoryLabel(x.category):null,Number(x.targetCount)>0?Number(x.targetCount):null,null,h.recorded?R(h.progress):null,h.recorded?(h.progress===100?'달성':'미달성'):'미기록',null,D(x.startDate),D(x.endDate),x.memo||null,h.weight,h.weight*h.progress,h.recorded?'날짜별 수행값 저장됨':'수행값 없음; 기존 통계는 0% 반영',x.includeInStats===false?'미포함':'포함',D(x.archivedDate),describe(h.progress,h.recorded)]);
  }
  const rows=[['구분','항목','값','설명'],['기간','분석 시작일',D(start)],['기간','분석 종료일',D(end)],['기간','평가 마감일',D(end<today?end:today),'미래 계획은 원본에 포함하되 평가에서는 제외'],['기본','종합 수행률',R(summary.rate)],['기본','일정 수행률',R(mean(summary.events)),'포함 설정된 할 일 포함'],['기본','습관 수행률',R(mean(summary.habits))],['기본','평가된 전체 항목 수',summary.values.length],['기본','일정 평가 항목 수',summary.events.length],['기본','습관 평가 항목 수',summary.habits.length],['기본','계획된 일정시간 합계(분)',entries.filter(g=>g.type==='일정').reduce((s,g)=>s+g.minutes,0),'선택 기간과 겹치는 계획 구간; 통계 미포함·미래 계획도 포함'],['기본','실제 수행시간 합계(분)',null,'저장 필드 없음. 수행률로 시간을 환산하지 않음'],['검증','원본-화면 평가 항목 일치',source.planned===summary.values.length?'일치':'불일치'],['검증','원본-화면 수행률 일치',source.rate===summary.rate?'일치':'불일치']];
- const compare=(label,s,e,ps,pe)=>{const a=stats(s,e),b=stats(ps,pe);rows.push([label,'현재 기간',`${s} ~ ${e}`],[label,'비교 기간',`${ps} ~ ${pe}`],[label,'현재 수행률',R(a.rate)],[label,'이전 수행률',R(b.rate)],[label,'수행률 증감(%p)',a.rate==null||b.rate==null?null:a.rate-b.rate],[label,'현재 평가 항목 수',a.values.length],[label,'이전 평가 항목 수',b.values.length],[label,'평가 항목 수 증감',a.values.length-b.values.length]);};
+ const compare=(label,s,e,ps,pe)=>{
+  // Comparisons must respect both the chosen export end and the evaluation cutoff.
+  e=[e,end,today].sort()[0];
+  pe=[pe,end,today].sort()[0];
+  const a=stats(s,e),b=stats(ps,pe);rows.push([label,'현재 기간',`${s<=e?`${s} ~ ${e}`:'평가 대상 기간 없음'}`],[label,'비교 기간',`${ps<=pe?`${ps} ~ ${pe}`:'평가 대상 기간 없음'}`],[label,'현재 수행률',R(a.rate)],[label,'이전 수행률',R(b.rate)],[label,'수행률 증감(%p)',a.rate==null||b.rate==null?null:a.rate-b.rate],[label,'현재 평가 항목 수',a.values.length],[label,'이전 평가 항목 수',b.values.length],[label,'평가 항목 수 증감',a.values.length-b.values.length]);};
  const ws=api.startOfWeek(P(end)),ms=new Date(P(end).getFullYear(),P(end).getMonth(),1),pms=new Date(ms.getFullYear(),ms.getMonth()-1,1);
  compare('지난주 대비(종료일 기준 주)',K(ws),K(A(ws,6)),K(A(ws,-7)),K(A(ws,-1)));
  compare('지난달 대비(종료일 기준 월)',K(ms),K(new Date(ms.getFullYear(),ms.getMonth()+1,0)),K(pms),K(A(ms,-1)));
@@ -96,7 +100,7 @@ export function installMomentumExport(api){
  const reset=()=>{readyFile=null;$('momentumExcelSave').hidden=true;$('momentumExcelShare').hidden=true;};
  const preset=()=>{const value=$('momentumExcelPreset').value;if(value==='custom')return;const now=new Date();let s,e;switch(value){case'week':s=api.startOfWeek(now);e=api.addDays(s,6);break;case'lastWeek':s=api.addDays(api.startOfWeek(now),-7);e=api.addDays(s,6);break;case'month':s=new Date(now.getFullYear(),now.getMonth(),1);e=new Date(now.getFullYear(),now.getMonth()+1,0);break;case'lastMonth':s=new Date(now.getFullYear(),now.getMonth()-1,1);e=new Date(now.getFullYear(),now.getMonth(),0);break;default:s=new Date(now.getFullYear(),0,1);e=new Date(now.getFullYear(),11,31)}$('momentumExcelStart').value=api.dateKey(s);$('momentumExcelEnd').value=api.dateKey(e);reset();};
  $('momentumExcelPreset').onchange=preset;for(const id of ['momentumExcelStart','momentumExcelEnd'])$(id).onchange=()=>{$('momentumExcelPreset').value='custom';reset()};
- const open=()=>{preset();panel.showModal()};$('openExcelExportButton')?.addEventListener('click',open);$('saveReportExcelButton')?.addEventListener('click',open);
+ const open=()=>{preset();panel.showModal()};$('saveReportExcelButton')?.addEventListener('click',open);
  $('momentumExcelBuild').onclick=async()=>{if(busy)return;reset();const s=$('momentumExcelStart').value,e=$('momentumExcelEnd').value;
  if(!s||!e||s>e||!panel.querySelector('form').reportValidity()){ $('momentumExcelStatus').textContent='시작일과 종료일을 확인해 주세요.';return }
  if((api.parseDateKey(e)-api.parseDateKey(s))/86400000>3660){$('momentumExcelStatus').textContent='모바일 메모리를 위해 한 번에 최대 10년씩 내보내 주세요.';return}
