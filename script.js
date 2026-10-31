@@ -1,3 +1,4 @@
+import { installMomentumExport } from "./momentum-export.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -791,21 +792,11 @@ function renderStats(){
   const monthScheduleValues=keys.flatMap(key=>statisticalScheduleValuesForDate(key));
   const monthEventAvg=monthScheduleValues.length?Math.round(monthScheduleValues.reduce((a,b)=>a+b,0)/monthScheduleValues.length):0;
 
-  const activeMonthHabits=state.habits.filter(habit=>habit.includeInStats!==false&&
-    keys.some(key=>habitIsActive(habit,key))
-  );
-  const monthHabitValues=[];
-  let perfectCount=0;
-
-  activeMonthHabits.forEach(habit=>{
-    keys.forEach(key=>{
-      if(habitIsActive(habit,key)){
-        const value=habitProgress(habit.id,key);
-        monthHabitValues.push(value);
-        if(value===100)perfectCount++;
-      }
-    });
-  });
+  // Use the same date-specific overrides as rangeSummary and the export.
+  const monthHabitEntries=keys.flatMap(key=>statisticalHabitsOn(key).map(habit=>({habit,key})));
+  const activeMonthHabits=[...new Map(monthHabitEntries.map(({habit})=>[habit.id,habit])).values()];
+  const monthHabitValues=monthHabitEntries.map(({habit,key})=>habitProgress(habit.id,key));
+  const perfectCount=monthHabitValues.filter(value=>value===100).length;
 
   const monthHabitAvg=monthHabitValues.length
     ?Math.round(monthHabitValues.reduce((a,b)=>a+b,0)/monthHabitValues.length)
@@ -7039,7 +7030,7 @@ $("detailedReportModal")?.addEventListener("click",event=>{if(event.target===$("
 $("reportPrevWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset--;openDetailedReport()});
 $("reportNextWeekButton")?.addEventListener("click",()=>{if(state.reportWeekOffset<0)state.reportWeekOffset++;openDetailedReport()});
 $("reportThisWeekButton")?.addEventListener("click",()=>{state.reportWeekOffset=0;openDetailedReport()});
-$("saveReportPdfButton")?.addEventListener("click",()=>window.print());
+installMomentumExport({state,dateKey,parseDateKey,addDays,startOfWeek,allEventsForDate,activeHabitsOn,todosForDate,habitLogKey,eventLogKey,todoLogKey,habitProgress,eventCategory,categoryLabel,occurrenceSegment,timeToMinutes,eventDurationMs,directionGoalsForYear,rangeSummary,progressDataIsReady});
 $("saveDirectionGoalsButton")?.addEventListener("click",()=>saveDirectionGoals().catch(error=>{console.error(error);$("directionSaveMessage").textContent="저장 실패"}));
 el.todoBacklog?.addEventListener("change",()=>{
   syncTodoBacklogForm();
