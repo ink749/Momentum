@@ -3760,6 +3760,45 @@ async function deleteOnlyCurrentTodoOccurrence(){
     el.todoFormError.textContent="이 날짜의 반복 할 일을 삭제하지 못했습니다.";
   }
 }
+function todoFutureDeletionPlan(source,cutoff){
+  const endDate=dateKey(addDays(parseDateKey(cutoff),-1));
+  const childIds=new Set(state.todos.filter(todo=>
+    todo.id!==source.id&&todo.sourceTodoId===source.id
+    &&(todo.rolloverOriginDate||todo.sourceOccurrenceDate||todo.date)>=cutoff
+  ).map(todo=>todo.id));
+  const logIds=Object.entries(state.todoLogs).filter(([id,log])=>
+    childIds.has(log.todoId)||(log.todoId===source.id&&log.date>=cutoff)
+  ).map(([id,log])=>log.id||id);
+  return {endDate:source.endDate&&source.endDate<endDate?source.endDate:endDate,childIds:[...childIds],logIds};
+}
+async function deleteFutureTodoOccurrences(){
+  if(!state.user||!el.todoEditId.value)return;
+  const source=state.todos.find(todo=>todo.id===el.todoEditId.value);
+  if(!source||(source.repeat||"none")==="none")return;
+  const cutoff=el.todoOccurrenceDate.value||source.date;
+  if(!cutoff)return;
+  const button=$("deleteFromThisTodoDateButton");
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    const plan=todoFutureDeletionPlan(source,cutoff);
+    // Stop future occurrences first, preserving the original series and past logs.
+    await updateDoc(doc(db,"users",state.user.uid,"todos",source.id),{endDate:plan.endDate,updatedAt:serverTimestamp()});
+    const refs=[...plan.childIds.map(id=>doc(db,"users",state.user.uid,"todos",id)),
+      ...plan.logIds.map(id=>doc(db,"users",state.user.uid,"todoLogs",id))];
+    for(let offset=0;offset<refs.length;offset+=400){
+      const batch=writeBatch(db);
+      refs.slice(offset,offset+400).forEach(ref=>batch.delete(ref));
+      await batch.commit();
+    }
+    closeTodoRepeatDeleteDialog();
+    closeTodoModal();
+  }catch(error){
+    console.error(error);
+    closeTodoRepeatDeleteDialog();
+    el.todoFormError.textContent="이 날짜 이후 삭제를 완료하지 못했습니다. 다시 시도해 주세요.";
+  }finally{button.disabled=false;}
+}
 async function deleteEntireTodoSeries(){
   if(!state.user||!el.todoEditId.value)return;
   try{
@@ -7261,6 +7300,7 @@ if(el.todoImportantButton)el.todoImportantButton.onclick=()=>setImportance("todo
 el.addTodoChecklistItemButton.onclick=addTodoChecklistItem;
 el.deleteTodoButton.onclick=deleteTodo;
 $("deleteOnlyThisTodoDateButton")?.addEventListener("click",deleteOnlyCurrentTodoOccurrence);
+$("deleteFromThisTodoDateButton")?.addEventListener("click",deleteFutureTodoOccurrences);
 $("deleteAllTodoRepeatsButton")?.addEventListener("click",deleteEntireTodoSeries);
 $("closeTodoRepeatDeleteDialog")?.addEventListener("click",closeTodoRepeatDeleteDialog);
 $("cancelTodoRepeatDeleteButton")?.addEventListener("click",closeTodoRepeatDeleteDialog);
