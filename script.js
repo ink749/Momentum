@@ -223,7 +223,7 @@ function fillTimeSelects(){
     `<option value="${pad(hour)}">${pad(hour)}시</option>`
   ).join("");
 
-  const minuteOptions=['00','30']
+  const minuteOptions=['00','10','20','30','40','50']
     .map(minute=>`<option value="${minute}">${minute}분</option>`)
     .join("");
 
@@ -233,7 +233,7 @@ function fillTimeSelects(){
   el.endMinute.innerHTML=minuteOptions;
 
   const mobileTimes=[];
-  for(let minutes=0;minutes<=24*60;minutes+=30){
+  for(let minutes=0;minutes<=24*60;minutes+=10){
     mobileTimes.push(minutesToTime(minutes));
   }
 
@@ -250,7 +250,7 @@ function timeToMinutes(value){
   return hour*60+minute;
 }
 function minutesToTime(minutes){
-  const safe=Math.max(0,Math.min(24*60,Math.round(minutes/30)*30));
+  const safe=Math.max(0,Math.min(24*60,Math.round(minutes/10)*10));
   if(safe===24*60)return "24:00";
   return `${pad(Math.floor(safe/60))}:${pad(safe%60)}`;
 }
@@ -265,7 +265,7 @@ function refreshMobileEndTimes(start,preferredEnd){
   const startMinutes=timeToMinutes(start||"09:00");
   const valid=[];
 
-  for(let minutes=startMinutes+30;minutes<=24*60;minutes+=30){
+  for(let minutes=startMinutes+10;minutes<=24*60;minutes+=10){
     valid.push(minutesToTime(minutes));
   }
 
@@ -415,7 +415,7 @@ function eventDurationMs(event){
     event.endTime||defaultEndTime(event.time||"09:00")
   );
 
-  return Math.max(30*60000,end-start);
+  return Math.max(10*60000,end-start);
 }
 function isRepeatStartOn(event,key){
   const target=parseDateKey(key);
@@ -511,7 +511,7 @@ function occurrenceInstancesForDate(event,key){
     const endKey=event.endDate||event.date;
     if(key<event.date||key>endKey)return [];
     // 자정에 정확히 끝나는 일정은 종료일의 00:00 이후 구간을
-    // 차지하지 않습니다. 0분 구간이 최소 30분 카드로 보이는 것을 방지합니다.
+    // 차지하지 않습니다. 0분 구간이 최소 10분 카드로 보이는 것을 방지합니다.
     if(
       key===endKey
       &&endKey!==event.date
@@ -2842,7 +2842,7 @@ function renderWeek(){
     layout.forEach(({event,columnIndex,columnCount})=>{
       const startMinutes=timeToMinutes(eventDisplayStart(event));
       const endMinutes=timeToMinutes(eventDisplayEnd(event));
-      const duration=Math.max(30,endMinutes-startMinutes);
+      const duration=Math.max(10,endMinutes-startMinutes);
 
       const block=document.createElement("div");
       block.className="google-week-event";
@@ -3039,8 +3039,8 @@ function bindWeekCreateGesture(column,date){
 
   const activateSelection=()=>{
     const from=Math.min(startMinutes,currentMinutes);
-    const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+60);
-    const duration=Math.max(60,to-from);
+    const to=Math.min(24*60,Math.max(startMinutes,currentMinutes)+30);
+    const duration=Math.max(30,to-from);
 
     if(selection&&!selection.isConnected)selection=null;
     if(!selection){
@@ -5542,7 +5542,7 @@ function renderDayView(){
     .forEach(({event,columnIndex,columnCount})=>{
       const startMinutes=timeToMinutes(eventDisplayStart(event));
       const endMinutes=timeToMinutes(eventDisplayEnd(event));
-      const duration=Math.max(30,endMinutes-startMinutes);
+      const duration=Math.max(10,endMinutes-startMinutes);
 
       const block=document.createElement("div");
       block.className=`day-view-event${duration<=30?" compact":""}`;
@@ -5729,8 +5729,7 @@ function setupWheelTimePicker(){
 
   minutesColumn.innerHTML=`
     <div class="wheel-spacer"></div>
-    <button type="button" class="wheel-item" data-value="0">00분</button>
-    <button type="button" class="wheel-item" data-value="30">30분</button>
+${[0,10,20,30,40,50].map(minute=>`<button type="button" class="wheel-item" data-value="${minute}">${pad(minute)}분</button>`).join("")}
     <div class="wheel-spacer"></div>
   `;
 
@@ -5885,7 +5884,7 @@ function setupWheelTimePicker(){
     );
     const [hourRaw,minuteRaw]=value.split(":").map(Number);
     const hour=Number.isFinite(hourRaw)?Math.max(0,Math.min(23,hourRaw)):9;
-    const minute=Number.isFinite(minuteRaw)&&minuteRaw>=30?30:0;
+    const minute=Number.isFinite(minuteRaw)?Math.max(0,Math.min(50,Math.round(minuteRaw/10)*10)):0;
 
     selectedIndex=hour;
     committedIndex=hour;
@@ -6557,7 +6556,7 @@ async function saveRecurringEventEdit({source,current,occurrenceDate,eventsRef})
     .some(key=>Object.prototype.hasOwnProperty.call(rangeChanges,key));
   if(dateTimeChanged){
     rangeChanges.durationMsOverride=Math.max(
-      30*60000,
+      10*60000,
       eventDateTime(current.endDate,current.endTime)
         -eventDateTime(current.date,current.time)
     );
@@ -6647,8 +6646,8 @@ async function submit(event){
   const startStamp=eventDateTime(date,time);
   const endStamp=eventDateTime(endDate,endTime);
 
-  if(endStamp<=startStamp){
-    el.formError.textContent="종료 날짜와 시간은 시작보다 늦어야 합니다.";
+  if(endStamp-startStamp<10*60000){
+    el.formError.textContent="일정 길이는 최소 10분이어야 합니다.";
     return;
   }
   if(repeatEndDate&&repeatEndDate<date){
@@ -7090,7 +7089,7 @@ el.categoryManagerModal.onclick=event=>{
 
     if(timeToMinutes(end)<=timeToMinutes(start)){
       end=defaultEndTime(start);
-      el.mobileEndTime.value=end==="24:00"?"23:30":end;
+      el.mobileEndTime.value=end;
     }
 
     syncHiddenTimes();
